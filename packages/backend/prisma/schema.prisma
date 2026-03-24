@@ -1,0 +1,508 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────
+
+enum Role {
+  admin
+  manager
+  qa
+  leader
+  agent_telesale
+  agent_collection
+}
+
+enum Gender {
+  male
+  female
+  other
+}
+
+enum LeadStatus {
+  new
+  contacted
+  qualified
+  proposal
+  won
+  lost
+}
+
+enum DebtTier {
+  current
+  dpd_1_30
+  dpd_31_60
+  dpd_61_90
+  dpd_90_plus
+}
+
+enum DebtStatus {
+  active
+  in_progress
+  promise_to_pay
+  paid
+  written_off
+}
+
+enum CampaignType {
+  telesale
+  collection
+}
+
+enum CampaignStatus {
+  draft
+  active
+  paused
+  completed
+}
+
+enum TicketStatus {
+  open
+  in_progress
+  resolved
+  closed
+}
+
+enum TicketPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum AgentStatus {
+  offline
+  ready
+  break
+  ringing
+  on_call
+  hold
+  wrap_up
+  transfer
+}
+
+enum CallDirection {
+  inbound
+  outbound
+}
+
+enum RecordingStatus {
+  available
+  failed
+  none
+}
+
+enum DispositionCategory {
+  telesale
+  collection
+  both
+}
+
+enum NotificationType {
+  follow_up_reminder
+  ptp_due
+  system_alert
+  campaign_assigned
+  recording_failed
+}
+
+enum WebhookStatus {
+  received
+  processed
+  failed
+  unmatched
+}
+
+enum RelationshipType {
+  spouse
+  parent
+  child
+  sibling
+  guarantor
+  colleague
+  other
+}
+
+enum AuditAction {
+  create
+  update
+  delete
+  view
+  play_recording
+  download
+  login
+  logout
+}
+
+enum UserStatus {
+  active
+  inactive
+}
+
+enum CallMode {
+  webrtc
+  softphone
+}
+
+enum TeamType {
+  telesale
+  collection
+}
+
+// ─── Models ──────────────────────────────────────────────
+
+model User {
+  id            String     @id @default(uuid()) @db.Uuid
+  email         String     @unique
+  passwordHash  String     @map("password_hash")
+  fullName      String     @map("full_name")
+  role          Role
+  teamId        String?    @map("team_id") @db.Uuid
+  sipExtension  String?    @map("sip_extension")
+  callMode      CallMode   @default(softphone) @map("call_mode")
+  status        UserStatus @default(active)
+  mustChangePassword Boolean @default(false) @map("must_change_password")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  team              Team?              @relation("TeamMembers", fields: [teamId], references: [id])
+  ledTeams          Team[]             @relation("TeamLeader")
+  contacts          Contact[]          @relation("AssignedContacts")
+  createdContacts   Contact[]          @relation("CreatedContacts")
+  leads             Lead[]
+  debtCases         DebtCase[]
+  callLogs          CallLog[]
+  qaAnnotations     QaAnnotation[]
+  tickets           Ticket[]
+  macros            Macro[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  agentStatusLogs   AgentStatusLog[]
+
+  @@map("users")
+}
+
+model Team {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  leaderId  String?  @map("leader_id") @db.Uuid
+  type      TeamType
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  leader  User?  @relation("TeamLeader", fields: [leaderId], references: [id])
+  members User[] @relation("TeamMembers")
+
+  @@map("teams")
+}
+
+model Contact {
+  id           String   @id @default(uuid()) @db.Uuid
+  fullName     String   @map("full_name")
+  phone        String
+  phoneAlt     String?  @map("phone_alt")
+  email        String?
+  idNumber     String?  @map("id_number")
+  address      String?
+  dateOfBirth  DateTime? @map("date_of_birth") @db.Date
+  gender       Gender?
+  source       String?
+  tags         Json?    @db.JsonB
+  customFields Json?    @map("custom_fields") @db.JsonB
+  assignedTo   String?  @map("assigned_to") @db.Uuid
+  createdBy    String?  @map("created_by") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  assignedUser   User?   @relation("AssignedContacts", fields: [assignedTo], references: [id])
+  createdByUser  User?   @relation("CreatedContacts", fields: [createdBy], references: [id])
+  leads          Lead[]
+  debtCases      DebtCase[]
+  callLogs       CallLog[]
+  tickets        Ticket[]
+  relationshipsFrom ContactRelationship[] @relation("ContactFrom")
+  relationshipsTo   ContactRelationship[] @relation("ContactTo")
+
+  @@index([phone])
+  @@map("contacts")
+}
+
+model Lead {
+  id           String     @id @default(uuid()) @db.Uuid
+  contactId    String     @map("contact_id") @db.Uuid
+  campaignId   String?    @map("campaign_id") @db.Uuid
+  status       LeadStatus @default(new)
+  score        Int        @default(0)
+  assignedTo   String?    @map("assigned_to") @db.Uuid
+  nextFollowUp DateTime?  @map("next_follow_up")
+  notes        String?
+  lostReason   String?    @map("lost_reason")
+  wonAmount    Decimal?   @map("won_amount") @db.Decimal(15, 2)
+  aiSummary    String?    @map("ai_summary")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  contact    Contact   @relation(fields: [contactId], references: [id])
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+  assignedUser User?   @relation(fields: [assignedTo], references: [id])
+
+  @@map("leads")
+}
+
+model DebtCase {
+  id                String     @id @default(uuid()) @db.Uuid
+  contactId         String     @map("contact_id") @db.Uuid
+  campaignId        String?    @map("campaign_id") @db.Uuid
+  originalAmount    Decimal    @map("original_amount") @db.Decimal(15, 2)
+  outstandingAmount Decimal    @map("outstanding_amount") @db.Decimal(15, 2)
+  dpd               Int        @default(0)
+  tier              DebtTier   @default(current)
+  status            DebtStatus @default(active)
+  assignedTo        String?    @map("assigned_to") @db.Uuid
+  promiseDate       DateTime?  @map("promise_date") @db.Date
+  promiseAmount     Decimal?   @map("promise_amount") @db.Decimal(15, 2)
+  aiSummary         String?    @map("ai_summary")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+
+  contact    Contact   @relation(fields: [contactId], references: [id])
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+  assignedUser User?   @relation(fields: [assignedTo], references: [id])
+
+  @@map("debt_cases")
+}
+
+model CallLog {
+  id                String          @id @default(uuid()) @db.Uuid
+  callUuid          String          @unique @map("call_uuid")
+  contactId         String?         @map("contact_id") @db.Uuid
+  userId            String?         @map("user_id") @db.Uuid
+  campaignId        String?         @map("campaign_id") @db.Uuid
+  direction         CallDirection
+  callerNumber      String          @map("caller_number")
+  destinationNumber String          @map("destination_number")
+  startTime         DateTime        @map("start_time")
+  answerTime        DateTime?       @map("answer_time")
+  endTime           DateTime?       @map("end_time")
+  duration          Int             @default(0)
+  billsec           Int             @default(0)
+  hangupCause       String?         @map("hangup_cause")
+  dispositionCodeId String?         @map("disposition_code_id") @db.Uuid
+  recordingPath     String?         @map("recording_path")
+  recordingStatus   RecordingStatus @default(none) @map("recording_status")
+  notes             String?
+  aiTranscript      String?         @map("ai_transcript")
+  aiSummary         String?         @map("ai_summary")
+  aiScore           Json?           @map("ai_score") @db.JsonB
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  contact        Contact?        @relation(fields: [contactId], references: [id])
+  user           User?           @relation(fields: [userId], references: [id])
+  campaign       Campaign?       @relation(fields: [campaignId], references: [id])
+  dispositionCode DispositionCode? @relation(fields: [dispositionCodeId], references: [id])
+  qaAnnotations  QaAnnotation[]
+  tickets        Ticket[]
+
+  @@index([callUuid])
+  @@index([startTime])
+  @@index([userId])
+  @@index([contactId])
+  @@map("call_logs")
+}
+
+model DispositionCode {
+  id               String              @id @default(uuid()) @db.Uuid
+  code             String              @unique
+  label            String
+  category         DispositionCategory
+  isFinal          Boolean             @default(false) @map("is_final")
+  requiresCallback Boolean             @default(false) @map("requires_callback")
+  isActive         Boolean             @default(true) @map("is_active")
+  sortOrder        Int                 @default(0) @map("sort_order")
+
+  callLogs                  CallLog[]
+  campaignDispositionCodes  CampaignDispositionCode[]
+
+  @@map("disposition_codes")
+}
+
+model Campaign {
+  id        String         @id @default(uuid()) @db.Uuid
+  name      String
+  type      CampaignType
+  status    CampaignStatus @default(draft)
+  startDate DateTime?      @map("start_date") @db.Date
+  endDate   DateTime?      @map("end_date") @db.Date
+  script    String?
+  createdBy String?        @map("created_by") @db.Uuid
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  leads                     Lead[]
+  debtCases                 DebtCase[]
+  callLogs                  CallLog[]
+  campaignDispositionCodes  CampaignDispositionCode[]
+
+  @@map("campaigns")
+}
+
+model QaAnnotation {
+  id             String   @id @default(uuid()) @db.Uuid
+  callLogId      String   @map("call_log_id") @db.Uuid
+  reviewerId     String   @map("reviewer_id") @db.Uuid
+  score          Int
+  criteriaScores Json?    @map("criteria_scores") @db.JsonB
+  comment        String?
+  timestampNote  Json?    @map("timestamp_note") @db.JsonB
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  callLog  CallLog @relation(fields: [callLogId], references: [id])
+  reviewer User    @relation(fields: [reviewerId], references: [id])
+
+  @@map("qa_annotations")
+}
+
+model Ticket {
+  id          String         @id @default(uuid()) @db.Uuid
+  contactId   String         @map("contact_id") @db.Uuid
+  callLogId   String?        @map("call_log_id") @db.Uuid
+  userId      String         @map("user_id") @db.Uuid
+  categoryId  String?        @map("category_id") @db.Uuid
+  subject     String
+  content     String?
+  resultCode  String?        @map("result_code")
+  status      TicketStatus   @default(open)
+  priority    TicketPriority @default(medium)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  contact  Contact         @relation(fields: [contactId], references: [id])
+  callLog  CallLog?        @relation(fields: [callLogId], references: [id])
+  user     User            @relation(fields: [userId], references: [id])
+  category TicketCategory? @relation(fields: [categoryId], references: [id])
+
+  @@map("tickets")
+}
+
+model TicketCategory {
+  id        String  @id @default(uuid()) @db.Uuid
+  name      String
+  parentId  String? @map("parent_id") @db.Uuid
+  isActive  Boolean @default(true) @map("is_active")
+  sortOrder Int     @default(0) @map("sort_order")
+
+  parent   TicketCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children TicketCategory[] @relation("CategoryTree")
+  tickets  Ticket[]
+
+  @@map("ticket_categories")
+}
+
+model Macro {
+  id        String  @id @default(uuid()) @db.Uuid
+  name      String
+  content   String
+  category  String?
+  shortcut  String?
+  createdBy String  @map("created_by") @db.Uuid
+  isGlobal  Boolean @default(false) @map("is_global")
+  isActive  Boolean @default(true) @map("is_active")
+
+  creator User @relation(fields: [createdBy], references: [id])
+
+  @@map("macros")
+}
+
+model ContactRelationship {
+  id               String           @id @default(uuid()) @db.Uuid
+  contactId        String           @map("contact_id") @db.Uuid
+  relatedContactId String           @map("related_contact_id") @db.Uuid
+  relationshipType RelationshipType @map("relationship_type")
+  notes            String?
+  createdAt        DateTime         @default(now()) @map("created_at")
+
+  contact        Contact @relation("ContactFrom", fields: [contactId], references: [id])
+  relatedContact Contact @relation("ContactTo", fields: [relatedContactId], references: [id])
+
+  @@map("contact_relationships")
+}
+
+model AuditLog {
+  id         String      @id @default(uuid()) @db.Uuid
+  userId     String?     @map("user_id") @db.Uuid
+  action     AuditAction
+  entityType String      @map("entity_type")
+  entityId   String?     @map("entity_id") @db.Uuid
+  changes    Json?       @db.JsonB
+  ipAddress  String?     @map("ip_address")
+  userAgent  String?     @map("user_agent")
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+model Notification {
+  id            String           @id @default(uuid()) @db.Uuid
+  userId        String           @map("user_id") @db.Uuid
+  type          NotificationType
+  title         String
+  message       String?
+  referenceType String?          @map("reference_type")
+  referenceId   String?          @map("reference_id") @db.Uuid
+  isRead        Boolean          @default(false) @map("is_read")
+  readAt        DateTime?        @map("read_at")
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+model WebhookLog {
+  id          String        @id @default(uuid()) @db.Uuid
+  source      String
+  callUuid    String?       @map("call_uuid")
+  rawPayload  String        @map("raw_payload")
+  status      WebhookStatus @default(received)
+  errorMessage String?      @map("error_message")
+  processedAt DateTime?     @map("processed_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  @@map("webhook_logs")
+}
+
+model AgentStatusLog {
+  id        String      @id @default(uuid()) @db.Uuid
+  userId    String      @map("user_id") @db.Uuid
+  status    AgentStatus
+  reason    String?
+  startedAt DateTime    @default(now()) @map("started_at")
+  endedAt   DateTime?   @map("ended_at")
+  duration  Int?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("agent_status_logs")
+}
+
+model CampaignDispositionCode {
+  campaignId       String @map("campaign_id") @db.Uuid
+  dispositionCodeId String @map("disposition_code_id") @db.Uuid
+  isActive         Boolean @default(true) @map("is_active")
+  sortOrder        Int     @default(0) @map("sort_order")
+
+  campaign        Campaign        @relation(fields: [campaignId], references: [id])
+  dispositionCode DispositionCode @relation(fields: [dispositionCodeId], references: [id])
+
+  @@id([campaignId, dispositionCodeId])
+  @@map("campaign_disposition_codes")
+}
