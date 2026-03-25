@@ -45,7 +45,7 @@ export async function originate(
   const domain = process.env.FUSIONPBX_DOMAIN || 'crm';
   // C2C: ring agent, on answer transfer to destination via FusionPBX outbound dialplan
   const cmd = `originate {ignore_early_media=true,origination_caller_id_number=${cid},origination_caller_id_name=CRM,originate_timeout=30}user/${ext}@${domain} &transfer(${dest} XML ${domain})`;
-  logger.info('C2C originate', { cmd, gateway, agentExt: ext, destination: dest });
+  logger.info('C2C originate', { cmd, agentExt: ext, destination: dest });
   await sendBgapi(cmd);
 }
 
