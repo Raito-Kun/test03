@@ -390,11 +390,11 @@ When contributing:
 
 ## Current Status
 
-**Phase**: 08 (Frontend Scaffolding) - IN PROGRESS
-**Last Updated**: 2026-03-24
+**Phase**: 09 (Testing & Production Hardening) - IN PROGRESS
+**Last Updated**: 2026-03-25
 **Backend Endpoints**: 55+ implemented and tested
-**Frontend**: Vite + React scaffolding setup
-**Next Milestone**: Phase 08 completion (2026-04-10)
+**Frontend Pages**: 14 implemented and connected to API
+**Next Milestone**: Phase 09 completion (2026-04-15)
 
 ---
 
@@ -403,9 +403,10 @@ When contributing:
 - [System Architecture →](./system-architecture.md)
 - [Code Standards →](./code-standards.md)
 - [Development Roadmap →](./development-roadmap.md)
+- [Project Changelog →](./project-changelog.md)
 
 ---
 
-**Version**: 1.0.0-alpha
+**Version**: 1.0.1-alpha
 **Maintained By**: Development Team
-**Last Reviewed**: 2026-03-24
+**Last Reviewed**: 2026-03-25
