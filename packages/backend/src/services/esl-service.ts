@@ -49,7 +49,7 @@ export async function originate(
   const bridgeTarget = gateway
     ? `sofia/gateway/${gateway}/${dest}`
     : `sofia/internal/${dest}@${domain}`;
-  const cmd = `originate {ignore_early_media=true,origination_caller_id_number=${cid},origination_caller_id_name=CRM,originate_timeout=30}sofia/internal/${ext}@${eslHost} '&bridge(${bridgeTarget})'`;
+  const cmd = `originate {ignore_early_media=true,origination_caller_id_number=${cid},origination_caller_id_name=CRM,originate_timeout=30}sofia/internal/${ext}@${eslHost} &bridge(${bridgeTarget})`;
   logger.info('C2C originate', { cmd, gateway, agentExt: ext, destination: dest });
   await sendBgapi(cmd);
 }
