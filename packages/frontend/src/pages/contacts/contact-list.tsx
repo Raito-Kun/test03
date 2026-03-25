@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { MoreHorizontal, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Trash2, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageWrapper } from '@/components/page-wrapper';
 import { DataTable, Column } from '@/components/data-table/data-table';
@@ -55,7 +55,21 @@ export default function ContactListPage() {
 
   const columns: Column<Contact>[] = [
     { key: 'fullName', label: VI.contact.fullName, sortable: true },
-    { key: 'phone', label: VI.contact.phone },
+    {
+      key: 'phone', label: VI.contact.phone,
+      render: (row) => (
+        <span className="flex items-center gap-1.5">
+          {row.phone}
+          <button
+            onClick={(e) => { e.stopPropagation(); api.post('/calls/originate', { phone: row.phone }).then(() => toast.success(`Đang gọi ${row.phone}...`)).catch(() => toast.error('Không thể gọi')); }}
+            className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
+            title="Gọi"
+          >
+            <Phone className="h-3 w-3" />
+          </button>
+        </span>
+      ),
+    },
     { key: 'email', label: VI.contact.email, render: (row) => row.email || '—' },
     {
       key: 'assignedTo',
