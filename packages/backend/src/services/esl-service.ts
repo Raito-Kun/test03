@@ -30,8 +30,8 @@ function sendBgapi(command: string): Promise<void> {
 }
 
 /**
- * Originate an outbound call from agent extension to destination.
- * Uses bgapi to avoid blocking the ESL event loop.
+ * Click-to-Call: ring agent's phone first, when answered bridge to customer.
+ * Flow: CRM → ESL originate → FusionPBX rings agent → agent answers → bridge to customer
  */
 export async function originate(
   agentExtension: string,
@@ -42,7 +42,9 @@ export async function originate(
   const dest = sanitizeEslInput(destinationNumber);
   const cid = sanitizeEslInput(callerId);
 
-  const cmd = `originate {origination_caller_id_number=${cid}}sofia/internal/${ext} ${dest} XML default`;
+  // Originate to agent extension, on answer bridge to customer via default dialplan
+  const cmd = `originate {origination_caller_id_number=${cid},origination_caller_id_name=CRM}user/${ext} &bridge(sofia/gateway/default/${dest})`;
+  logger.info('C2C originate', { agentExt: ext, destination: dest });
   await sendBgapi(cmd);
 }
 

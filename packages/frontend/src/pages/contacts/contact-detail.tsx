@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { ArrowLeft, Phone, Edit2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { ArrowLeft, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ClickToCallButton } from '@/components/click-to-call-button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -81,13 +81,6 @@ export default function ContactDetailPage() {
     enabled: !!id,
   });
 
-  function handleCall() {
-    if (!contact) return;
-    api.post('/calls/originate', { phone: contact.phone }).then(() => {
-      toast.success(`Đang gọi ${contact.phone}...`);
-    }).catch(() => toast.error('Không thể thực hiện cuộc gọi'));
-  }
-
   if (isLoading) {
     return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-64 w-full" /></div>;
   }
@@ -107,9 +100,7 @@ export default function ContactDetailPage() {
           <h1 className="text-2xl font-bold">{contact.fullName}</h1>
           <p className="text-muted-foreground">{contact.phone}</p>
         </div>
-        <Button variant="outline" onClick={handleCall}>
-          <Phone className="mr-2 h-4 w-4" /> Gọi
-        </Button>
+        <ClickToCallButton phone={contact.phone} contactName={contact.fullName} />
         <Button variant="outline" onClick={() => setEditOpen(true)}>
           <Edit2 className="mr-2 h-4 w-4" /> {VI.actions.edit}
         </Button>

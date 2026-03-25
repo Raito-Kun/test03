@@ -6,7 +6,6 @@ import { Header } from './header';
 import { CallBar } from './call-bar';
 import { InboundCallPopup } from '@/components/inbound-call-popup';
 import { AiAssistantPanel } from '@/components/ai/ai-assistant-panel';
-import { Softphone } from '@/components/softphone';
 import { useCallStore } from '@/stores/call-store';
 
 const pageVariants = {
@@ -49,7 +48,6 @@ export function AppLayout() {
       </AnimatePresence>
 
       <InboundCallPopup />
-      <Softphone />
     </div>
   );
 }

@@ -6,7 +6,8 @@ import * as recordingService from '../services/recording-service';
 import prisma from '../lib/prisma';
 
 const originateSchema = z.object({
-  destinationNumber: z.string().min(1).max(30),
+  phone: z.string().min(1).max(30).optional(),
+  destinationNumber: z.string().min(1).max(30).optional(),
   callerId: z.string().min(1).max(30).optional(),
 });
 
@@ -28,14 +29,10 @@ export async function originateCall(req: Request, res: Response, next: NextFunct
   try {
     const input = originateSchema.parse(req.body);
     const userId = req.user!.userId;
+    const destination = input.phone || input.destinationNumber;
 
-    // Verify agent is ready
-    const statusInfo = await agentStatusService.getAgentStatus(userId);
-    if (statusInfo.status !== 'ready') {
-      res.status(409).json({
-        success: false,
-        error: { code: 'AGENT_NOT_READY', message: 'Agent must be in ready status to make calls' },
-      });
+    if (!destination) {
+      res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Phone number required' } });
       return;
     }
 
@@ -54,7 +51,7 @@ export async function originateCall(req: Request, res: Response, next: NextFunct
     }
 
     const callerId = input.callerId || user.sipExtension;
-    await eslService.originate(user.sipExtension, input.destinationNumber, callerId);
+    await eslService.originate(user.sipExtension, destination, callerId);
 
     res.status(202).json({ success: true, data: { message: 'Call origination initiated' } });
   } catch (err) {
