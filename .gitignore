@@ -37,3 +37,8 @@ coverage/
 # Docker volumes
 pgdata/
 redisdata/
+
+# Playwright
+e2e/.auth-state.json
+test-results/
+playwright-report/
