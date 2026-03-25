@@ -37,18 +37,7 @@ services:
       dockerfile: packages/backend/Dockerfile
     container_name: crm-backend
     restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      PORT: 4000
-      DATABASE_URL: postgresql://${DB_USER:-crm_user}:${DB_PASSWORD:-crm_password}@postgres:5432/${DB_NAME:-crm_db}
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
-      ESL_HOST: ${ESL_HOST:-fusionpbx}
-      ESL_PORT: ${ESL_PORT:-8021}
-      ESL_PASSWORD: ${ESL_PASSWORD}
-      FUSIONPBX_RECORDING_URL: ${FUSIONPBX_RECORDING_URL}
+    env_file: .env
     depends_on:
       postgres:
         condition: service_healthy
@@ -65,8 +54,8 @@ services:
 
   frontend:
     build:
-      context: ./packages/frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: packages/frontend/Dockerfile
     container_name: crm-frontend
     restart: unless-stopped
     ports:

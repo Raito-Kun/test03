@@ -41,6 +41,9 @@ import notificationRoutes from './routes/notification-routes';
 import dashboardRoutes from './routes/dashboard-routes';
 import reportRoutes from './routes/report-routes';
 
+// Phase 10 routes
+import aiRoutes from './routes/ai-routes';
+
 const app = express();
 const PORT = parseInt(process.env.PORT || '4000', 10);
 
@@ -96,6 +99,9 @@ app.use('/api/v1/notifications', notificationRoutes);
 // Phase 07 routes
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/reports', reportRoutes);
+
+// Phase 10 routes
+app.use('/api/v1/ai', aiRoutes);
 
 // Error handler (must be after routes)
 app.use(errorHandler);

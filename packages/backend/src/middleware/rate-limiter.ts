@@ -2,7 +2,7 @@ import rateLimit from 'express-rate-limit';
 import RedisStore from 'rate-limit-redis';
 import redis from '../lib/redis';
 
-const isTest = process.env.NODE_ENV === 'test';
+const isTest = process.env.NODE_ENV === 'test' || process.env.REDIS_ENABLED === 'false';
 
 function createRedisStore(prefix: string) {
   if (isTest) return undefined; // Use in-memory store for tests

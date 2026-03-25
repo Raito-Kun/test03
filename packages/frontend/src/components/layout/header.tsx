@@ -1,76 +1,77 @@
-import { useAuthStore } from '@/stores/auth-store';
-import { useAgentStatusStore } from '@/stores/agent-status-store';
-import { VI } from '@/lib/vi-text';
-import api from '@/services/api-client';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Bot, LogOut, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Bell, LogOut, User, KeyRound } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { NotificationBell } from '@/components/notification-bell';
 import { AgentStatusSelector } from '@/components/agent-status-selector';
+import { NotificationBell } from '@/components/notification-bell';
+import { VI } from '@/lib/vi-text';
+import { useAuthStore } from '@/stores/auth-store';
 
-export function Header() {
-  const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
+interface HeaderProps {
+  onToggleAI?: () => void;
+}
+
+export function Header({ onToggleAI }: HeaderProps) {
   const navigate = useNavigate();
-
-  const initials = user?.fullName
-    ?.split(' ')
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase() || '?';
-
-  async function handleLogout() {
-    await logout();
-    navigate('/login', { replace: true });
-  }
+  const { user, logout } = useAuthStore();
+  const initials = user?.fullName?.split(' ').map((n) => n[0]).join('').slice(0, 2) || '?';
 
   return (
-    <header className="flex h-14 items-center gap-4 border-b bg-background px-4">
-      <div className="flex-1" />
+    <header className="flex h-14 items-center gap-3 border-b bg-white/80 backdrop-blur-sm px-4 sticky top-0 z-30">
+      {/* Search bar */}
+      <div className="relative flex-1 max-w-lg">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder={`${VI.actions.search}... (Ctrl+K)`}
+          className="w-full rounded-lg border bg-slate-50 py-2 pl-9 pr-4 text-sm outline-none transition-colors focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+          readOnly
+          onClick={() => {/* Will trigger AI search modal */}}
+        />
+      </div>
 
-      {/* Agent status selector */}
-      <AgentStatusSelector />
-
-      {/* Notifications */}
-      <NotificationBell />
-
-      {/* User menu */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-            </Avatar>
+      <div className="flex items-center gap-2">
+        {/* AI Assistant toggle */}
+        {onToggleAI && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onToggleAI}
+            className="gap-1.5 bg-gradient-to-r from-blue-50 to-violet-50 border-blue-200 text-blue-700 hover:from-blue-100 hover:to-violet-100"
+          >
+            <Bot className="h-4 w-4" />
+            <span className="hidden sm:inline">AI</span>
           </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          <div className="px-2 py-1.5">
-            <p className="text-sm font-medium">{user?.fullName}</p>
-            <p className="text-xs text-muted-foreground">{user?.role ? VI.roles[user.role] : ''}</p>
-          </div>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => navigate('/settings')}>
-            <User className="mr-2 h-4 w-4" />
-            {VI.profile}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigate('/settings?tab=password')}>
-            <KeyRound className="mr-2 h-4 w-4" />
-            {VI.changePassword}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            {VI.logout}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        )}
+
+        <AgentStatusSelector />
+        <NotificationBell />
+
+        {/* User menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-slate-100 transition-colors">
+              <Avatar className="h-8 w-8 bg-gradient-to-br from-blue-500 to-violet-600 text-white">
+                <AvatarFallback className="text-xs bg-transparent text-white">{initials}</AvatarFallback>
+              </Avatar>
+              <span className="hidden md:block text-sm font-medium">{user?.fullName}</span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={() => navigate('/settings')}>
+              {VI.profile}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { logout(); navigate('/login'); }}>
+              <LogOut className="mr-2 h-4 w-4" />
+              {VI.logout}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </header>
   );
 }
