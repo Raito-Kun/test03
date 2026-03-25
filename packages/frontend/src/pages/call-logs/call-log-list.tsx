@@ -16,7 +16,8 @@ import { formatDuration } from '@/lib/format';
 interface CallLog {
   id: string;
   callerNumber: string;
-  calleeNumber: string;
+  calleeNumber?: string;
+  destinationNumber?: string;
   direction: 'inbound' | 'outbound';
   duration: number;
   disposition?: string;
@@ -38,8 +39,8 @@ export default function CallLogListPage() {
       if (directionFilter) params.direction = directionFilter;
       if (dateFrom) params.dateFrom = dateFrom;
       if (dateTo) params.dateTo = dateTo;
-      const { data } = await api.get('/call-logs', { params });
-      return data.data as { items: CallLog[]; total: number };
+      const { data: resp } = await api.get('/call-logs', { params });
+      return { items: resp.data as CallLog[], total: resp.meta?.total ?? 0 };
     },
   });
 
@@ -53,7 +54,7 @@ export default function CallLogListPage() {
       ),
     },
     { key: 'callerNumber', label: 'Số gọi' },
-    { key: 'calleeNumber', label: 'Số nhận' },
+    { key: 'destinationNumber', label: 'Số nhận', render: (row) => row.destinationNumber || row.calleeNumber || '—' },
     { key: 'agent', label: VI.callLog.agent, render: (row) => row.agent?.fullName ?? '—' },
     { key: 'duration', label: VI.callLog.duration, sortable: true, render: (row) => formatDuration(row.duration) },
     { key: 'disposition', label: VI.callLog.disposition, render: (row) => row.disposition || '—' },
