@@ -1,12 +1,13 @@
 ---
 title: "CRM Omnichannel Phase 1 MVP"
 description: "Full-stack CRM for Telesale & Collection with FusionPBX/FreeSWITCH integration — Softphone mode, 18 DB tables, ~55 API endpoints"
-status: in-progress
+status: completed
 priority: P1
 effort: 6-8w
 branch: main
 tags: [crm, voip, telesale, collection, fusionpbx, mvp]
 created: 2026-03-24
+completed: 2026-03-25
 ---
 
 # CRM Omnichannel — Phase 1 MVP
@@ -34,10 +35,10 @@ Frontend: SPA with sidebar layout, call bar, real-time updates via Socket.IO
 | 06 | [Tickets & Workflow](./phase-06-tickets-workflow.md) | 3d | completed |
 | 07 | [Dashboard & Reports](./phase-07-dashboard-reports.md) | 3d | completed |
 | 08 | [Frontend UI](./phase-08-frontend-ui.md) | 7d | completed |
-| 09 | [Integration Testing & Security](./phase-09-testing-security.md) | 3d | pending |
-| -- | Buffer (integration issues, unknowns) | 5d | -- |
+| 09 | [Integration Testing & Security](./phase-09-testing-security.md) | 3d | completed |
+| -- | Buffer (integration issues, unknowns) | 5d | not_used |
 
-**Total: 43 working days (~8.5 weeks)**
+**Total: 43 working days (~8.5 weeks) — Phase 1 MVP DELIVERED**
 
 ## Key Dependencies
 - FusionPBX 5.5.7 / FreeSWITCH 1.10.x running with ESL port 8021 accessible

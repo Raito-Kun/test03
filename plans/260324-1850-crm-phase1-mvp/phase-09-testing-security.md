@@ -1,11 +1,11 @@
 ---
 phase: 09
 title: "Integration Testing & Security Hardening"
-status: pending
+status: completed
 priority: P1
 effort: 3d
 depends_on: [08]
-notes: "Blocked until Phase 08 (Frontend UI) is completed"
+notes: "Completed 2026-03-25"
 ---
 
 # Phase 09 — Integration Testing & Security Hardening
@@ -120,17 +120,17 @@ End-to-end testing of all flows, security hardening (CORS, helmet, rate limiting
 8. Notifications appear for follow-up reminders
 
 ## Todo List
-- [ ] Security middleware review (CORS, helmet, rate limiting)
-- [ ] Error handler hardening (no stack traces in prod)
-- [ ] Logging setup (Winston, audit, no sensitive data)
-- [ ] Integration test setup (Vitest, test DB)
-- [ ] Auth flow tests
-- [ ] RBAC + data scope tests
-- [ ] CRUD endpoint tests (contacts, leads, debt cases, tickets)
-- [ ] Webhook CDR test
-- [ ] Docker production files (backend, frontend, compose)
-- [ ] PM2 config
-- [ ] End-to-end smoke test
+- [x] Security middleware review (CORS, helmet, rate limiting)
+- [x] Error handler hardening (no stack traces in prod)
+- [x] Logging setup (Winston, audit, no sensitive data)
+- [x] Integration test setup (Vitest, test DB)
+- [x] Auth flow tests
+- [x] RBAC + data scope tests
+- [x] CRUD endpoint tests (contacts, leads, debt cases, tickets)
+- [x] Webhook CDR test
+- [x] Docker production files (backend, frontend, compose)
+- [x] PM2 config
+- [x] End-to-end smoke test
 
 ## Success Criteria
 - All integration tests pass
