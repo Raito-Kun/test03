@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "crm-voip": {
+      "command": "node",
+      "args": ["packages/mcp-server/dist/index.js"],
+      "env": {
+        "CRM_API_URL": "https://10.10.101.207/api/v1",
+        "ESL_HOST": "10.10.101.189",
+        "ESL_PORT": "8021",
+        "ESL_PASSWORD": "ClueCon",
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0",
+        "CRM_PROJECT_ROOT": "C:/Users/Raito/OneDrive/TRAINNING/VIBE CODING/02.CRM"
+      }
+    }
+  }
+}
