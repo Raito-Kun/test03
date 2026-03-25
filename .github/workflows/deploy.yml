@@ -1,0 +1,38 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: cd packages/frontend && npx tsc --noEmit
+      - run: cd packages/backend && npx tsc --noEmit
+      - run: cd packages/backend && npm test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/crm
+            git pull origin master 2>/dev/null || true
+            docker compose -f docker-compose.prod.yml up -d --build
+            echo "Deploy complete: $(date)"

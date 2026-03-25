@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bot, LogOut, Search } from 'lucide-react';
+import { Bot, LogOut, Search, Sun, Moon } from 'lucide-react';
 import { AiSearchBar } from '@/components/ai/ai-search-bar';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -11,6 +11,7 @@ import { AgentStatusSelector } from '@/components/agent-status-selector';
 import { NotificationBell } from '@/components/notification-bell';
 import { VI } from '@/lib/vi-text';
 import { useAuthStore } from '@/stores/auth-store';
+import { useThemeStore } from '@/stores/theme-store';
 
 interface HeaderProps {
   onToggleAI?: () => void;
@@ -20,6 +21,7 @@ export function Header({ onToggleAI }: HeaderProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const [searchOpen, setSearchOpen] = useState(false);
+  const { theme, setTheme } = useThemeStore();
   const initials = user?.fullName?.split(' ').map((n) => n[0]).join('').slice(0, 2) || '?';
 
   return (
@@ -38,6 +40,16 @@ export function Header({ onToggleAI }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Theme toggle */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        >
+          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </Button>
+
         {/* AI Assistant toggle */}
         {onToggleAI && (
           <Button

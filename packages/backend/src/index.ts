@@ -11,6 +11,7 @@ import { errorHandler } from './middleware/error-handler';
 import { initSocketIO } from './lib/socket-io';
 import eslDaemon from './lib/esl-daemon';
 import { startReminderJob } from './jobs/reminder-job';
+import { startScheduledReportJob } from './jobs/scheduled-report-job';
 
 // Phase 02-03 routes
 import authRoutes from './routes/auth-routes';
@@ -122,8 +123,9 @@ if (process.env.NODE_ENV !== 'test') {
       eslDaemon.connect();
     }
 
-    // Start reminder job
+    // Start jobs
     startReminderJob();
+    startScheduledReportJob();
   });
 }
 

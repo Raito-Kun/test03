@@ -36,9 +36,10 @@ Frontend: SPA with sidebar layout, call bar, real-time updates via Socket.IO
 | 07 | [Dashboard & Reports](./phase-07-dashboard-reports.md) | 3d | completed |
 | 08 | [Frontend UI](./phase-08-frontend-ui.md) | 7d | completed |
 | 09 | [Integration Testing & Security](./phase-09-testing-security.md) | 3d | completed |
+| 10 | [AI-Powered UI/UX Redesign](./phase-10-ai-ux-redesign.md) | 7d | completed |
 | -- | Buffer (integration issues, unknowns) | 5d | not_used |
 
-**Total: 43 working days (~8.5 weeks) — Phase 1 MVP DELIVERED**
+**Total: 50 working days (~10 weeks) — Phase 1 MVP + AI Features DELIVERED**
 
 ## Key Dependencies
 - FusionPBX 5.5.7 / FreeSWITCH 1.10.x running with ESL port 8021 accessible
@@ -160,9 +161,9 @@ If Phase 04 VoIP takes >7d, defer these to Phase 2:
 - Vietnamese Excel headers — add header mapping in import service
 
 #### Action Items
-- [ ] Add Vietnamese header mapping to Phase 03 import service
-- [ ] Add FusionPBX config vars to .env.example in Phase 01
-- [ ] Seed 6 users (1 per role) with sample team in Phase 02
+- [x] Add Vietnamese header mapping to Phase 03 import service
+- [x] Add FusionPBX config vars to .env.example in Phase 01
+- [x] Seed 6 users (1 per role) with sample team in Phase 02
 
 #### Impact on Phases
 - Phase 01: Add FusionPBX env vars (ESL_HOST, ESL_PORT, ESL_PASSWORD, FUSIONPBX_DOMAIN, SIP_GATEWAY, FUSIONPBX_RECORDING_URL)
@@ -224,12 +225,12 @@ If Phase 04 VoIP takes >7d, defer these to Phase 2:
 - GitHub Issues + PRs — primary task tracking and code review tool
 
 #### Action Items
-- [ ] Restructure Phase 08 into sub-phases aligned with backend phases (e.g., login UI after Phase 02, contact pages after Phase 03)
-- [ ] Add Vietnamese UI text constants/translation file to Phase 08 frontend setup
-- [ ] Add error code → Vietnamese message mapping utility to frontend
-- [ ] Update Docker/deployment config in Phase 09 for separate-server architecture (CRM ↔ FusionPBX via private IP)
+- [x] Restructure Phase 08 into sub-phases aligned with backend phases
+- [x] Add Vietnamese UI text constants/translation file to Phase 08 frontend setup
+- [x] Add error code → Vietnamese message mapping utility to frontend
+- [x] Update Docker/deployment config in Phase 09 for separate-server architecture (CRM ↔ FusionPBX via private IP)
 - [ ] Create GitHub Issues for each phase with assignee labels (backend/frontend/infra)
-- [ ] Document API error code contract in shared package for FE/BE alignment
+- [x] Document API error code contract in shared package for FE/BE alignment
 
 #### Impact on Phases
 - Phase 01: Add git repo + GitHub Issues setup. Define API error response format in shared package.
@@ -283,9 +284,9 @@ If Phase 04 VoIP takes >7d, defer these to Phase 2:
 
 #### Action Items
 - [ ] Add phone normalization utility to Phase 03 (for CDR matching in Phase 04)
-- [ ] Update Phase 02 cookie config: conditional `secure`/`sameSite` based on NODE_ENV
-- [ ] Add "WebRTC softphone" to Deferral List (Phase 2)
-- [ ] Apply all Session 2 action items to phase files (restructure Phase 08, error mapping, etc.)
+- [x] Update Phase 02 cookie config: conditional `secure`/`sameSite` based on NODE_ENV
+- [x] Add "WebRTC softphone" — implemented with SIP.js in Phase 10
+- [x] Apply all Session 2 action items to phase files
 
 #### Impact on Phases
 - Phase 02: Cookie config — `secure: NODE_ENV === 'production'`, `sameSite` conditional

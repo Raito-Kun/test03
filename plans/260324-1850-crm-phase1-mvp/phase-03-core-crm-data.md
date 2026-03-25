@@ -128,7 +128,7 @@ Standard REST pattern: Route → Controller → Service → Prisma
 - [x] Pagination & filter utility
 - [x] Audit logging utility
 - [x] Contact CRUD + search + relationships
-- [ ] Contact import/export (Excel) — DEFERRED (non-MVP for Phase 1)
+- [x] Contact import/export (Excel) — Implemented with Vietnamese headers
 - [x] Contact timeline aggregation
 - [x] Lead CRUD + follow-up scheduling
 - [x] Debt Case CRUD + PTP recording
