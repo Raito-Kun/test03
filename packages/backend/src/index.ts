@@ -106,17 +106,19 @@ const server = http.createServer(app);
 // Initialize Socket.IO
 initSocketIO(server);
 
-// Start server
-server.listen(PORT, () => {
-  logger.info(`CRM Backend running on port ${PORT}`);
+// Start server (skip in test mode — supertest handles it)
+if (process.env.NODE_ENV !== 'test') {
+  server.listen(PORT, () => {
+    logger.info(`CRM Backend running on port ${PORT}`);
 
-  // Connect ESL daemon (non-blocking — auto-reconnects)
-  if (process.env.ESL_ENABLED !== 'false') {
-    eslDaemon.connect();
-  }
+    // Connect ESL daemon (non-blocking — auto-reconnects)
+    if (process.env.ESL_ENABLED !== 'false') {
+      eslDaemon.connect();
+    }
 
-  // Start reminder job
-  startReminderJob();
-});
+    // Start reminder job
+    startReminderJob();
+  });
+}
 
 export default app;

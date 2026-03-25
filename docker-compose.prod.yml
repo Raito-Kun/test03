@@ -33,8 +33,8 @@ services:
 
   backend:
     build:
-      context: ./packages/backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: packages/backend/Dockerfile
     container_name: crm-backend
     restart: unless-stopped
     environment:
