@@ -42,14 +42,13 @@ export async function originate(
   const dest = sanitizeEslInput(destinationNumber);
   const cid = sanitizeEslInput(callerId);
 
-  const eslHost = process.env.ESL_HOST || '127.0.0.1';
-  const domain = process.env.FUSIONPBX_DOMAIN || eslHost;
+  const domain = process.env.FUSIONPBX_DOMAIN || 'crm';
   const gateway = process.env.SIP_GATEWAY || '';
-  // C2C: ring agent via sofia/internal, on answer bridge to customer via gateway
+  // C2C: ring agent via user/@domain, on answer bridge to customer via gateway
   const bridgeTarget = gateway
     ? `sofia/gateway/${gateway}/${dest}`
     : `sofia/internal/${dest}@${domain}`;
-  const cmd = `originate {ignore_early_media=true,origination_caller_id_number=${cid},origination_caller_id_name=CRM,originate_timeout=30}sofia/internal/${ext}@${eslHost} &bridge(${bridgeTarget})`;
+  const cmd = `originate {ignore_early_media=true,origination_caller_id_number=${cid},origination_caller_id_name=CRM,originate_timeout=30}user/${ext}@${domain} &bridge(${bridgeTarget})`;
   logger.info('C2C originate', { cmd, gateway, agentExt: ext, destination: dest });
   await sendBgapi(cmd);
 }
