@@ -43,8 +43,8 @@ export async function originate(
   const cid = sanitizeEslInput(callerId);
 
   const domain = process.env.FUSIONPBX_DOMAIN || 'crm';
-  // C2C: ring agent, on answer transfer to destination via FusionPBX outbound dialplan
-  const cmd = `originate {ignore_early_media=true,origination_caller_id_number=${cid},origination_caller_id_name=CRM,originate_timeout=30}user/${ext}@${domain} &transfer(${dest} XML ${domain})`;
+  // C2C: ring agent, on answer bridge via loopback which routes through FusionPBX dialplan
+  const cmd = `originate {ignore_early_media=true,origination_caller_id_number=${cid},origination_caller_id_name=CRM,originate_timeout=30}user/${ext}@${domain} &bridge(loopback/${dest}/${domain})`;
   logger.info('C2C originate', { cmd, agentExt: ext, destination: dest });
   await sendBgapi(cmd);
 }
