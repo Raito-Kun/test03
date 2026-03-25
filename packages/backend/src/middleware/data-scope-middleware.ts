@@ -42,8 +42,8 @@ export function applyDataScope(userField: string = 'assigned_to') {
 
       case 'agent_telesale':
       case 'agent_collection':
-        // Own data: assigned to them OR created by them
-        req.dataScope = { _agentScope: userId, _userField: userField, _includeCreatedBy: true };
+        // Own data only
+        req.dataScope = { _agentScope: userId, _userField: userField };
         break;
 
       default:
@@ -80,9 +80,9 @@ export function buildScopeWhere(
 
   const agentScope = dataScope['_agentScope'] as string | undefined;
   if (agentScope) {
-    const includeCreatedBy = dataScope['_includeCreatedBy'] as boolean | undefined;
-    // Agent sees own records; include createdBy only for models that have it
-    if (includeCreatedBy && userField !== 'userId') {
+    // Only Contact and Ticket models have createdBy field
+    const hasCreatedBy = dataScope['_hasCreatedBy'] as boolean | undefined;
+    if (hasCreatedBy) {
       return {
         OR: [
           { [userField]: agentScope },

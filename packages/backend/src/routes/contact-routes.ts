@@ -11,6 +11,8 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 
 router.use(authMiddleware);
 router.use(applyDataScope('assignedTo'));
+// Contact model has createdBy field — agents can see contacts they created
+router.use((req, _res, next) => { if (req.dataScope) req.dataScope['_hasCreatedBy'] = true; next(); });
 
 router.get('/', contactCtrl.listContacts);
 router.post('/', requireRole('admin', 'manager', 'leader', 'agent_telesale', 'agent_collection'), contactCtrl.createContact);
