@@ -18,12 +18,16 @@ export function Softphone() {
   const [dialNumber, setDialNumber] = useState('');
   const [callDuration, setCallDuration] = useState(0);
 
+  const [sipError, setSipError] = useState('');
+  const sipConfigured = !!(import.meta.env.VITE_SIP_WSS_URL && user?.sipExtension);
+
   // Initialize SIP on mount
   useEffect(() => {
     const sipServer = import.meta.env.VITE_SIP_WSS_URL;
     const sipDomain = import.meta.env.VITE_SIP_DOMAIN;
     if (!sipServer || !sipDomain || !user?.sipExtension) return;
 
+    console.log('[Softphone] Connecting to', sipServer, 'ext:', user.sipExtension);
     sipClient.initSip(
       {
         server: sipServer,
@@ -32,13 +36,14 @@ export function Softphone() {
         domain: sipDomain,
       },
       {
-        onRegistered: () => setRegistered(true),
-        onUnregistered: () => setRegistered(false),
+        onRegistered: () => { setRegistered(true); setSipError(''); console.log('[Softphone] Registered'); },
+        onUnregistered: () => { setRegistered(false); console.log('[Softphone] Unregistered'); },
         onIncomingCall: (caller) => {
           setActiveCall({ id: Date.now().toString(), phone: caller, direction: 'inbound', contactName: caller, state: 'ringing', startedAt: Date.now() });
         },
         onCallEstablished: () => setCallDuration(0),
         onCallEnded: () => { endCall(); setCallDuration(0); },
+        onError: (error) => { setSipError(error); console.error('[Softphone] Error:', error); },
       },
     );
 
@@ -86,16 +91,17 @@ export function Softphone() {
     return `${m}:${sec}`;
   }
 
-  if (!registered && !activeCall) return null;
+  if (!sipConfigured && !activeCall) return null;
 
   return (
     <>
-      {/* Registration badge */}
-      {registered && !activeCall && (
+      {/* Softphone FAB — shows when SIP is configured */}
+      {!activeCall && (
         <div className="fixed bottom-4 right-4 z-40">
           <Button
-            onClick={() => setShowDialpad(!showDialpad)}
-            className="h-12 w-12 rounded-full bg-emerald-600 hover:bg-emerald-700 shadow-lg"
+            onClick={() => registered ? setShowDialpad(!showDialpad) : null}
+            className={`h-12 w-12 rounded-full shadow-lg ${registered ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-400 hover:bg-slate-500'}`}
+            title={registered ? 'Softphone' : sipError || 'Đang kết nối SIP...'}
           >
             <Phone className="h-5 w-5" />
           </Button>
