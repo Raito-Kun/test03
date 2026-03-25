@@ -7,6 +7,7 @@ import { DataTable, type Column } from '@/components/data-table/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePagination } from '@/hooks/use-pagination';
 import api from '@/services/api-client';
@@ -16,13 +17,13 @@ import { formatDuration } from '@/lib/format';
 interface CallLog {
   id: string;
   callerNumber: string;
-  calleeNumber?: string;
   destinationNumber?: string;
   direction: 'inbound' | 'outbound';
   duration: number;
   disposition?: string;
   startTime: string;
-  agent?: { fullName: string };
+  user?: { fullName: string };
+  dispositionCode?: { label: string };
 }
 
 export default function CallLogListPage() {
@@ -37,8 +38,9 @@ export default function CallLogListPage() {
     queryFn: async () => {
       const params: Record<string, string | number> = { ...queryParams };
       if (directionFilter) params.direction = directionFilter;
-      if (dateFrom) params.dateFrom = dateFrom;
-      if (dateTo) params.dateTo = dateTo;
+      // Fix timezone: add T23:59:59 to dateTo for end-of-day in local timezone
+      if (dateFrom) params.dateFrom = `${dateFrom}T00:00:00`;
+      if (dateTo) params.dateTo = `${dateTo}T23:59:59`;
       const { data: resp } = await api.get('/call-logs', { params });
       return { items: resp.data as CallLog[], total: resp.meta?.total ?? 0 };
     },
@@ -53,16 +55,22 @@ export default function CallLogListPage() {
         </Badge>
       ),
     },
-    { key: 'callerNumber', label: 'Số gọi' },
-    { key: 'destinationNumber', label: 'Số nhận', render: (row) => row.destinationNumber || row.calleeNumber || '—' },
-    { key: 'agent', label: VI.callLog.agent, render: (row) => row.agent?.fullName ?? '—' },
+    { key: 'callerNumber', label: VI.callLog.inbound === 'Gọi vào' ? 'Số gọi' : 'Số gọi' },
+    { key: 'destinationNumber', label: 'Số nhận', render: (row) => row.destinationNumber || '—' },
+    { key: 'user', label: VI.callLog.agent, render: (row) => row.user?.fullName ?? '—' },
     { key: 'duration', label: VI.callLog.duration, sortable: true, render: (row) => formatDuration(row.duration) },
-    { key: 'disposition', label: VI.callLog.disposition, render: (row) => row.disposition || '—' },
+    { key: 'disposition', label: VI.callLog.disposition, render: (row) => row.dispositionCode?.label || row.disposition || '—' },
     {
       key: 'startTime', label: VI.callLog.startTime, sortable: true,
       render: (row) => format(new Date(row.startTime), 'dd/MM/yyyy HH:mm'),
     },
   ];
+
+  function handleClearFilters() {
+    setDirectionFilter('');
+    setDateFrom('');
+    setDateTo('');
+  }
 
   const toolbar = (
     <div className="flex items-end gap-2">
@@ -71,7 +79,7 @@ export default function CallLogListPage() {
           <SelectValue placeholder={VI.callLog.direction} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">{VI.actions.filter} — {VI.callLog.direction}</SelectItem>
+          <SelectItem value="all">Tất cả hướng</SelectItem>
           <SelectItem value="inbound">{VI.callLog.inbound}</SelectItem>
           <SelectItem value="outbound">{VI.callLog.outbound}</SelectItem>
         </SelectContent>
@@ -84,6 +92,9 @@ export default function CallLogListPage() {
         <Label className="text-xs">Đến ngày</Label>
         <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36" />
       </div>
+      {(directionFilter || dateFrom || dateTo) && (
+        <Button variant="ghost" size="sm" onClick={handleClearFilters}>Xóa lọc</Button>
+      )}
     </div>
   );
 
