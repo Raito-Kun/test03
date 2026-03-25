@@ -99,7 +99,7 @@ export function Softphone() {
       {!activeCall && (
         <div className="fixed bottom-4 right-4 z-40">
           <Button
-            onClick={() => registered ? setShowDialpad(!showDialpad) : null}
+            onClick={() => setShowDialpad(!showDialpad)}
             className={`h-12 w-12 rounded-full shadow-lg ${registered ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-400 hover:bg-slate-500'}`}
             title={registered ? 'Softphone' : sipError || 'Đang kết nối SIP...'}
           >
