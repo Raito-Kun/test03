@@ -43,7 +43,10 @@ export async function handleCdr(req: Request, res: Response, next: NextFunction)
       return;
     }
 
-    const rawBody = req.body as string;
+    // mod_xml_cdr sends as form-urlencoded with 'cdr' field, or raw XML
+    const rawBody = typeof req.body === 'object' && req.body.cdr
+      ? req.body.cdr as string
+      : req.body as string;
 
     // Log webhook receipt
     const webhookLog = await prisma.webhookLog.create({
