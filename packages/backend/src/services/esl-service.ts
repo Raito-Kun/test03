@@ -42,9 +42,10 @@ export async function originate(
   const dest = sanitizeEslInput(destinationNumber);
   const cid = sanitizeEslInput(callerId);
 
-  // Originate to agent extension, on answer bridge to customer via default dialplan
-  const cmd = `originate {origination_caller_id_number=${cid},origination_caller_id_name=CRM}user/${ext} &bridge(sofia/gateway/default/${dest})`;
-  logger.info('C2C originate', { agentExt: ext, destination: dest });
+  const domain = process.env.FUSIONPBX_DOMAIN || process.env.ESL_HOST || '127.0.0.1';
+  // C2C: call agent extension on FusionPBX domain, then bridge to customer
+  const cmd = `originate {origination_caller_id_number=${cid},origination_caller_id_name=CRM}user/${ext}@${domain} &bridge(sofia/internal/${dest}@${domain})`;
+  logger.info('C2C originate', { agentExt: ext, destination: dest, domain });
   await sendBgapi(cmd);
 }
 
