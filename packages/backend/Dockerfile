@@ -19,7 +19,7 @@ RUN npm run build
 
 # Cleanup dev files
 RUN rm -rf src tsconfig.json
-RUN mkdir -p logs
+RUN mkdir -p logs && chown node:node logs
 
 ENV NODE_ENV=production
 EXPOSE 4000
