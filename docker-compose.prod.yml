@@ -56,6 +56,10 @@ services:
     build:
       context: .
       dockerfile: packages/frontend/Dockerfile
+      args:
+        VITE_SIP_WSS_URL: ${VITE_SIP_WSS_URL:-}
+        VITE_SIP_DOMAIN: ${VITE_SIP_DOMAIN:-}
+        VITE_SIP_PASSWORD: ${VITE_SIP_PASSWORD:-}
     container_name: crm-frontend
     restart: unless-stopped
     ports:

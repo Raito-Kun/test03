@@ -10,7 +10,10 @@ COPY packages/frontend ./packages/frontend
 # Install all workspace deps (workspace symlinks needed for @crm/shared)
 RUN npm install
 
-# Build frontend
+# Build frontend (VITE_ vars must be available at build time)
+ARG VITE_SIP_WSS_URL
+ARG VITE_SIP_DOMAIN
+ARG VITE_SIP_PASSWORD
 WORKDIR /app/packages/frontend
 RUN npm run build
 
