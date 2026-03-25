@@ -25,10 +25,10 @@ export const globalLimiter = rateLimit({
   store: createRedisStore('rl:global:'),
 });
 
-/** Login rate limit: 10 req/min per IP */
+/** Login rate limit: configurable via LOGIN_RATE_LIMIT env (default 10/min) */
 export const loginLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 10,
+  max: isTest ? 1000 : parseInt(process.env.LOGIN_RATE_LIMIT || '10', 10),
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => req.ip || 'unknown',
