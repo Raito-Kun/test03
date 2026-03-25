@@ -17,6 +17,11 @@ const xmlParser = new XMLParser({
 /** POST /webhooks/cdr */
 export async function handleCdr(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    // Debug: log what we receive
+    const bodyType = typeof req.body;
+    const bodyPreview = typeof req.body === 'string' ? req.body.substring(0, 200) : JSON.stringify(req.body).substring(0, 200);
+    logger.info('CDR webhook received', { ip: req.ip, contentType: req.headers['content-type'], bodyType, bodyPreview, authPresent: !!req.headers.authorization });
+
     // IP whitelist — use req.ip, NOT x-forwarded-for
     const clientIp = req.ip || '';
     if (!ALLOWED_IPS.includes(clientIp) && !ALLOWED_IPS.includes('0.0.0.0')) {
