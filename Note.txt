@@ -33,6 +33,7 @@ PS C:\Users\Raito\OneDrive\TRAINNING\VIBE CODING\02.CRM> Set-ExecutionPolicy -Sc
 	/ck:docs 		: tạo documentation
 	/ck:watzup 		: tóm tắt những gì đang xảy ra trong project
 	/clear			: xóa context của conversation hiện tại, reset lại bộ nhớ trong session đó (dùng khi cần làm mới vấn đề, vd cần brainstorm nhiều lần cho kỹ)
+	/resume			: Sau khi resume, Claude sẽ nhớ lại những gì đã làm và tiếp tục được.
 
 9. Quy trình triển khai 1 project:
 	9.1 : Lên kế hoạch và tạo 1 file PRD.md
@@ -41,9 +42,10 @@ PS C:\Users\Raito\OneDrive\TRAINNING\VIBE CODING\02.CRM> Set-ExecutionPolicy -Sc
 	9.4 : /clear để xoá context trước đó
 	9.5 : Brainstorm lại (quá trình này có thể cần 4 5 lần) để thực sự clear hết vấn đề chưa hiểu
 	9.6 : /ck:plan & 'c:\Users\Raito\OneDrive\TRAINNING\VIBE CODING\02.CRM\Guildline\PRD.md' Please create plan for this PRD
-	9.7 : claude --dangerously-skip-permissions  để cấp toàn quyền cho AI xử lý	
+	9.7 : Powershell> claude --dangerously-skip-permissions  để cấp toàn quyền cho AI xử lý	
 	9.8 : /ck:plan red-team & 'c:\Users\Raito\OneDrive\TRAINNING\VIBE CODING\02.CRM\plans\260324-1850-crm-phase1-mvp'  : Phản biện plan vừa tạo, tìm ra nhược điểm
 	9.9 : /ck:plan validate & 'c:\Users\Raito\OneDrive\TRAINNING\VIBE CODING\02.CRM\plans\260324-1850-crm-phase1-mvp' : Validate và finalize
 	9.10 : /clear
 	9.11 : /ck:plan validate & 'c:\Users\Raito\OneDrive\TRAINNING\VIBE CODING\02.CRM\plans\260324-1850-crm-phase1-mvp' 
 	9.12 : /ck:cook --auto C:\Users\Raito\OneDrive\TRAINNING\VIBE CODING\02.CRM\plans\260324-1850-crm-phase1-mvp\plan.md
+	

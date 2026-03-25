@@ -33,7 +33,7 @@ Frontend: SPA with sidebar layout, call bar, real-time updates via Socket.IO
 | 05 | [Call Management](./phase-05-call-management.md) | 4d | completed |
 | 06 | [Tickets & Workflow](./phase-06-tickets-workflow.md) | 3d | completed |
 | 07 | [Dashboard & Reports](./phase-07-dashboard-reports.md) | 3d | completed |
-| 08 | [Frontend UI](./phase-08-frontend-ui.md) | 7d | in-progress |
+| 08 | [Frontend UI](./phase-08-frontend-ui.md) | 7d | completed |
 | 09 | [Integration Testing & Security](./phase-09-testing-security.md) | 3d | pending |
 | -- | Buffer (integration issues, unknowns) | 5d | -- |
 

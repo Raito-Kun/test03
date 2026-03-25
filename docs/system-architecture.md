@@ -30,10 +30,27 @@ packages/backend/src/
 
 ```
 packages/frontend/src/
-├── lib/              # Utilities and helpers
-├── app.tsx           # Root component
+├── components/       # Reusable UI components (forms, tables, modals, etc.)
+├── pages/            # Page-level components (routes)
+├── hooks/            # Custom React hooks (API calls, state)
+├── stores/           # Zustand global state
+├── services/         # API client and external services
+├── lib/              # Utilities: formatting, constants, validation
+├── app.tsx           # Root component with routing
 └── main.tsx          # Entry point
 ```
+
+**Page Structure** (14 pages):
+- Auth: login, register, forgot-password
+- Dashboard: overview with KPIs
+- Contacts: list, detail, create/edit
+- Leads: list, detail, create/edit
+- DebtCases: list, detail
+- CallLogs: list, detail
+- Campaigns: list, detail
+- Tickets: list, detail, create/edit
+- Reports: analytics dashboards
+- Settings: user and team config
 
 ### Shared
 
@@ -64,8 +81,10 @@ packages/shared/src/
 | Styling | Tailwind CSS | ^4.0.0 |
 | UI Components | shadcn/ui | Latest |
 | State Management | Zustand | ^5.0.0 |
-| Data Fetching | TanStack Query | ^5.62.0 |
+| Data Fetching | Axios | ^1.7.0 |
+| Data Caching | TanStack Query | ^5.62.0 |
 | Routing | React Router | ^7.1.0 |
+| Real-time | Socket.IO Client | ^4.8.0 |
 
 ## Backend Architecture
 
@@ -243,6 +262,141 @@ Call Log Service → PostgreSQL
 - Tracks recording status (available, failed, none)
 - Provides download/playback endpoints
 
+## Frontend Architecture
+
+### Page Layer (Routes)
+
+```
+React Router manages navigation:
+- /login → LoginPage
+- /register → RegisterPage
+- /dashboard → DashboardPage (protected)
+- /contacts → ContactsListPage
+- /contacts/:id → ContactDetailPage
+- /contacts/new → ContactFormPage
+- /contacts/:id/edit → ContactFormPage
+- ... (leads, debt-cases, calls, campaigns, tickets, reports, settings)
+```
+
+### Component Structure
+
+**Form Components**:
+- `ContactForm` (create/edit with Zod validation)
+- `LeadForm` (status pipeline integration)
+- `TicketForm` (category selection)
+- `BaseForm` (shared form wrapper)
+
+**Table Components**:
+- `DataTable` (generic with sorting, filtering, pagination)
+- `ContactsTable` (with quick actions)
+- `LeadsTable` (with status indicators)
+- `CallLogsTable` (with duration formatting)
+
+**Shared Components**:
+- `AuthGuard` (route protection)
+- `ErrorBoundary` (error fallback UI)
+- `LoadingSpinner` (async state)
+- `Toast` (notifications)
+- `Modal` (dialogs)
+- `Sidebar` (navigation)
+- `Header` (user menu, settings)
+
+### State Management (Zustand)
+
+**Auth Store** (`stores/auth.ts`):
+```typescript
+{
+  user: User | null,
+  token: string | null,
+  login(email, password),
+  logout(),
+  refresh()
+}
+```
+
+**UI Store** (`stores/ui.ts`):
+```typescript
+{
+  sidebarOpen: boolean,
+  theme: 'light' | 'dark',
+  toggleSidebar(),
+  setTheme()
+}
+```
+
+### API Integration (Axios + React Query)
+
+**API Client** (`services/api-client.ts`):
+- Base URL from `VITE_API_URL` env var
+- JWT token in Authorization header (from auth store)
+- Auto-refresh on 401 response
+- Consistent error response handling
+
+**React Query Hooks** (`hooks/api/`):
+- `useContacts()` - list contacts with pagination
+- `useContact(id)` - fetch single contact
+- `useCreateContact()` - create with optimistic update
+- `useUpdateContact(id)` - update with refetch
+- `useDeleteContact(id)` - delete with toast notification
+- Similar hooks for leads, calls, tickets, etc.
+
+### Real-time Updates (Socket.IO)
+
+**Socket Service** (`services/socket.ts`):
+```typescript
+const socket = io(SOCKET_URL, {
+  auth: { token: authStore.token }
+});
+
+socket.on('call:initiated', (data) => {
+  // Update UI with new call
+  queryClient.invalidateQueries({ queryKey: ['calls'] });
+});
+
+socket.on('ticket:updated', (data) => {
+  // Show toast notification
+  toast.info(`Ticket #${data.id} updated`);
+});
+```
+
+**Real-time Events Listened**:
+- `call:initiated` - New outbound call
+- `call:ended` - Call completed
+- `agent:status_changed` - Agent availability
+- `ticket:updated` - Ticket status change
+- `notification:new` - New notification
+- `contact:assigned` - Contact reassignment
+
+### Utility Functions (lib/)
+
+**Format Utilities** (`lib/format.ts`):
+```typescript
+formatDuration(5400000) // "1h 30m"
+formatMoney(1500.50, 'USD') // "$1,500.50"
+formatPercent(0.857, 2) // "85.70%"
+```
+
+**Date Utilities** (`lib/dates.ts`):
+- Relative dates (e.g., "2 hours ago")
+- Timezone handling
+- Date range filtering
+
+**Validation** (`lib/validation.ts`):
+- Zod schema integration
+- Client-side validation before submit
+- Field-level error messages
+
+### Performance Optimizations
+
+1. **Code Splitting**: Pages lazy-loaded with React.lazy
+2. **Query Caching**: React Query stores results, stale-while-revalidate
+3. **Component Memoization**: React.memo on expensive components
+4. **Debounced Search**: Search input with 300ms debounce
+5. **Image Optimization**: Lazy load avatars and attachments
+6. **Bundle Size**: Tree-shake unused components from shadcn/ui
+
+---
+
 ## Real-time Communication (Socket.IO)
 
 ### Architecture
@@ -419,5 +573,5 @@ Docker Compose
 
 ---
 
-**Last Updated**: 2026-03-24
-**Version**: 1.0.0-alpha
+**Last Updated**: 2026-03-25
+**Version**: 1.0.1-alpha

@@ -10,6 +10,7 @@ Comprehensive technical documentation covering:
 - Technology stack and dependencies
 - Backend architecture (Route → Controller → Service → Prisma pattern)
 - Middleware chain (Auth, RBAC, Data Scoping, Error Handling)
+- **Frontend architecture** (pages, components, state management, API integration)
 - VoIP integration with ESL daemon and FreeSWITCH
 - Real-time communication via Socket.IO
 - Database schema overview
@@ -42,8 +43,8 @@ Coding conventions and best practices including:
 ### [Development Roadmap](./development-roadmap.md)
 Project status and planning including:
 - Phase breakdown (01-09)
-- Current progress (Phase 08 in progress)
-- Completed deliverables by phase (~55 API endpoints)
+- Current progress (Phase 09 in progress)
+- Completed deliverables by phase (~55 API endpoints + 14 frontend pages)
 - Success criteria and metrics
 - Milestones and timelines
 - Key metrics and endpoint count
@@ -51,6 +52,19 @@ Project status and planning including:
 - Next steps and long-term plans
 
 **Best for**: Project managers, team leads, progress tracking
+
+---
+
+### [Project Changelog](./project-changelog.md)
+Complete record of all significant changes including:
+- Feature releases by phase
+- Bug fixes and improvements
+- Version history
+- Technical milestones
+- Dependencies and external services
+- Known issues and resolutions
+
+**Best for**: Tracking project evolution, release notes, debugging history
 
 ---
 
@@ -144,7 +158,8 @@ C:\Users\Raito\OneDrive\TRAINNING\VIBE CODING\02.CRM\
 │   ├── README.md                  # This file
 │   ├── system-architecture.md     # Technical architecture
 │   ├── code-standards.md          # Coding conventions
-│   └── development-roadmap.md     # Project status & phases
+│   ├── development-roadmap.md     # Project status & phases
+│   └── project-changelog.md       # Change history & releases
 │
 ├── packages/
 │   ├── backend/                   # Express.js API server
@@ -207,10 +222,10 @@ C:\Users\Raito\OneDrive\TRAINNING\VIBE CODING\02.CRM\
 | 05 | ✓ Complete | 8 | Call history & QA |
 | 06 | ✓ Complete | 10 | Support ticketing |
 | 07 | ✓ Complete | 5 | Dashboard & analytics |
-| 08 | IN PROGRESS | N/A | Frontend scaffolding |
-| 09 | PENDING | N/A | Testing & production hardening |
+| 08 | ✓ Complete | N/A | Frontend UI (14 pages) |
+| 09 | IN PROGRESS | N/A | Testing & production hardening |
 
-**Total Implemented**: 55+ API endpoints
+**Total Implemented**: 55+ API endpoints + 14 frontend pages
 
 ---
 
