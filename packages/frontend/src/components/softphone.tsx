@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/stores/auth-store';
 import { useCallStore } from '@/stores/call-store';
 import * as sipClient from '@/lib/sip-client';
+import api from '@/services/api-client';
 
 const DTMF_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
 
@@ -61,6 +62,16 @@ export function Softphone() {
   }
 
   function handleHangup() {
+    // Log call to backend before ending
+    if (activeCall) {
+      api.post('/call-logs/manual', {
+        direction: activeCall.direction,
+        callerNumber: activeCall.direction === 'outbound' ? (user?.sipExtension || '') : activeCall.phone,
+        destinationNumber: activeCall.direction === 'outbound' ? activeCall.phone : (user?.sipExtension || ''),
+        duration: callDuration,
+        startTime: new Date(activeCall.startedAt).toISOString(),
+      }).catch(() => {}); // Best-effort logging
+    }
     sipClient.hangupCall();
     endCall();
   }
