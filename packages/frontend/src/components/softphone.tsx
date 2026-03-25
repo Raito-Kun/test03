@@ -19,15 +19,15 @@ export function Softphone() {
 
   // Initialize SIP on mount
   useEffect(() => {
-    const sipServer = (import.meta as unknown as { env: Record<string, string> }).env.VITE_SIP_WSS_URL;
-    const sipDomain = (import.meta as unknown as { env: Record<string, string> }).env.VITE_SIP_DOMAIN;
+    const sipServer = import.meta.env.VITE_SIP_WSS_URL;
+    const sipDomain = import.meta.env.VITE_SIP_DOMAIN;
     if (!sipServer || !sipDomain || !user?.sipExtension) return;
 
     sipClient.initSip(
       {
         server: sipServer,
         extension: user.sipExtension,
-        password: (import.meta as unknown as { env: Record<string, string> }).env.VITE_SIP_PASSWORD || '',
+        password: import.meta.env.VITE_SIP_PASSWORD || '',
         domain: sipDomain,
       },
       {
@@ -53,7 +53,7 @@ export function Softphone() {
 
   function handleDial() {
     if (!dialNumber.trim()) return;
-    const sipDomain = (import.meta as unknown as { env: Record<string, string> }).env.VITE_SIP_DOMAIN || '';
+    const sipDomain = import.meta.env.VITE_SIP_DOMAIN || '';
     sipClient.makeCall(dialNumber, sipDomain);
     setActiveCall({ id: Date.now().toString(), phone: dialNumber, direction: 'outbound', contactName: '', state: 'ringing', startedAt: Date.now() });
     setDialNumber('');
