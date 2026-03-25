@@ -42,8 +42,8 @@ export function applyDataScope(userField: string = 'assigned_to') {
 
       case 'agent_telesale':
       case 'agent_collection':
-        // Own data only
-        req.dataScope = { [userField]: userId };
+        // Own data: assigned to them OR created by them
+        req.dataScope = { _agentScope: userId, _userField: userField };
         break;
 
       default:
@@ -73,15 +73,23 @@ export function buildScopeWhere(
 
   const teamScope = dataScope['_teamScope'] as string | undefined;
   if (teamScope) {
-    // Leader: filter by entities assigned to users in the same team
     return {
-      [relationField]: {
-        teamId: teamScope,
-      },
+      [relationField]: { teamId: teamScope },
     };
   }
 
-  // Agent: direct field match (remove internal keys)
+  const agentScope = dataScope['_agentScope'] as string | undefined;
+  if (agentScope) {
+    // Agent sees records assigned to them OR created by them
+    return {
+      OR: [
+        { [userField]: agentScope },
+        { createdBy: agentScope },
+      ],
+    };
+  }
+
+  // Direct field match (remove internal keys)
   const where: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(dataScope)) {
     if (!key.startsWith('_')) {
