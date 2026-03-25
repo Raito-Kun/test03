@@ -25,7 +25,8 @@ test.describe.serial('CRUD Operations', () => {
   test('search contacts', async ({ page }) => {
     await page.goto('/contacts');
     await page.waitForTimeout(1000);
-    const searchInput = page.locator('input[placeholder]').first();
+    // Target the table search (not the readonly header search)
+    const searchInput = page.locator('input:not([readonly])[placeholder]').first();
     await searchInput.fill('E2E');
     await page.waitForTimeout(1500);
   });
