@@ -43,7 +43,7 @@ export function applyDataScope(userField: string = 'assigned_to') {
       case 'agent_telesale':
       case 'agent_collection':
         // Own data: assigned to them OR created by them
-        req.dataScope = { _agentScope: userId, _userField: userField };
+        req.dataScope = { _agentScope: userId, _userField: userField, _includeCreatedBy: true };
         break;
 
       default:
@@ -80,13 +80,17 @@ export function buildScopeWhere(
 
   const agentScope = dataScope['_agentScope'] as string | undefined;
   if (agentScope) {
-    // Agent sees records assigned to them OR created by them
-    return {
-      OR: [
-        { [userField]: agentScope },
-        { createdBy: agentScope },
-      ],
-    };
+    const includeCreatedBy = dataScope['_includeCreatedBy'] as boolean | undefined;
+    // Agent sees own records; include createdBy only for models that have it
+    if (includeCreatedBy && userField !== 'userId') {
+      return {
+        OR: [
+          { [userField]: agentScope },
+          { createdBy: agentScope },
+        ],
+      };
+    }
+    return { [userField]: agentScope };
   }
 
   // Direct field match (remove internal keys)
