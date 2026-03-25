@@ -13,6 +13,7 @@ import { AudioPlayer } from '@/components/audio-player';
 import { VI } from '@/lib/vi-text';
 import api from '@/services/api-client';
 import { formatDuration } from '@/lib/format';
+import { CustomerSummaryCard } from '@/components/ai/customer-summary-card';
 import { ContactForm } from './contact-form';
 
 interface Contact {
@@ -113,6 +114,12 @@ export default function ContactDetailPage() {
           <Edit2 className="mr-2 h-4 w-4" /> {VI.actions.edit}
         </Button>
       </div>
+
+      {/* AI Customer Summary */}
+      <CustomerSummaryCard
+        contactId={contact.id}
+        customerData={JSON.stringify({ name: contact.fullName, phone: contact.phone, email: contact.email, tags: contact.tags, notes: contact.notes })}
+      />
 
       {/* Info card */}
       <Card>

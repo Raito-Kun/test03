@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bot, LogOut, Search } from 'lucide-react';
+import { AiSearchBar } from '@/components/ai/ai-search-bar';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -18,9 +19,11 @@ interface HeaderProps {
 export function Header({ onToggleAI }: HeaderProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const [searchOpen, setSearchOpen] = useState(false);
   const initials = user?.fullName?.split(' ').map((n) => n[0]).join('').slice(0, 2) || '?';
 
   return (
+    <>
     <header className="flex h-14 items-center gap-3 border-b bg-white/80 backdrop-blur-sm px-4 sticky top-0 z-30">
       {/* Search bar */}
       <div className="relative flex-1 max-w-lg">
@@ -30,7 +33,7 @@ export function Header({ onToggleAI }: HeaderProps) {
           placeholder={`${VI.actions.search}... (Ctrl+K)`}
           className="w-full rounded-lg border bg-slate-50 py-2 pl-9 pr-4 text-sm outline-none transition-colors focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
           readOnly
-          onClick={() => {/* Will trigger AI search modal */}}
+          onClick={() => setSearchOpen(true)}
         />
       </div>
 
@@ -73,5 +76,7 @@ export function Header({ onToggleAI }: HeaderProps) {
         </DropdownMenu>
       </div>
     </header>
+    <AiSearchBar open={searchOpen} onClose={() => setSearchOpen(false)} />
+    </>
   );
 }

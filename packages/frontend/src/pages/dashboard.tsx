@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { VI } from '@/lib/vi-text';
 import { formatDuration } from '@/lib/format';
 import api from '@/services/api-client';
+import { AnomalyAlertWidget } from '@/components/ai/anomaly-alert-widget';
 
 interface OverviewData {
   totalCalls: number;
@@ -118,6 +119,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* AI Anomaly Alerts */}
+      <AnomalyAlertWidget />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Agent status grid */}
