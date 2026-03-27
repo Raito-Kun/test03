@@ -6,10 +6,17 @@ import { PageWrapper } from '@/components/page-wrapper';
 import { DataTable, type Column } from '@/components/data-table/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Phone } from 'lucide-react';
+import { toast } from 'sonner';
 import { usePagination } from '@/hooks/use-pagination';
 import api from '@/services/api-client';
+import { useAuthStore } from '@/stores/auth-store';
+import { useAgentStatusStore } from '@/stores/agent-status-store';
 import { VI } from '@/lib/vi-text';
-import { formatMoney } from '@/lib/format';
+import { formatMoney, fmtPhone, checkCallBlocked } from '@/lib/format';
 import { DEBT_TIERS, DEBT_STATUSES, type DebtTier, type DebtStatus } from '@shared/constants/enums';
 
 interface DebtCase {
@@ -19,8 +26,11 @@ interface DebtCase {
   tier: DebtTier;
   status: DebtStatus;
   dpd: number;
+  contractNumber: string | null;
+  debtType: string | null;
+  debtGroup: string | null;
   createdAt: string;
-  contact: { id: string; fullName: string } | null;
+  contact: { id: string; fullName: string; phone: string } | null;
 }
 
 const TIER_COLORS: Record<DebtTier, string> = {
@@ -41,16 +51,23 @@ const STATUS_COLORS: Record<DebtStatus, string> = {
 
 export default function DebtCaseListPage() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const myStatus = useAgentStatusStore((s) => s.myStatus);
   const [tierFilter, setTierFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const { page, setPage, limit, setLimit, search, setSearch, sortKey, sortOrder, handleSort, queryParams } = usePagination();
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const { page, setPage, limit, setLimit, sortKey, sortOrder, handleSort, queryParams } = usePagination();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['debt-cases', queryParams, tierFilter, statusFilter],
+    queryKey: ['debt-cases', queryParams, tierFilter, statusFilter, dateFrom, dateTo, appliedSearch],
     queryFn: async () => {
-      const params: Record<string, string | number> = { ...queryParams };
+      const params: Record<string, string | number> = { ...queryParams, search: appliedSearch };
       if (tierFilter) params.tier = tierFilter;
       if (statusFilter) params.status = statusFilter;
+      if (dateFrom) params.dateFrom = `${dateFrom}T00:00:00`;
+      if (dateTo) params.dateTo = `${dateTo}T23:59:59`;
       const { data } = await api.get('/debt-cases', { params });
       return data.data as { items: DebtCase[]; total: number };
     },
@@ -58,9 +75,31 @@ export default function DebtCaseListPage() {
 
   const columns: Column<DebtCase>[] = [
     { key: 'contact', label: VI.contact.fullName, render: (row) => row.contact?.fullName ?? '—' },
+    {
+      key: 'phone', label: VI.contact.phone,
+      render: (row) => {
+        const phone = row.contact?.phone;
+        if (!phone) return '—';
+        return (
+          <span className="flex items-center gap-1.5">
+            {fmtPhone(phone)}
+            <button
+              onClick={(e) => { e.stopPropagation(); const blocked = checkCallBlocked(myStatus, user?.sipExtension); if (blocked) { toast.error(blocked); return; } api.post('/calls/originate', { phone }).then(() => toast.success(`Đang gọi ${fmtPhone(phone)}...`)).catch((err: { response?: { data?: { error?: { message?: string } } }; message?: string }) => toast.error(err?.response?.data?.error?.message || 'Không thể gọi')); }}
+              className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
+              title="Gọi"
+            >
+              <Phone className="h-3 w-3" />
+            </button>
+          </span>
+        );
+      },
+    },
     { key: 'totalAmount', label: VI.debt.amount, sortable: true, render: (row) => formatMoney(row.totalAmount) },
     { key: 'paidAmount', label: VI.debt.paidAmount, render: (row) => formatMoney(row.paidAmount) },
+    { key: 'contractNumber', label: VI.debt.contractNumber, render: (row) => row.contractNumber ?? '—' },
+    { key: 'debtType', label: VI.debt.debtType, render: (row) => row.debtType ?? '—' },
     { key: 'dpd', label: VI.debt.dpd, sortable: true },
+    { key: 'debtGroup', label: VI.debt.debtGroup, render: (row) => row.debtGroup ? `Nhóm ${row.debtGroup}` : '—' },
     {
       key: 'tier', label: VI.debt.tier,
       render: (row) => <Badge className={TIER_COLORS[row.tier]}>{VI.debt.tiers[row.tier]}</Badge>,
@@ -76,7 +115,7 @@ export default function DebtCaseListPage() {
   ];
 
   const toolbar = (
-    <div className="flex gap-2">
+    <div className="flex items-end gap-2 flex-wrap">
       <Select value={tierFilter || 'all'} onValueChange={(v) => setTierFilter(!v || v === 'all' ? '' : v)}>
         <SelectTrigger className="w-40">
           <SelectValue placeholder={VI.debt.tier} />
@@ -99,6 +138,17 @@ export default function DebtCaseListPage() {
           ))}
         </SelectContent>
       </Select>
+      <div className="space-y-1">
+        <Label className="text-xs">Từ ngày</Label>
+        <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-36" />
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">Đến ngày</Label>
+        <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36" />
+      </div>
+      {(dateFrom || dateTo || tierFilter || statusFilter) && (
+        <Button variant="ghost" size="sm" onClick={() => { setDateFrom(''); setDateTo(''); setTierFilter(''); setStatusFilter(''); }}>Xóa lọc</Button>
+      )}
     </div>
   );
 
@@ -111,8 +161,7 @@ export default function DebtCaseListPage() {
         page={page}
         limit={limit}
         isLoading={isLoading}
-        searchValue={search}
-        onSearchChange={setSearch}
+        onSearchSubmit={(v) => { setAppliedSearch(v); setPage(1); }}
         onPageChange={setPage}
         onLimitChange={setLimit}
         onSort={handleSort}

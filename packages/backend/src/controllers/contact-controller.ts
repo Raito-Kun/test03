@@ -16,6 +16,19 @@ const createContactSchema = z.object({
   tags: z.any().optional(),
   customFields: z.any().optional(),
   assignedTo: z.string().uuid().optional(),
+  // Extended fields
+  occupation: z.string().max(255).optional(),
+  income: z.number().optional(),
+  province: z.string().max(100).optional(),
+  district: z.string().max(100).optional(),
+  fullAddress: z.string().optional(),
+  company: z.string().max(255).optional(),
+  jobTitle: z.string().max(255).optional(),
+  companyEmail: z.string().email().optional(),
+  creditLimit: z.number().optional(),
+  bankAccount: z.string().max(50).optional(),
+  bankName: z.string().max(255).optional(),
+  internalNotes: z.string().optional(),
 });
 
 const updateContactSchema = createContactSchema.partial();
@@ -28,6 +41,8 @@ export async function listContacts(req: Request, res: Response, next: NextFuncti
       search: req.query.search as string | undefined,
       source: req.query.source as string | undefined,
       assignedTo: req.query.assigned_to as string | undefined,
+      dateFrom: req.query.dateFrom as string | undefined,
+      dateTo: req.query.dateTo as string | undefined,
     };
     const result = await contactService.listContacts(pagination, filters, req.dataScope || {});
     res.json({ success: true, ...result });

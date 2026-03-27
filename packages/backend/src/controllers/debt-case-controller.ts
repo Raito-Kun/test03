@@ -9,6 +9,12 @@ const createDebtCaseSchema = z.object({
   originalAmount: z.number().positive(),
   outstandingAmount: z.number().positive(),
   dpd: z.number().min(0).optional(),
+  contractNumber: z.string().optional(),
+  debtType: z.string().optional(),
+  paidAmount: z.number().nonnegative().optional(),
+  remainingAmount: z.number().nonnegative().optional(),
+  debtGroup: z.string().optional(),
+  dueDate: z.string().optional(),
   assignedTo: z.string().uuid().optional(),
 });
 
@@ -16,6 +22,12 @@ const updateDebtCaseSchema = z.object({
   status: z.enum(['active', 'in_progress', 'promise_to_pay', 'paid', 'written_off']).optional(),
   dpd: z.number().min(0).optional(),
   outstandingAmount: z.number().positive().optional(),
+  contractNumber: z.string().optional(),
+  debtType: z.string().optional(),
+  paidAmount: z.number().nonnegative().optional(),
+  remainingAmount: z.number().nonnegative().optional(),
+  debtGroup: z.string().optional(),
+  dueDate: z.string().optional(),
   assignedTo: z.string().uuid().optional(),
 });
 
@@ -32,6 +44,9 @@ export async function listDebtCases(req: Request, res: Response, next: NextFunct
       tier: req.query.tier as string | undefined,
       campaignId: req.query.campaign_id as string | undefined,
       assignedTo: req.query.assigned_to as string | undefined,
+      search: req.query.search as string | undefined,
+      dateFrom: req.query.dateFrom as string | undefined,
+      dateTo: req.query.dateTo as string | undefined,
     };
     const result = await debtCaseService.listDebtCases(pagination, filters, req.dataScope || {});
     res.json({ success: true, ...result });

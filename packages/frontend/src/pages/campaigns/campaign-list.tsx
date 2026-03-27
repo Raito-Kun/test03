@@ -6,6 +6,9 @@ import { PageWrapper } from '@/components/page-wrapper';
 import { DataTable, type Column } from '@/components/data-table/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { usePagination } from '@/hooks/use-pagination';
 import api from '@/services/api-client';
 import { VI } from '@/lib/vi-text';
@@ -32,14 +35,19 @@ export default function CampaignListPage() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
-  const { page, setPage, limit, setLimit, search, setSearch, sortKey, sortOrder, handleSort, queryParams } = usePagination();
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const { page, setPage, limit, setLimit, sortKey, sortOrder, handleSort, queryParams } = usePagination();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['campaigns', queryParams, statusFilter, typeFilter],
+    queryKey: ['campaigns', queryParams, statusFilter, typeFilter, dateFrom, dateTo, appliedSearch],
     queryFn: async () => {
-      const params: Record<string, string | number> = { ...queryParams };
+      const params: Record<string, string | number> = { ...queryParams, search: appliedSearch };
       if (statusFilter) params.status = statusFilter;
       if (typeFilter) params.type = typeFilter;
+      if (dateFrom) params.dateFrom = `${dateFrom}T00:00:00`;
+      if (dateTo) params.dateTo = `${dateTo}T23:59:59`;
       const { data } = await api.get('/campaigns', { params });
       return data.data as { items: Campaign[]; total: number };
     },
@@ -66,7 +74,7 @@ export default function CampaignListPage() {
   ];
 
   const toolbar = (
-    <div className="flex gap-2">
+    <div className="flex items-end gap-2 flex-wrap">
       <Select value={statusFilter || 'all'} onValueChange={(v) => setStatusFilter(!v || v === 'all' ? '' : v)}>
         <SelectTrigger className="w-40">
           <SelectValue placeholder={VI.campaign.status} />
@@ -89,6 +97,17 @@ export default function CampaignListPage() {
           ))}
         </SelectContent>
       </Select>
+      <div className="space-y-1">
+        <Label className="text-xs">Từ ngày</Label>
+        <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-36" />
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">Đến ngày</Label>
+        <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36" />
+      </div>
+      {(dateFrom || dateTo || statusFilter || typeFilter) && (
+        <Button variant="ghost" size="sm" onClick={() => { setDateFrom(''); setDateTo(''); setStatusFilter(''); setTypeFilter(''); }}>Xóa lọc</Button>
+      )}
     </div>
   );
 
@@ -101,8 +120,7 @@ export default function CampaignListPage() {
         page={page}
         limit={limit}
         isLoading={isLoading}
-        searchValue={search}
-        onSearchChange={setSearch}
+        onSearchSubmit={(v) => { setAppliedSearch(v); setPage(1); }}
         onPageChange={setPage}
         onLimitChange={setLimit}
         onSort={handleSort}

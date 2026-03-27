@@ -13,6 +13,12 @@ const debtCaseSelect = {
   dpd: true,
   tier: true,
   status: true,
+  contractNumber: true,
+  debtType: true,
+  paidAmount: true,
+  remainingAmount: true,
+  debtGroup: true,
+  dueDate: true,
   assignedTo: true,
   promiseDate: true,
   promiseAmount: true,
@@ -28,6 +34,9 @@ interface ListDebtCasesFilter {
   tier?: string;
   campaignId?: string;
   assignedTo?: string;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export async function listDebtCases(
@@ -42,6 +51,15 @@ export async function listDebtCases(
   if (filters.tier) where.tier = filters.tier;
   if (filters.campaignId) where.campaignId = filters.campaignId;
   if (filters.assignedTo) where.assignedTo = filters.assignedTo;
+  if (filters.dateFrom || filters.dateTo) {
+    where.createdAt = {
+      ...(filters.dateFrom && { gte: new Date(filters.dateFrom) }),
+      ...(filters.dateTo && { lte: new Date(filters.dateTo) }),
+    };
+  }
+  if (filters.search) {
+    where.contact = { fullName: { contains: filters.search, mode: 'insensitive' } };
+  }
 
   const [cases, total] = await Promise.all([
     prisma.debtCase.findMany({ where, select: debtCaseSelect, skip: pagination.skip, take: pagination.limit, orderBy: pagination.orderBy }),
@@ -57,6 +75,12 @@ interface CreateDebtCaseInput {
   originalAmount: number;
   outstandingAmount: number;
   dpd?: number;
+  contractNumber?: string;
+  debtType?: string;
+  paidAmount?: number;
+  remainingAmount?: number;
+  debtGroup?: string;
+  dueDate?: string;
   assignedTo?: string;
 }
 
@@ -73,6 +97,12 @@ export async function createDebtCase(input: CreateDebtCaseInput, userId: string,
       outstandingAmount: input.outstandingAmount,
       dpd,
       tier: tier as never,
+      contractNumber: input.contractNumber || null,
+      debtType: input.debtType || null,
+      paidAmount: input.paidAmount ?? 0,
+      remainingAmount: input.remainingAmount ?? null,
+      debtGroup: input.debtGroup || null,
+      dueDate: input.dueDate ? new Date(input.dueDate) : null,
       assignedTo: input.assignedTo || userId,
     },
     select: debtCaseSelect,
@@ -103,6 +133,12 @@ export async function updateDebtCase(
       ...(input.status && { status: input.status as never }),
       ...(input.dpd !== undefined && { dpd, tier: tier as never }),
       ...(input.outstandingAmount !== undefined && { outstandingAmount: input.outstandingAmount }),
+      ...(input.contractNumber !== undefined && { contractNumber: input.contractNumber || null }),
+      ...(input.debtType !== undefined && { debtType: input.debtType || null }),
+      ...(input.paidAmount !== undefined && { paidAmount: input.paidAmount }),
+      ...(input.remainingAmount !== undefined && { remainingAmount: input.remainingAmount ?? null }),
+      ...(input.debtGroup !== undefined && { debtGroup: input.debtGroup || null }),
+      ...(input.dueDate !== undefined && { dueDate: input.dueDate ? new Date(input.dueDate) : null }),
       ...(input.assignedTo !== undefined && { assignedTo: input.assignedTo || null }),
     },
     select: debtCaseSelect,

@@ -14,6 +14,8 @@ const callLogSelect = {
   duration: true,
   billsec: true,
   hangupCause: true,
+  sipCode: true,
+  sipReason: true,
   recordingStatus: true,
   notes: true,
   createdAt: true,
@@ -29,6 +31,7 @@ export interface ListCallLogsFilter {
   direction?: string;
   disposition?: string;
   campaignId?: string;
+  search?: string;
 }
 
 export async function listCallLogs(
@@ -43,6 +46,13 @@ export async function listCallLogs(
   if (filters.direction) where.direction = filters.direction;
   if (filters.disposition) where.dispositionCodeId = filters.disposition;
   if (filters.campaignId) where.campaignId = filters.campaignId;
+
+  if (filters.search) {
+    where.OR = [
+      { callerNumber: { contains: filters.search } },
+      { destinationNumber: { contains: filters.search } },
+    ];
+  }
 
   if (filters.startDate || filters.endDate) {
     where.startTime = {

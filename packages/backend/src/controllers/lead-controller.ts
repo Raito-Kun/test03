@@ -8,6 +8,9 @@ const createLeadSchema = z.object({
   campaignId: z.string().uuid().optional(),
   status: z.enum(['new', 'contacted', 'qualified', 'proposal', 'won', 'lost']).optional(),
   score: z.number().min(0).max(100).optional(),
+  leadScore: z.number().min(0).optional(),
+  product: z.string().optional(),
+  budget: z.number().nonnegative().optional(),
   assignedTo: z.string().uuid().optional(),
   nextFollowUp: z.string().optional(),
   notes: z.string().optional(),
@@ -26,6 +29,8 @@ export async function listLeads(req: Request, res: Response, next: NextFunction)
       campaignId: req.query.campaign_id as string | undefined,
       assignedTo: req.query.assigned_to as string | undefined,
       search: req.query.search as string | undefined,
+      dateFrom: req.query.dateFrom as string | undefined,
+      dateTo: req.query.dateTo as string | undefined,
     };
     const result = await leadService.listLeads(pagination, filters, req.dataScope || {});
     res.json({ success: true, ...result });

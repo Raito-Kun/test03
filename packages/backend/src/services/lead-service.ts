@@ -10,6 +10,9 @@ const leadSelect = {
   campaignId: true,
   status: true,
   score: true,
+  leadScore: true,
+  product: true,
+  budget: true,
   assignedTo: true,
   nextFollowUp: true,
   notes: true,
@@ -27,6 +30,8 @@ interface ListLeadsFilter {
   campaignId?: string;
   assignedTo?: string;
   search?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export async function listLeads(
@@ -40,6 +45,12 @@ export async function listLeads(
   if (filters.status) where.status = filters.status;
   if (filters.campaignId) where.campaignId = filters.campaignId;
   if (filters.assignedTo) where.assignedTo = filters.assignedTo;
+  if (filters.dateFrom || filters.dateTo) {
+    where.createdAt = {
+      ...(filters.dateFrom && { gte: new Date(filters.dateFrom) }),
+      ...(filters.dateTo && { lte: new Date(filters.dateTo) }),
+    };
+  }
   if (filters.search) {
     where.contact = { fullName: { contains: filters.search, mode: 'insensitive' } };
   }
@@ -57,6 +68,9 @@ interface CreateLeadInput {
   campaignId?: string;
   status?: string;
   score?: number;
+  leadScore?: number;
+  product?: string;
+  budget?: number;
   assignedTo?: string;
   nextFollowUp?: string;
   notes?: string;
@@ -69,6 +83,9 @@ export async function createLead(input: CreateLeadInput, userId: string, req?: R
       campaignId: input.campaignId || null,
       status: (input.status as never) || 'new',
       score: input.score || 0,
+      leadScore: input.leadScore ?? 0,
+      product: input.product || null,
+      budget: input.budget ?? null,
       assignedTo: input.assignedTo || userId,
       nextFollowUp: input.nextFollowUp ? new Date(input.nextFollowUp) : null,
       notes: input.notes || null,
@@ -96,6 +113,9 @@ export async function updateLead(
     data: {
       ...(input.status && { status: input.status as never }),
       ...(input.score !== undefined && { score: input.score }),
+      ...(input.leadScore !== undefined && { leadScore: input.leadScore }),
+      ...(input.product !== undefined && { product: input.product || null }),
+      ...(input.budget !== undefined && { budget: input.budget ?? null }),
       ...(input.assignedTo !== undefined && { assignedTo: input.assignedTo || null }),
       ...(input.nextFollowUp !== undefined && { nextFollowUp: input.nextFollowUp ? new Date(input.nextFollowUp) : null }),
       ...(input.notes !== undefined && { notes: input.notes || null }),

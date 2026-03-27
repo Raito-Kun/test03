@@ -26,6 +26,8 @@ interface DataTableProps<T> {
   isLoading?: boolean;
   searchValue?: string;
   onSearchChange?: (value: string) => void;
+  /** When provided, search is deferred until button click or Enter */
+  onSearchSubmit?: (value: string) => void;
   onPageChange: (page: number) => void;
   onLimitChange?: (limit: number) => void;
   onSort?: (key: string, order: 'asc' | 'desc') => void;
@@ -38,10 +40,15 @@ interface DataTableProps<T> {
 
 export function DataTable<T extends { id?: string }>({
   columns, data, total, page, limit, isLoading,
-  searchValue, onSearchChange, onPageChange, onLimitChange,
+  searchValue, onSearchChange, onSearchSubmit, onPageChange, onLimitChange,
   onSort, sortKey, sortOrder, onRowClick, actions, toolbar,
 }: DataTableProps<T>) {
   const totalPages = Math.ceil(total / limit) || 1;
+  const [localSearch, setLocalSearch] = useState(searchValue || '');
+
+  // If using deferred search mode, keep local state; otherwise sync
+  const isDeferred = !!onSearchSubmit;
+  const displaySearch = isDeferred ? localSearch : (searchValue || '');
 
   function handleSort(key: string) {
     if (!onSort) return;
@@ -49,19 +56,36 @@ export function DataTable<T extends { id?: string }>({
     onSort(key, newOrder);
   }
 
+  function handleSearchKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter' && isDeferred) {
+      onSearchSubmit!(localSearch);
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex items-center gap-3">
-        {onSearchChange && (
-          <div className="relative max-w-sm flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder={VI.actions.search}
-              value={searchValue || ''}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-9"
-            />
+        {(onSearchChange || onSearchSubmit) && (
+          <div className="relative max-w-sm flex-1 flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder={VI.actions.search}
+                value={displaySearch}
+                onChange={(e) => {
+                  if (isDeferred) setLocalSearch(e.target.value);
+                  else onSearchChange?.(e.target.value);
+                }}
+                onKeyDown={handleSearchKeyDown}
+                className="pl-9"
+              />
+            </div>
+            {isDeferred && (
+              <Button size="sm" onClick={() => onSearchSubmit!(localSearch)}>
+                {VI.actions.search}
+              </Button>
+            )}
           </div>
         )}
         {toolbar}
