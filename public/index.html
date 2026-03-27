@@ -3,68 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Blackjack</title>
+  <title>Blackjack Online - 4 Players</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="game-container">
-    <header>
-      <h1>&#9824; Blackjack &#9829;</h1>
-      <div class="stats">
-        <span>W: <span id="wins">0</span></span>
-        <span>L: <span id="losses">0</span></span>
-        <span>T: <span id="pushes">0</span></span>
-      </div>
-    </header>
+  <header class="site-header">
+    <h1>&#9824; Blackjack Online &#9829;</h1>
+    <p class="subtitle">4-Player Parallel Tables</p>
+  </header>
 
-    <div class="table">
-      <div class="hand dealer-hand">
-        <div class="hand-label">Dealer <span class="score" id="dealer-score">0</span></div>
-        <div class="cards" id="dealer-cards"></div>
-      </div>
+  <div class="tables-grid" id="tables-grid"></div>
 
-      <div id="message" class="message">Place your bet to start!</div>
-
-      <div class="hand player-hand">
-        <div class="cards" id="player-cards"></div>
-        <div class="hand-label">You <span class="score" id="player-score">0</span></div>
-      </div>
-    </div>
-
-    <div class="controls">
-      <div class="balance-bar">
-        <span>Balance: $<span id="balance">1,000</span></span>
-        <span>Bet: $<span id="current-bet">0</span></span>
-      </div>
-
-      <div id="betting-controls" class="control-group">
-        <div class="chips">
-          <button class="chip-btn" data-value="10">$10</button>
-          <button class="chip-btn" data-value="25">$25</button>
-          <button class="chip-btn" data-value="50">$50</button>
-          <button class="chip-btn" data-value="100">$100</button>
-        </div>
-        <div class="bet-actions">
-          <input type="number" id="bet-input" value="100" min="1">
-          <button id="deal-btn" class="btn btn-primary">Deal</button>
-        </div>
-      </div>
-
-      <div id="game-controls" class="control-group" style="display: none;">
-        <button id="hit-btn" class="btn btn-hit">Hit (H)</button>
-        <button id="stand-btn" class="btn btn-stand">Stand (S)</button>
-        <button id="double-btn" class="btn btn-double">Double (D)</button>
-      </div>
-
-      <button id="new-round-btn" class="btn btn-primary" style="display: none;">New Round (Enter)</button>
-    </div>
-
-    <footer>
-      <span>Keys: <b>H</b>=Hit <b>S</b>=Stand <b>D</b>=Double <b>Enter</b>=Deal/New Round</span>
-    </footer>
-  </div>
+  <footer class="site-footer">
+    Click table to focus &bull;
+    <b>1-4</b> Select Table &bull;
+    <b>Tab</b> Next &bull;
+    <b>H</b> Hit &bull;
+    <b>S</b> Stand &bull;
+    <b>D</b> Double &bull;
+    <b>Enter</b> Deal/New Round
+  </footer>
 
   <script src="game-engine.js"></script>
+  <script src="table-renderer.js"></script>
   <script src="ui-controller.js"></script>
 </body>
 </html>
