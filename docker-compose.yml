@@ -1,12 +1,12 @@
 services:
   web:
     image: nginx:alpine
-    container_name: web
+    container_name: blackjack-web
     restart: unless-stopped
     volumes:
       - ./public:/usr/share/nginx/html:ro
     ports:
-      - "80:80"
+      - "8080:80"
     networks:
       - app-network
 
