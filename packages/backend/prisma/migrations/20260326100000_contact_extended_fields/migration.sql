@@ -1,0 +1,12 @@
+ALTER TABLE "contacts" ADD COLUMN IF NOT EXISTS "occupation" TEXT;
+ALTER TABLE "contacts" ADD COLUMN IF NOT EXISTS "income" DECIMAL(15,2);
+ALTER TABLE "contacts" ADD COLUMN IF NOT EXISTS "province" TEXT;
+ALTER TABLE "contacts" ADD COLUMN IF NOT EXISTS "district" TEXT;
+ALTER TABLE "contacts" ADD COLUMN IF NOT EXISTS "full_address" TEXT;
+ALTER TABLE "contacts" ADD COLUMN IF NOT EXISTS "company" TEXT;
+ALTER TABLE "contacts" ADD COLUMN IF NOT EXISTS "job_title" TEXT;
+ALTER TABLE "contacts" ADD COLUMN IF NOT EXISTS "company_email" TEXT;
+ALTER TABLE "contacts" ADD COLUMN IF NOT EXISTS "credit_limit" DECIMAL(15,2);
+ALTER TABLE "contacts" ADD COLUMN IF NOT EXISTS "bank_account" TEXT;
+ALTER TABLE "contacts" ADD COLUMN IF NOT EXISTS "bank_name" TEXT;
+ALTER TABLE "contacts" ADD COLUMN IF NOT EXISTS "internal_notes" TEXT;

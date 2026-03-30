@@ -12,6 +12,7 @@ import { initSocketIO } from './lib/socket-io';
 import eslDaemon from './lib/esl-daemon';
 import { startReminderJob } from './jobs/reminder-job';
 import { startScheduledReportJob } from './jobs/scheduled-report-job';
+import { startDebtEscalationJob } from './jobs/debt-escalation-job';
 
 // Phase 02-03 routes
 import authRoutes from './routes/auth-routes';
@@ -44,6 +45,29 @@ import reportRoutes from './routes/report-routes';
 
 // Phase 10 routes
 import aiRoutes from './routes/ai-routes';
+
+// Phase 12 routes
+import permissionRoutes from './routes/permission-routes';
+
+// Phase 13 routes
+import extensionRoutes from './routes/extension-routes';
+
+// Phase 15 routes
+import templateRoutes from './routes/template-routes';
+
+// Phase 2 (v1.2) routes
+import exportRoutes from './routes/export-routes';
+import assignmentRoutes from './routes/assignment-routes';
+import scriptRoutes from './routes/script-routes';
+import contactMergeRoutes from './routes/contact-merge-routes';
+import monitoringRoutes from './routes/monitoring-routes';
+import qaTimestampRoutes from './routes/qa-timestamp-routes';
+
+// Phase 13 gap closure routes
+import guarantorRoutes from './routes/guarantor-routes';
+import campaignProgressRoutes from './routes/campaign-progress-routes';
+import rpcRoutes from './routes/rpc-routes';
+import slaAlertRoutes from './routes/sla-alert-routes';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '4000', 10);
@@ -104,6 +128,29 @@ app.use('/api/v1/reports', reportRoutes);
 // Phase 10 routes
 app.use('/api/v1/ai', aiRoutes);
 
+// Phase 12 routes
+app.use('/api/v1/permissions', permissionRoutes);
+
+// Phase 13 routes
+app.use('/api/v1/extensions', extensionRoutes);
+
+// Phase 15 routes
+app.use('/api/v1/templates', templateRoutes);
+
+// Phase 2 (v1.2) routes
+app.use('/api/v1/export', exportRoutes);
+app.use('/api/v1/assignments', assignmentRoutes);
+app.use('/api/v1/scripts', scriptRoutes);
+app.use('/api/v1/contact-merge', contactMergeRoutes);
+app.use('/api/v1/monitoring', monitoringRoutes);
+app.use('/api/v1/qa-timestamps', qaTimestampRoutes);
+
+// Phase 13 gap closure routes
+app.use('/api/v1/guarantors', guarantorRoutes);
+app.use('/api/v1/campaign-progress', campaignProgressRoutes);
+app.use('/api/v1/rpc', rpcRoutes);
+app.use('/api/v1/sla-alerts', slaAlertRoutes);
+
 // Error handler (must be after routes)
 app.use(errorHandler);
 
@@ -126,6 +173,7 @@ if (process.env.NODE_ENV !== 'test') {
     // Start jobs
     startReminderJob();
     startScheduledReportJob();
+    startDebtEscalationJob();
   });
 }
 
