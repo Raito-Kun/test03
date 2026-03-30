@@ -23,10 +23,17 @@ const GENDER_MAP: Record<string, string> = {
 };
 
 interface ImportResult {
-  total: number;
-  success: number;
-  failed: number;
+  imported: number;
+  skipped: number;
   errors: Array<{ row: number; error: string }>;
+}
+
+/** Normalize Vietnamese phone: 9 digits without leading 0 → add "0" prefix */
+function normalizePhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  // 9 digits starting with 3-9 (Vietnamese mobile without leading 0)
+  if (digits.length === 9 && /^[3-9]/.test(digits)) return '0' + digits;
+  return digits;
 }
 
 /** Import contacts from Excel buffer */
@@ -38,24 +45,29 @@ export async function importContacts(
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json<Record<string, string>>(sheet);
 
-  const result: ImportResult = { total: rows.length, success: 0, failed: 0, errors: [] };
+  const result: ImportResult = { imported: 0, skipped: 0, errors: [] };
 
   for (let i = 0; i < rows.length; i++) {
     try {
       const raw = rows[i];
       const mapped: Record<string, unknown> = {};
 
-      // Map Vietnamese headers to English field names
+      // Map Vietnamese headers to English field names; also strip (*required) markers
       for (const [viHeader, value] of Object.entries(raw)) {
-        const key = HEADER_MAP[viHeader] || viHeader;
+        const stripped = viHeader.replace(/\s*\(.*?\)/g, '').trim();
+        const key = HEADER_MAP[stripped] || stripped;
         mapped[key] = value;
       }
 
       if (!mapped.fullName || !mapped.phone) {
         result.errors.push({ row: i + 2, error: 'Thiếu Họ tên hoặc Số điện thoại' });
-        result.failed++;
+        result.skipped++;
         continue;
       }
+
+      // Normalize phone numbers (auto-add leading 0 for 9-digit VN numbers)
+      const phone = normalizePhone(String(mapped.phone));
+      const phoneAlt = mapped.phoneAlt ? normalizePhone(String(mapped.phoneAlt)) : undefined;
 
       // Parse tags (comma-separated)
       const tags = mapped.tags
@@ -68,8 +80,8 @@ export async function importContacts(
       await prisma.contact.create({
         data: {
           fullName: String(mapped.fullName),
-          phone: String(mapped.phone),
-          phoneAlt: mapped.phoneAlt ? String(mapped.phoneAlt) : undefined,
+          phone,
+          phoneAlt,
           email: mapped.email ? String(mapped.email) : undefined,
           idNumber: mapped.idNumber ? String(mapped.idNumber) : undefined,
           address: mapped.address ? String(mapped.address) : undefined,
@@ -80,14 +92,14 @@ export async function importContacts(
           createdBy: userId,
         },
       });
-      result.success++;
+      result.imported++;
     } catch (err) {
       result.errors.push({ row: i + 2, error: (err as Error).message });
-      result.failed++;
+      result.skipped++;
     }
   }
 
-  logger.info('Contact import complete', { total: result.total, success: result.success, failed: result.failed });
+  logger.info('Contact import complete', { imported: result.imported, skipped: result.skipped });
   return result;
 }
 

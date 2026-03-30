@@ -10,6 +10,13 @@ interface ImportResult {
 
 const VALID_STATUSES = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'];
 
+/** Normalize Vietnamese phone: 9 digits without leading 0 → add "0" prefix */
+function normalizePhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 9 && /^[3-9]/.test(digits)) return '0' + digits;
+  return digits;
+}
+
 /** Find or create contact by phone, return contactId */
 async function resolveContact(phone: string, name: string): Promise<string> {
   const existing = await prisma.contact.findFirst({ where: { phone }, select: { id: true } });
@@ -41,16 +48,17 @@ export async function importLeads(buffer: Buffer, userId: string): Promise<Impor
       data[clean] = String(v ?? '').trim();
     }
 
-    const phone = data['contactPhone'];
+    const rawPhone = data['contactPhone'];
     const name = data['contactName'];
 
-    if (!phone || !name) {
+    if (!rawPhone || !name) {
       result.errors.push({ row: rowNum, error: 'Thiếu contactPhone hoặc contactName' });
       result.skipped++;
       continue;
     }
 
     try {
+      const phone = normalizePhone(rawPhone);
       const contactId = await resolveContact(phone, name);
       const rawStatus = data['status']?.toLowerCase();
       const status = VALID_STATUSES.includes(rawStatus) ? rawStatus : 'new';
