@@ -7,6 +7,7 @@ import api from '@/services/api-client';
 
 interface ImportResult {
   imported: number;
+  updated?: number;
   skipped: number;
   errors: Array<{ row: number; error: string }>;
 }
@@ -36,9 +37,16 @@ export function ImportButton({ endpoint, templateType, label = 'Nhập CSV', inv
       return data.data;
     },
     onSuccess: (result) => {
-      const msg = `Đã nhập ${result.imported} bản ghi, bỏ qua ${result.skipped}`;
+      const parts: string[] = [];
+      if (result.imported > 0) parts.push(`${result.imported} mới`);
+      if (result.updated && result.updated > 0) parts.push(`${result.updated} cập nhật`);
+      if (result.skipped > 0) parts.push(`${result.skipped} bỏ qua`);
+      const msg = `Nhập: ${parts.join(', ')}`;
+
       if (result.errors.length > 0) {
-        toast.warning(msg, { description: `${result.errors.length} lỗi. Dòng ${result.errors.slice(0, 3).map((e) => e.row).join(', ')}...` });
+        // Show specific error per row (max 5)
+        const details = result.errors.slice(0, 5).map((e) => `Dòng ${e.row}: ${e.error}`).join('\n');
+        toast.warning(msg, { description: details, duration: 10000 });
       } else {
         toast.success(msg);
       }

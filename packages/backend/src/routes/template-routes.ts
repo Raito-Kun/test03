@@ -7,7 +7,7 @@ type TemplateType = typeof ALLOWED_TYPES[number];
 
 const TEMPLATES: Record<TemplateType, { header: string; example: string }> = {
   contacts: {
-    header: 'fullName (*required),phone (*required),phoneAlt,email,gender,dateOfBirth (YYYY-MM-DD),idNumber (CCCD),occupation,income,province,district,fullAddress,company,jobTitle,companyEmail,bankName,bankAccount,creditLimit,source,tags,notes,internalNotes',
+    header: 'fullName (*required),phone (*required),phoneAlt,email,gender,dateOfBirth (YYYY-MM-DD hoặc D/M/YYYY),idNumber (CCCD),occupation,income,province,district,fullAddress,company,jobTitle,companyEmail,bankName,bankAccount,creditLimit,source,tags,notes,internalNotes',
     example: 'Nguyễn Văn A,0901234567,0987654321,vana@email.com,male,1990-05-15,012345678901,Kế toán,15000000,Hồ Chí Minh,Quận 1,123 Nguyễn Huệ,Công ty ABC,Trưởng phòng,vana@congtyabc.com,Vietcombank,1234567890,50000000,website,vip,Khách tiềm năng,Ghi chú nội bộ',
   },
   leads: {
