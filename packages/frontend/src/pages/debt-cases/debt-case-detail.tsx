@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useCustomerTabStore } from '@/stores/customer-tab-store';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { ArrowLeft, Phone } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { ClickToCallButton } from '@/components/click-to-call-button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,7 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
 import { VI } from '@/lib/vi-text';
-import { formatMoney } from '@/lib/format';
+import { formatMoney, fmtPhone } from '@/lib/format';
 import api from '@/services/api-client';
 import type { DebtTier, DebtStatus } from '@shared/constants/enums';
 
@@ -62,12 +64,10 @@ export default function DebtCaseDetailPage() {
     onError: () => toast.error('Lỗi khi ghi nhận PTP'),
   });
 
-  function handleCall() {
-    if (!debt?.contact?.phone) return;
-    api.post('/calls/originate', { phone: debt.contact.phone }).then(() => {
-      toast.success(`Đang gọi ${debt.contact!.phone}...`);
-    }).catch(() => toast.error('Không thể thực hiện cuộc gọi'));
-  }
+  const updateTabLabel = useCustomerTabStore((s) => s.updateTabLabel);
+  useEffect(() => {
+    if (id && debt?.contact?.fullName) updateTabLabel(id, debt.contact.fullName);
+  }, [id, debt?.contact?.fullName, updateTabLabel]);
 
   if (isLoading) {
     return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-64 w-full" /></div>;
@@ -91,9 +91,7 @@ export default function DebtCaseDetailPage() {
           </div>
         </div>
         {debt.contact?.phone && (
-          <Button variant="outline" onClick={handleCall}>
-            <Phone className="mr-2 h-4 w-4" /> Gọi
-          </Button>
+          <ClickToCallButton phone={debt.contact.phone} contactName={debt.contact.fullName} />
         )}
         <Button onClick={() => setPtpOpen(true)}>{VI.debt.ptpTitle}</Button>
       </div>
@@ -116,7 +114,7 @@ export default function DebtCaseDetailPage() {
             <CardHeader><CardTitle>Liên hệ</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
               <div><p className="text-xs text-muted-foreground">{VI.contact.fullName}</p><p className="font-medium">{debt.contact.fullName}</p></div>
-              <div><p className="text-xs text-muted-foreground">{VI.contact.phone}</p><p className="font-medium">{debt.contact.phone}</p></div>
+              <div><p className="text-xs text-muted-foreground">{VI.contact.phone}</p><p className="font-medium">{fmtPhone(debt.contact.phone)}</p></div>
             </CardContent>
           </Card>
         )}

@@ -1,6 +1,6 @@
 /** Mirror of Prisma enums for frontend use (no Prisma dependency needed) */
 
-export const ROLES = ['admin', 'manager', 'qa', 'leader', 'agent_telesale', 'agent_collection'] as const;
+export const ROLES = ['super_admin', 'admin', 'manager', 'qa', 'leader', 'agent_telesale', 'agent_collection'] as const;
 export type Role = (typeof ROLES)[number];
 
 export const LEAD_STATUSES = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'] as const;

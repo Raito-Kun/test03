@@ -10,6 +10,7 @@ datasource db {
 // ─── Enums ───────────────────────────────────────────────
 
 enum Role {
+  super_admin
   admin
   manager
   qa
@@ -109,6 +110,8 @@ enum NotificationType {
   system_alert
   campaign_assigned
   recording_failed
+  debt_escalated
+  sla_breach
 }
 
 enum WebhookStatus {
@@ -215,6 +218,18 @@ model Contact {
   source       String?
   tags         Json?    @db.JsonB
   customFields Json?    @map("custom_fields") @db.JsonB
+  occupation    String?   @map("occupation")
+  income        Decimal?  @map("income") @db.Decimal(15,2)
+  province      String?   @map("province")
+  district      String?   @map("district")
+  fullAddress   String?   @map("full_address")
+  company       String?   @map("company")
+  jobTitle      String?   @map("job_title")
+  companyEmail  String?   @map("company_email")
+  creditLimit   Decimal?  @map("credit_limit") @db.Decimal(15,2)
+  bankAccount   String?   @map("bank_account")
+  bankName      String?   @map("bank_name")
+  internalNotes String?   @map("internal_notes")
   assignedTo   String?  @map("assigned_to") @db.Uuid
   createdBy    String?  @map("created_by") @db.Uuid
   createdAt    DateTime @default(now()) @map("created_at")
@@ -239,6 +254,9 @@ model Lead {
   campaignId   String?    @map("campaign_id") @db.Uuid
   status       LeadStatus @default(new)
   score        Int        @default(0)
+  leadScore    Int?       @default(0) @map("lead_score")
+  product      String?
+  budget       Decimal?   @map("budget") @db.Decimal(15, 2)
   assignedTo   String?    @map("assigned_to") @db.Uuid
   nextFollowUp DateTime?  @map("next_follow_up")
   notes        String?
@@ -264,6 +282,12 @@ model DebtCase {
   dpd               Int        @default(0)
   tier              DebtTier   @default(current)
   status            DebtStatus @default(active)
+  contractNumber    String?    @map("contract_number")
+  debtType          String?    @map("debt_type")
+  paidAmount        Decimal?   @default(0) @map("paid_amount") @db.Decimal(15, 2)
+  remainingAmount   Decimal?   @map("remaining_amount") @db.Decimal(15, 2)
+  debtGroup         String?    @map("debt_group")
+  dueDate           DateTime?  @map("due_date")
   assignedTo        String?    @map("assigned_to") @db.Uuid
   promiseDate       DateTime?  @map("promise_date") @db.Date
   promiseAmount     Decimal?   @map("promise_amount") @db.Decimal(15, 2)
@@ -293,6 +317,8 @@ model CallLog {
   duration          Int             @default(0)
   billsec           Int             @default(0)
   hangupCause       String?         @map("hangup_cause")
+  sipCode           String?         @map("sip_code")
+  sipReason         String?         @map("sip_reason")
   dispositionCodeId String?         @map("disposition_code_id") @db.Uuid
   recordingPath     String?         @map("recording_path")
   recordingStatus   RecordingStatus @default(none) @map("recording_status")
@@ -360,6 +386,8 @@ model QaAnnotation {
   criteriaScores Json?    @map("criteria_scores") @db.JsonB
   comment        String?
   timestampNote  Json?    @map("timestamp_note") @db.JsonB
+  timestamp      Int?
+  category       String?
   createdAt      DateTime @default(now()) @map("created_at")
 
   callLog  CallLog @relation(fields: [callLogId], references: [id])
@@ -377,10 +405,13 @@ model Ticket {
   subject     String
   content     String?
   resultCode  String?        @map("result_code")
-  status      TicketStatus   @default(open)
-  priority    TicketPriority @default(medium)
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
+  status          TicketStatus   @default(open)
+  priority        TicketPriority @default(medium)
+  firstResponseAt DateTime?      @map("first_response_at")
+  resolvedAt      DateTime?      @map("resolved_at")
+  slaBreached     Boolean        @default(false) @map("sla_breached")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
 
   contact  Contact         @relation(fields: [contactId], references: [id])
   callLog  CallLog?        @relation(fields: [callLogId], references: [id])
@@ -481,17 +512,40 @@ model WebhookLog {
 }
 
 model AgentStatusLog {
-  id        String      @id @default(uuid()) @db.Uuid
-  userId    String      @map("user_id") @db.Uuid
-  status    AgentStatus
-  reason    String?
-  startedAt DateTime    @default(now()) @map("started_at")
-  endedAt   DateTime?   @map("ended_at")
-  duration  Int?
+  id             String      @id @default(uuid()) @db.Uuid
+  userId         String      @map("user_id") @db.Uuid
+  status         AgentStatus
+  reason         String?
+  startedAt      DateTime    @default(now()) @map("started_at")
+  endedAt        DateTime?   @map("ended_at")
+  duration       Int?
+  wrapUpDuration Int?        @map("wrap_up_duration")
+  createdAt      DateTime    @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id])
 
   @@map("agent_status_logs")
+}
+
+model Permission {
+  id       String  @id @default(uuid()) @db.Uuid
+  key      String  @unique
+  label    String
+  group    String
+  parentId String? @map("parent_id") @db.Uuid
+  parent   Permission?  @relation("PermissionHierarchy", fields: [parentId], references: [id])
+  children Permission[] @relation("PermissionHierarchy")
+  rolePermissions RolePermission[]
+  @@map("permissions")
+}
+
+model RolePermission {
+  role         Role
+  permissionId String     @map("permission_id") @db.Uuid
+  granted      Boolean    @default(true)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  @@id([role, permissionId])
+  @@map("role_permissions")
 }
 
 model CampaignDispositionCode {
@@ -505,4 +559,26 @@ model CampaignDispositionCode {
 
   @@id([campaignId, dispositionCodeId])
   @@map("campaign_disposition_codes")
+}
+
+// ─── Phase 2: Call Scripts ────────────────────────────────
+
+enum ScriptType {
+  default
+  product
+}
+
+model CallScript {
+  id        String     @id @default(uuid()) @db.Uuid
+  name      String
+  type      ScriptType @default(default)
+  product   String?
+  content   String     @db.Text
+  isActive  Boolean    @default(true) @map("is_active")
+  sortOrder Int        @default(0) @map("sort_order")
+  createdBy String?    @map("created_by") @db.Uuid
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  @@map("call_scripts")
 }

@@ -24,6 +24,11 @@ const transferSchema = z.object({
   targetExtension: z.string().min(1).max(30),
 });
 
+const attendedTransferSchema = z.object({
+  callUuid: z.string().uuid(),
+  targetExtension: z.string().min(1).max(30),
+});
+
 /** POST /calls/originate */
 export async function originateCall(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -51,10 +56,15 @@ export async function originateCall(req: Request, res: Response, next: NextFunct
     }
 
     const callerId = input.callerId || user.sipExtension;
-    await eslService.originate(user.sipExtension, destination, callerId);
+    await eslService.originate(user.sipExtension, destination, callerId, userId);
 
     res.status(202).json({ success: true, data: { message: 'Call origination initiated' } });
   } catch (err) {
+    const e = err as Error & { code?: string };
+    if (e.code === 'AGENT_NOT_READY' || e.code === 'EXT_NOT_REGISTERED') {
+      res.status(409).json({ success: false, error: { code: e.code, message: e.message } });
+      return;
+    }
     next(err);
   }
 }
@@ -87,6 +97,17 @@ export async function transferCall(req: Request, res: Response, next: NextFuncti
     const input = transferSchema.parse(req.body);
     await eslService.transfer(input.callUuid, input.targetExtension);
     res.json({ success: true, data: null });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** POST /calls/attended-transfer */
+export async function attendedTransferCall(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const input = attendedTransferSchema.parse(req.body);
+    await eslService.attendedTransfer(input.callUuid, input.targetExtension);
+    res.json({ success: true, data: { message: 'Attended transfer initiated' } });
   } catch (err) {
     next(err);
   }

@@ -8,6 +8,39 @@ const router = Router();
 
 router.use(authMiddleware);
 
+/** GET /monitoring/live — combined live dashboard: agent counts + active calls */
+router.get('/live', requirePermission('view_dashboard'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const teamId = req.user?.role === 'leader' ? req.user.teamId || undefined : undefined;
+    const [agents, activeCalls] = await Promise.all([
+      getAgentStatuses(teamId ?? undefined),
+      getActiveCalls(),
+    ]);
+
+    const counts = agents.reduce(
+      (acc, a) => {
+        if (a.registered) acc.online++;
+        if (a.status === 'on_call') acc.onCall++;
+        if (a.status === 'ready') acc.ready++;
+        if (a.status === 'wrap_up') acc.wrapUp++;
+        return acc;
+      },
+      { online: 0, onCall: 0, ready: 0, wrapUp: 0 },
+    );
+
+    res.json({
+      success: true,
+      data: {
+        agents: { ...counts, total: agents.length },
+        activeCalls,
+        generatedAt: new Date().toISOString(),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 /** GET /monitoring/agents — all agent statuses (manager/leader) */
 router.get('/agents', requirePermission('view_dashboard'), async (req: Request, res: Response, next: NextFunction) => {
   try {

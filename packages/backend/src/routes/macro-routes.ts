@@ -8,6 +8,7 @@ router.use(authMiddleware);
 
 router.get('/', ctrl.listMacros);
 router.post('/', ctrl.createMacro);
+router.post('/apply', ctrl.applyMacro);
 router.patch('/:id', ctrl.updateMacro);
 router.delete('/:id', ctrl.deleteMacro);
 

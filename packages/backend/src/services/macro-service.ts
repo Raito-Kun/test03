@@ -113,3 +113,51 @@ export async function deleteMacro(id: string, userId: string, role: string, req?
   await prisma.macro.delete({ where: { id } });
   logAudit(userId, 'delete', 'macros', id, null, req);
 }
+
+interface ApplyMacroInput {
+  macroId: string;
+  ticketId: string;
+  /** Optional field overrides from macro; if absent use macro defaults */
+  status?: 'open' | 'in_progress' | 'resolved' | 'closed';
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+}
+
+/**
+ * Apply a macro to a ticket: appends macro content to description,
+ * optionally overrides status and priority.
+ */
+export async function applyMacro(
+  input: ApplyMacroInput,
+  userId: string,
+  role: string,
+  req?: Request,
+) {
+  const macro = await getMacroById(input.macroId, userId, role);
+
+  const ticket = await prisma.ticket.findUnique({ where: { id: input.ticketId } });
+  if (!ticket) throw Object.assign(new Error('Ticket not found'), { code: 'NOT_FOUND' });
+
+  const appendedContent = ticket.content
+    ? `${ticket.content}\n\n---\n[Macro: ${macro.name}]\n${macro.content}`
+    : `[Macro: ${macro.name}]\n${macro.content}`;
+
+  const updated = await prisma.ticket.update({
+    where: { id: input.ticketId },
+    data: {
+      content: appendedContent,
+      ...(input.status && { status: input.status }),
+      ...(input.priority && { priority: input.priority }),
+    },
+    select: {
+      id: true,
+      subject: true,
+      content: true,
+      status: true,
+      priority: true,
+      updatedAt: true,
+    },
+  });
+
+  logAudit(userId, 'update', 'tickets', input.ticketId, { macroApplied: macro.id }, req);
+  return updated;
+}

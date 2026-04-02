@@ -8,10 +8,10 @@ const router = Router();
 // All routes require auth
 router.use(authMiddleware);
 
-router.get('/', requireRole('admin', 'manager'), userCtrl.listUsers);
-router.post('/', requireRole('admin'), userCtrl.createUser);
-router.get('/:id', requireRole('admin', 'manager'), userCtrl.getUser);
-router.patch('/:id', requireRole('admin'), userCtrl.updateUser);
-router.delete('/:id', requireRole('admin'), userCtrl.deleteUser);
+router.get('/', requireRole('super_admin', 'admin', 'manager'), userCtrl.listUsers);
+router.post('/', requireRole('super_admin', 'admin'), userCtrl.createUser);
+router.get('/:id', requireRole('super_admin', 'admin', 'manager'), userCtrl.getUser);
+router.patch('/:id', requireRole('super_admin', 'admin'), userCtrl.updateUser);
+router.delete('/:id', requireRole('super_admin', 'admin'), userCtrl.deleteUser);
 
 export default router;

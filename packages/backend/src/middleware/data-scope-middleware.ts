@@ -24,10 +24,15 @@ export function applyDataScope(userField: string = 'assigned_to') {
     const { role, userId, teamId } = req.user;
 
     switch (role) {
+      case 'super_admin':
       case 'admin':
       case 'manager':
-      case 'qa':
         // Full access — no filter
+        req.dataScope = {};
+        break;
+
+      case 'qa':
+        // QA sees all data for review purposes
         req.dataScope = {};
         break;
 
@@ -36,13 +41,14 @@ export function applyDataScope(userField: string = 'assigned_to') {
         if (teamId) {
           req.dataScope = { _teamScope: teamId, _userField: userField };
         } else {
+          // Leader without team gets full access
           req.dataScope = {};
         }
         break;
 
       case 'agent_telesale':
       case 'agent_collection':
-        // Own data only
+        // Own data only — agents see only records assigned to them
         req.dataScope = { _agentScope: userId, _userField: userField };
         break;
 

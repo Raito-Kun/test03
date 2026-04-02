@@ -81,3 +81,21 @@ export async function deleteMacro(req: Request, res: Response, next: NextFunctio
     handleErrors(err, res, next);
   }
 }
+
+const applyMacroSchema = z.object({
+  macroId: z.string().uuid(),
+  ticketId: z.string().uuid(),
+  status: z.enum(['open', 'in_progress', 'resolved', 'closed']).optional(),
+  priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+});
+
+/** POST /macros/apply */
+export async function applyMacro(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const input = applyMacroSchema.parse(req.body);
+    const result = await macroService.applyMacro(input, req.user!.userId, req.user!.role, req);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    handleErrors(err, res, next);
+  }
+}

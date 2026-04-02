@@ -69,6 +69,9 @@ import campaignProgressRoutes from './routes/campaign-progress-routes';
 import rpcRoutes from './routes/rpc-routes';
 import slaAlertRoutes from './routes/sla-alert-routes';
 
+// RBAC & data allocation routes
+import dataAllocationRoutes from './routes/data-allocation-routes';
+
 const app = express();
 const PORT = parseInt(process.env.PORT || '4000', 10);
 
@@ -150,6 +153,9 @@ app.use('/api/v1/guarantors', guarantorRoutes);
 app.use('/api/v1/campaign-progress', campaignProgressRoutes);
 app.use('/api/v1/rpc', rpcRoutes);
 app.use('/api/v1/sla-alerts', slaAlertRoutes);
+
+// RBAC & data allocation routes
+app.use('/api/v1/data-allocation', dataAllocationRoutes);
 
 // Error handler (must be after routes)
 app.use(errorHandler);

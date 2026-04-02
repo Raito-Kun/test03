@@ -36,6 +36,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-muted/40">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
+          <img src="/logo-pls.png" alt="CRM PLS" className="mx-auto mb-4" style={{ width: 120 }} />
           <CardTitle className="text-2xl">{VI.loginTitle}</CardTitle>
         </CardHeader>
         <CardContent>

@@ -1,7 +1,10 @@
 import prisma from '../lib/prisma';
 import { PaginationParams, paginatedResponse } from '../lib/pagination';
 import { logAudit } from '../lib/audit';
+import { createNotification } from './notification-service';
 import { Request } from 'express';
+
+const SLA_FIRST_RESPONSE_HOURS = 4;
 
 const ticketSelect = {
   id: true,
@@ -13,6 +16,9 @@ const ticketSelect = {
   resultCode: true,
   status: true,
   priority: true,
+  firstResponseAt: true,
+  resolvedAt: true,
+  slaBreached: true,
   createdAt: true,
   updatedAt: true,
   contact: { select: { id: true, fullName: true, phone: true } },
@@ -78,7 +84,32 @@ export async function updateTicket(
   role: string,
   req?: Request,
 ) {
-  await getTicketById(id, userId, role);
+  const existing = await getTicketById(id, userId, role);
+  const now = new Date();
+
+  // SLA: track first response time when moving open → in_progress
+  const slaData: Record<string, unknown> = {};
+  if (input.status === 'in_progress' && existing.status === 'open' && !existing.firstResponseAt) {
+    slaData.firstResponseAt = now;
+    const diffHours = (now.getTime() - new Date(existing.createdAt).getTime()) / 3600000;
+    if (diffHours > SLA_FIRST_RESPONSE_HOURS) {
+      slaData.slaBreached = true;
+      // Notify the assigned agent about SLA breach
+      createNotification(
+        existing.user.id,
+        'sla_breach',
+        'SLA Breach',
+        `Ticket "${existing.subject}" first response exceeded ${SLA_FIRST_RESPONSE_HOURS}h SLA`,
+        'ticket',
+        id,
+      ).catch(() => undefined);
+    }
+  }
+
+  // SLA: set resolvedAt when status changes to resolved
+  if (input.status === 'resolved' && existing.status !== 'resolved') {
+    slaData.resolvedAt = now;
+  }
 
   const ticket = await prisma.ticket.update({
     where: { id },
@@ -89,6 +120,7 @@ export async function updateTicket(
       ...(input.resultCode !== undefined && { resultCode: input.resultCode || null }),
       ...(input.status && { status: input.status }),
       ...(input.priority && { priority: input.priority }),
+      ...slaData,
     },
     select: ticketSelect,
   });

@@ -8,6 +8,7 @@ import {
   TokenPayload,
 } from '../lib/jwt';
 import logger from '../lib/logger';
+import { getPermissionsForRole } from './permission-service';
 
 interface AuthTokens {
   accessToken: string;
@@ -24,6 +25,7 @@ interface UserProfile {
   callMode: string;
   mustChangePassword: boolean;
   unreadNotificationCount: number;
+  permissions: string[];
 }
 
 /** Authenticate user with email + password, return token pair */
@@ -52,9 +54,10 @@ export async function login(email: string, password: string): Promise<{ tokens: 
   const accessToken = generateAccessToken(payload);
   const refreshToken = await generateRefreshToken(user.id);
 
-  const unreadCount = await prisma.notification.count({
-    where: { userId: user.id, isRead: false },
-  });
+  const [unreadCount, permissions] = await Promise.all([
+    prisma.notification.count({ where: { userId: user.id, isRead: false } }),
+    getPermissionsForRole(user.role),
+  ]);
 
   logger.info('User logged in', { userId: user.id, role: user.role });
 
@@ -70,6 +73,7 @@ export async function login(email: string, password: string): Promise<{ tokens: 
       callMode: user.callMode,
       mustChangePassword: user.mustChangePassword,
       unreadNotificationCount: unreadCount,
+      permissions,
     },
   };
 }
@@ -103,16 +107,17 @@ export async function logout(refreshTokenId: string): Promise<void> {
   await invalidateRefreshToken(refreshTokenId);
 }
 
-/** Get current user profile with unread notification count */
-export async function getProfile(userId: string): Promise<UserProfile> {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) {
-    throw Object.assign(new Error('User not found'), { code: 'NOT_FOUND' });
-  }
-
-  const unreadCount = await prisma.notification.count({
-    where: { userId: user.id, isRead: false },
+/** Update current user's own profile fields (sipExtension only for now) */
+export async function updateProfile(userId: string, data: { sipExtension?: string }): Promise<UserProfile> {
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { sipExtension: data.sipExtension ?? null },
   });
+
+  const [unreadCount, permissions] = await Promise.all([
+    prisma.notification.count({ where: { userId: user.id, isRead: false } }),
+    getPermissionsForRole(user.role),
+  ]);
 
   return {
     id: user.id,
@@ -124,5 +129,32 @@ export async function getProfile(userId: string): Promise<UserProfile> {
     callMode: user.callMode,
     mustChangePassword: user.mustChangePassword,
     unreadNotificationCount: unreadCount,
+    permissions,
+  };
+}
+
+/** Get current user profile with unread notification count */
+export async function getProfile(userId: string): Promise<UserProfile> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    throw Object.assign(new Error('User not found'), { code: 'NOT_FOUND' });
+  }
+
+  const [unreadCount, permissions] = await Promise.all([
+    prisma.notification.count({ where: { userId: user.id, isRead: false } }),
+    getPermissionsForRole(user.role),
+  ]);
+
+  return {
+    id: user.id,
+    email: user.email,
+    fullName: user.fullName,
+    role: user.role,
+    teamId: user.teamId,
+    sipExtension: user.sipExtension,
+    callMode: user.callMode,
+    mustChangePassword: user.mustChangePassword,
+    unreadNotificationCount: unreadCount,
+    permissions,
   };
 }

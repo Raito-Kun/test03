@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,9 +21,18 @@ interface TicketDetail {
   status: TicketStatus;
   createdAt: string;
   updatedAt: string;
+  firstResponseAt?: string | null;
+  resolvedAt?: string | null;
+  slaBreached?: boolean;
   contact: { id: string; fullName: string; phone: string } | null;
   createdBy: { fullName: string } | null;
   assignedTo: { fullName: string } | null;
+}
+
+interface Macro {
+  id: string;
+  name: string;
+  content: string;
 }
 
 const PRIORITY_COLORS: Record<TicketPriority, string> = {
@@ -43,11 +53,17 @@ export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [selectedMacro, setSelectedMacro] = useState('');
 
   const { data: ticket, isLoading } = useQuery({
     queryKey: ['ticket', id],
     queryFn: () => api.get<{ data: TicketDetail }>(`/tickets/${id}`).then((r) => r.data.data),
     enabled: !!id,
+  });
+
+  const { data: macros } = useQuery({
+    queryKey: ['macros'],
+    queryFn: () => api.get<{ data: Macro[] }>('/macros').then((r) => r.data.data),
   });
 
   const statusMutation = useMutation({
@@ -57,6 +73,16 @@ export default function TicketDetailPage() {
       toast.success('Đã cập nhật trạng thái');
     },
     onError: () => toast.error('Cập nhật thất bại'),
+  });
+
+  const macroMutation = useMutation({
+    mutationFn: (macroId: string) => api.post('/macros/apply', { macroId, ticketId: id }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+      setSelectedMacro('');
+      toast.success('Đã áp dụng mẫu trả lời');
+    },
+    onError: () => toast.error('Áp dụng mẫu thất bại'),
   });
 
   if (isLoading) {
@@ -78,6 +104,7 @@ export default function TicketDetailPage() {
           <div className="flex gap-2 mt-1">
             <Badge className={PRIORITY_COLORS[ticket.priority]}>{VI.ticket.priorities[ticket.priority]}</Badge>
             <Badge className={STATUS_COLORS[ticket.status]}>{VI.ticket.statuses[ticket.status]}</Badge>
+            {ticket.slaBreached && <Badge className="bg-red-500 text-white">SLA Vi phạm</Badge>}
           </div>
         </div>
         <Select value={ticket.status} onValueChange={(v) => v && statusMutation.mutate(v)}>
@@ -107,6 +134,12 @@ export default function TicketDetailPage() {
             <div><p className="text-xs text-muted-foreground">{VI.contact.assignedTo}</p><p className="font-medium">{ticket.assignedTo?.fullName ?? '—'}</p></div>
             <div><p className="text-xs text-muted-foreground">Người tạo</p><p className="font-medium">{ticket.createdBy?.fullName ?? '—'}</p></div>
             <div><p className="text-xs text-muted-foreground">{VI.contact.createdAt}</p><p className="font-medium">{format(new Date(ticket.createdAt), 'dd/MM/yyyy HH:mm')}</p></div>
+            {ticket.firstResponseAt && (
+              <div><p className="text-xs text-muted-foreground">Phản hồi đầu</p><p className="font-medium">{format(new Date(ticket.firstResponseAt), 'dd/MM HH:mm')}</p></div>
+            )}
+            {ticket.resolvedAt && (
+              <div><p className="text-xs text-muted-foreground">Giải quyết</p><p className="font-medium">{format(new Date(ticket.resolvedAt), 'dd/MM HH:mm')}</p></div>
+            )}
             {ticket.contact && (
               <div className="col-span-2">
                 <p className="text-xs text-muted-foreground">{VI.contact.fullName}</p>
@@ -118,6 +151,45 @@ export default function TicketDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Macro apply section */}
+      {macros && macros.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Zap className="h-4 w-4" /> Mẫu trả lời nhanh
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-3">
+              <Select value={selectedMacro} onValueChange={(v) => setSelectedMacro(v || '')}>
+                <SelectTrigger className="w-64">
+                  {selectedMacro
+                    ? <span>{macros.find((m) => m.id === selectedMacro)?.name}</span>
+                    : <span className="text-muted-foreground">Chọn mẫu...</span>}
+                </SelectTrigger>
+                <SelectContent>
+                  {macros.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                disabled={!selectedMacro || macroMutation.isPending}
+                onClick={() => selectedMacro && macroMutation.mutate(selectedMacro)}
+              >
+                Áp dụng
+              </Button>
+            </div>
+            {selectedMacro && (
+              <div className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground whitespace-pre-wrap">
+                {macros.find((m) => m.id === selectedMacro)?.content}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

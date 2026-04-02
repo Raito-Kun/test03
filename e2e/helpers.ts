@@ -1,6 +1,7 @@
 import { Page, expect } from '@playwright/test';
 
 export const USERS = [
+  { email: 'superadmin@crm.local', password: 'SuperAdmin@123', role: 'super_admin' },
   { email: 'admin@crm.local', password: 'changeme123', role: 'admin' },
   { email: 'manager@crm.local', password: 'changeme123', role: 'manager' },
   { email: 'qa@crm.local', password: 'changeme123', role: 'qa' },

@@ -8,9 +8,9 @@ const router = Router();
 router.use(authMiddleware);
 
 router.get('/', teamCtrl.listTeams);
-router.post('/', requireRole('admin', 'manager'), teamCtrl.createTeam);
-router.patch('/:id', requireRole('admin', 'manager'), teamCtrl.updateTeam);
-router.delete('/:id', requireRole('admin'), teamCtrl.deleteTeam);
+router.post('/', requireRole('super_admin', 'admin', 'manager'), teamCtrl.createTeam);
+router.patch('/:id', requireRole('super_admin', 'admin', 'manager'), teamCtrl.updateTeam);
+router.delete('/:id', requireRole('super_admin', 'admin'), teamCtrl.deleteTeam);
 router.get('/:id/members', teamCtrl.getTeamMembers);
 
 export default router;

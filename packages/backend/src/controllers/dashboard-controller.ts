@@ -8,6 +8,7 @@ export async function getOverview(req: Request, res: Response, next: NextFunctio
       req.dataScope || {},
       req.user!.role,
       req.user!.teamId,
+      req.user!.userId,
     );
     res.json({ success: true, data });
   } catch (err) {

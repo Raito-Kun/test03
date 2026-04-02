@@ -142,6 +142,67 @@
 | S.6 | No SIP code + ORIGINATOR_CANCEL | sipCode derived as 487 | ✓ |
 | S.7 | No SIP code + NO_ANSWER | sipCode derived as 480 | ✓ |
 | S.8 | Conflicting hangupCause + sipCode | sipCode wins for display | ✓ |
+
+## Phase 12: Lead Scoring & Auto-Assignment
+
+| ID | Test Case | Expected Result | Status |
+|----|-----------|-----------------|--------|
+| 12.1 | Lead score calculated on create | Score = sum of qualification + engagement + likelihood | ✓ |
+| 12.2 | Auto-assign leads to user | Leads distributed round-robin | ✓ |
+| 12.3 | Auto-assign leads to team | Team members receive evenly | ✓ |
+| 12.4 | Auto-assign respects max capacity | Avoids overloading one agent | ✓ |
+| 12.5 | Follow-up reminder cron triggers | Notifications sent at scheduled time | ✓ |
+| 12.6 | GET /leads/follow-ups returns due leads | Only future_follow_up <= NOW returned | ✓ |
+
+## Phase 13: Contact Merge & Export
+
+| ID | Test Case | Expected Result | Status |
+|----|-----------|-----------------|--------|
+| 13.1 | Merge duplicate contacts | History consolidated, related records updated | ✓ |
+| 13.2 | Merge by phone number | Dedup finds duplicates correctly | ✓ |
+| 13.3 | Export contacts to Excel | File downloads with all visible columns | ✓ |
+| 13.4 | Export with filters applied | Only filtered records included | ✓ |
+| 13.5 | Export respects RBAC | Agent sees only own/team records | ✓ |
+| 13.6 | Tags/segments UI on contact | Tags editable, saved to contact.tags | ✓ |
+
+## Phase 14: Call Script Management
+
+| ID | Test Case | Expected Result | Status |
+|----|-----------|-----------------|--------|
+| 14.1 | Create call script template | Script saved with variables | ✓ |
+| 14.2 | Script variables substituted | {{contact.name}} → actual name | ✓ |
+| 14.3 | Script displays during call | Panel auto-opens when call connected | ✓ |
+| 14.4 | GET /scripts/active-call returns correct script | Based on campaign context | ✓ |
+| 14.5 | Macro templates apply to tickets | Template text inserted with variable substitution | ✓ |
+
+## Phase 15: Monitoring & QA Timestamps
+
+| ID | Test Case | Expected Result | Status |
+|----|-----------|-----------------|--------|
+| 15.1 | Live monitoring dashboard loads | Real-time agent grid displayed | ✓ |
+| 15.2 | Agent status auto-updates from ESL | Ringing → on_call → wrap-up transitions | ✓ |
+| 15.3 | Wrap-up auto-timer counts down | 30s displayed, auto-transition after timeout | ✓ |
+| 15.4 | Inbound call popup shows recent history | Last 5 calls with customer displayed | ✓ |
+| 15.5 | Inbound call popup shows ticket count | Associated tickets listed | ✓ |
+| 15.6 | QA timestamp annotation created | Marker at specific time saved | ✓ |
+| 15.7 | QA timestamp markers displayed in player | Clickable markers in timeline | ✓ |
+| 15.8 | Bulk recording download creates ZIP | All selected recordings included with metadata CSV | ✓ |
+| 15.9 | Campaign progress bar updates | % completion = (assigned + contacted + won) / total | ✓ |
+| 15.10 | Attended transfer (warm transfer) | Agent consults before transferring | ✓ |
+| 15.11 | Auto-escalation debt tier | Daily cron escalates overdue cases | ✓ |
+| 15.12 | SLA report calculates times | First response & resolution time per agent | ✓ |
+
+## Phase 16: Integration & End-to-End
+
+| ID | Test Case | Expected Result | Status |
+|----|-----------|-----------------|--------|
+| 16.1 | Full call lifecycle with script | Click-to-call → script display → call end → wrap-up timer | ✓ |
+| 16.2 | Lead to contact to debt case flow | Relationships maintained throughout | ✓ |
+| 16.3 | Campaign management with auto-assign | Import → assign → progress tracking → completion | ✓ |
+| 16.4 | Export after bulk operations | All changes reflected in export | ✓ |
+| 16.5 | Dashboard KPIs reflect all updates | Contact/close/PTP/recovery rates accurate | ✓ |
+| 16.6 | RBAC enforced on all new endpoints | Agents see own data, managers see team | ✓ |
+| 16.7 | Real-time monitoring during active calls | Dashboard updates as calls connect/end | ✓ |
 | S.9 | SIP fields written once (first leg wins) | Later legs don't overwrite sipCode | ✓ |
 
 ### Vietnamese Localization

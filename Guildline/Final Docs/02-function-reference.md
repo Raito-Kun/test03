@@ -23,6 +23,9 @@
 | Update | `PATCH /contacts/:id` | Update fields |
 | Delete | `DELETE /contacts/:id` | Soft delete |
 | Import CSV | `POST /contacts/import` | Bulk import from CSV |
+| Merge | `POST /contacts/merge` | Merge duplicate contacts |
+
+**Custom Fields**: Tags, segments, custom JSON fields all supported. Extended in v1.2.0.
 
 ## 3. Lead Management
 
@@ -34,8 +37,13 @@
 | Update | `PATCH /leads/:id` | Update fields + status transition |
 | Delete | `DELETE /leads/:id` | Soft delete |
 | Import CSV | `POST /leads/import` | Bulk import |
+| Score Lead | `POST /leads/score` | Recalculate lead score |
+| Auto-Assign | `POST /leads/assign` | Round-robin assignment to users |
+| Follow-ups | `GET /leads/follow-ups` | Get leads due for follow-up |
 
 **Status Pipeline**: new → contacted → qualified → proposal → won / lost
+
+**Lead Scoring**: Rule-based on qualification, engagement, conversion likelihood. Auto-updated on status changes.
 
 ## 4. Debt Case Management
 
@@ -45,8 +53,11 @@
 | Detail | `GET /debt-cases/:id` | Full case with payment history |
 | Create | `POST /debt-cases` | New debt case |
 | Update | `PATCH /debt-cases/:id` | Update fields |
+| Escalate Tier | `POST /debt-cases/escalate` | Manual tier escalation |
 
 **Tiers**: tier_1, tier_2, tier_3, tier_4, tier_5
+
+**Auto-Escalation**: Daily cron escalates tier based on days overdue. Manual endpoint allows instant escalation by manager.
 
 ## 5. VoIP & Call Management
 
@@ -57,7 +68,8 @@
 | Originate | `POST /calls/originate` | Ring agent phone → bridge to customer |
 | Hangup | `POST /calls/hangup` | End active call |
 | Hold | `POST /calls/hold` | Put call on hold |
-| Transfer | `POST /calls/transfer` | Transfer to another extension |
+| Transfer (Blind) | `POST /calls/transfer` | Transfer to another extension |
+| Transfer (Attended) | `POST /calls/attended-transfer` | Warm transfer (agent consults first) |
 
 **C2C Flow**:
 ```
@@ -99,6 +111,7 @@ CRM API → ESL originate → FreeSWITCH rings agent (Eyebeam)
 | List | `GET /call-logs` | Paginated with filters |
 | Detail | `GET /call-logs/:id` | Full call detail |
 | Recording | `GET /call-logs/:id/recording` | Stream recording audio |
+| Bulk Download | `POST /call-logs/bulk-download` | ZIP archive of filtered recordings |
 
 **Call Log Columns**:
 
@@ -206,10 +219,12 @@ CRM API → ESL originate → FreeSWITCH rings agent (Eyebeam)
 
 | Function | Endpoint | Description |
 |----------|----------|-------------|
-| Dashboard | `GET /dashboard` | KPI summary |
-| Agent Performance | `GET /reports/agent-performance` | Talk time, call count |
+| Dashboard | `GET /dashboard` | KPI summary with contact/close/PTP/recovery rates |
+| Agent Performance | `GET /reports/agent-performance` | Talk time, call count, wrap-up avg |
 | Campaign ROI | `GET /reports/campaign-roi` | Cost per lead, conversion |
 | Contact Funnel | `GET /reports/contact-funnel` | Lead conversion pipeline |
+| SLA Report | `GET /reports/sla` | First response & resolution time by agent/team |
+| Live Monitoring | `GET /monitoring/live` | Real-time agent grid with current calls |
 
 ## 9. Permission Management
 
@@ -227,3 +242,46 @@ CRM API → ESL originate → FreeSWITCH rings agent (Eyebeam)
 | Update User | `PATCH /users/:id` | Update role/team/extension |
 | List Teams | `GET /teams` | All teams |
 | CRUD Teams | `POST/PATCH/DELETE /teams` | Team management |
+
+## 11. Call Scripts
+
+| Function | Endpoint | Description |
+|----------|----------|-------------|
+| List | `GET /scripts` | All scripts |
+| Detail | `GET /scripts/:id` | Full script with variables |
+| Create | `POST /scripts` | New call script template |
+| Update | `PATCH /scripts/:id` | Update script content |
+| Delete | `DELETE /scripts/:id` | Delete script |
+| Active Scripts | `GET /scripts/active` | Scripts for active campaign |
+| Default Scripts | `GET /scripts/default` | Default script templates |
+| Current Call | `GET /scripts/active-call` | Script for current call context |
+
+**Features**: Variable substitution ({{contact.name}}, {{lead.status}}), auto-display during call, per-campaign templates.
+
+## 12. QA & Annotations
+
+| Function | Endpoint | Description |
+|----------|----------|-------------|
+| Create Timestamp | `POST /qa-timestamps` | Add annotation at timestamp |
+| List Timestamps | `GET /qa-timestamps/:callLogId` | All annotations for call |
+| Delete Timestamp | `DELETE /qa-timestamps/:id` | Remove annotation |
+
+**Features**: Mark specific moments in recording for QA review, timestamp-based markers in player UI.
+
+## 13. Macro Templates
+
+| Function | Endpoint | Description |
+|----------|----------|-------------|
+| Apply Macro | `POST /macros/apply` | Substitute variables & insert template text |
+
+**Usage**: Quick-reply presets for tickets, variable substitution, linked to ticket UI.
+
+## 14. Export
+
+| Function | Endpoint | Description |
+|----------|----------|-------------|
+| Export Entity | `GET /export/:entity` | Download paginated data as Excel |
+
+**Entities**: contacts, leads, debt-cases, call-logs, campaigns, tickets
+
+**Features**: Filters applied to export, RBAC-scoped data, direct browser download.

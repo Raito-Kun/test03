@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { MoreHorizontal, Trash2, Phone, Edit2 } from 'lucide-react';
+import { MoreHorizontal, Trash2, Phone, Edit2, RefreshCw, Users } from 'lucide-react';
+import { ExportButton } from '@/components/export-button';
+import { ContactMergeButton } from './contact-merge-dialog';
 import { toast } from 'sonner';
 import { PageWrapper } from '@/components/page-wrapper';
 import { DataTable, Column } from '@/components/data-table/data-table';
@@ -12,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { VI } from '@/lib/vi-text';
 import { fmtPhone, checkCallBlocked } from '@/lib/format';
 import { usePagination } from '@/hooks/use-pagination';
@@ -21,6 +24,7 @@ import { useAgentStatusStore } from '@/stores/agent-status-store';
 import { ImportButton } from '@/components/import-button';
 import { ContactForm } from './contact-form';
 import { ContactDetailDialog } from './contact-detail-dialog';
+import { DataAllocationDialog } from '@/components/data-allocation-dialog';
 
 interface Contact {
   id: string;
@@ -47,13 +51,33 @@ export default function ContactListPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
+  const [sourceFilter, setSourceFilter] = useState('');
+  const [tagFilter, setTagFilter] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [allocateOpen, setAllocateOpen] = useState(false);
+
+  const canAllocate = hasPermission('crm.data_allocation');
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  }
+
+  function toggleSelectAll(rows: Contact[]) {
+    const allIds = rows.map((r) => r.id);
+    const allSelected = allIds.every((id) => selectedIds.includes(id));
+    setSelectedIds(allSelected ? selectedIds.filter((id) => !allIds.includes(id)) : [...new Set([...selectedIds, ...allIds])]);
+  }
 
   const { data, isLoading } = useQuery({
-    queryKey: ['contacts', pagination.queryParams, dateFrom, dateTo, appliedSearch],
+    queryKey: ['contacts', pagination.queryParams, dateFrom, dateTo, appliedSearch, sourceFilter, tagFilter],
     queryFn: () => {
       const params: Record<string, string | number> = { ...pagination.queryParams, search: appliedSearch };
       if (dateFrom) params.dateFrom = `${dateFrom}T00:00:00`;
       if (dateTo) params.dateTo = `${dateTo}T23:59:59`;
+      if (sourceFilter) params.source = sourceFilter;
+      if (tagFilter) params.tag = tagFilter;
       return api.get<ContactsResponse>('/contacts', { params }).then((r) => r.data);
     },
   });
@@ -68,7 +92,30 @@ export default function ContactListPage() {
     onError: () => toast.error('Xóa thất bại'),
   });
 
+  const currentPageRows = data?.data ?? [];
+  const allPageSelected = currentPageRows.length > 0 && currentPageRows.every((r) => selectedIds.includes(r.id));
+
   const columns: Column<Contact>[] = [
+    ...(canAllocate ? [{
+      key: '_select',
+      label: (
+        <Checkbox
+          checked={allPageSelected}
+          onCheckedChange={() => toggleSelectAll(currentPageRows)}
+          aria-label="Chọn tất cả"
+        />
+      ) as React.ReactNode,
+      render: (row: Contact) => (
+        <span onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={selectedIds.includes(row.id)}
+            onCheckedChange={() => toggleSelect(row.id)}
+            aria-label="Chọn"
+          />
+        </span>
+      ),
+      className: 'w-10',
+    }] : []),
     { key: 'fullName', label: VI.contact.fullName, sortable: true },
     {
       key: 'phone', label: VI.contact.phone,
@@ -99,6 +146,17 @@ export default function ContactListPage() {
     },
   ];
 
+  const refreshButton = (
+    <Button
+      variant="outline"
+      size="icon"
+      onClick={() => queryClient.invalidateQueries({ queryKey: ['contacts'] })}
+      title={VI.actions.refresh}
+    >
+      <RefreshCw className="h-4 w-4" />
+    </Button>
+  );
+
   const importAction = hasPermission('import_contacts') ? (
     <ImportButton
       endpoint="/contacts/import"
@@ -108,12 +166,24 @@ export default function ContactListPage() {
     />
   ) : undefined;
 
+  const allocateButton = canAllocate && selectedIds.length > 0 ? (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => setAllocateOpen(true)}
+      className="gap-1.5"
+    >
+      <Users className="h-4 w-4" />
+      Phân bổ ({selectedIds.length})
+    </Button>
+  ) : null;
+
   return (
     <PageWrapper
       title={VI.contact.title}
       createLabel={VI.actions.create}
       onCreate={() => setFormOpen(true)}
-      actions={importAction}
+      actions={<>{allocateButton}{refreshButton}{importAction}<ContactMergeButton /><ExportButton entity="contacts" filters={{ search: pagination.search }} /></>}
     >
       <DataTable
         columns={columns}
@@ -130,7 +200,15 @@ export default function ContactListPage() {
         sortOrder={pagination.sortOrder}
         onRowClick={(row) => setSelectedContactId(row.id)}
         toolbar={
-          <div className="flex items-end gap-2">
+          <div className="flex items-end gap-2 flex-wrap">
+            <div className="space-y-1">
+              <Label className="text-xs">{VI.contact.source}</Label>
+              <Input placeholder="VD: website, zalo" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="w-32" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">{VI.contact.tags}</Label>
+              <Input placeholder="VD: VIP" value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} className="w-28" />
+            </div>
             <div className="space-y-1">
               <Label className="text-xs">Từ ngày</Label>
               <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-36" />
@@ -139,8 +217,8 @@ export default function ContactListPage() {
               <Label className="text-xs">Đến ngày</Label>
               <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36" />
             </div>
-            {(dateFrom || dateTo) && (
-              <Button variant="ghost" size="sm" onClick={() => { setDateFrom(''); setDateTo(''); }}>Xóa lọc</Button>
+            {(dateFrom || dateTo || sourceFilter || tagFilter) && (
+              <Button variant="ghost" size="sm" onClick={() => { setDateFrom(''); setDateTo(''); setSourceFilter(''); setTagFilter(''); }}>Xóa lọc</Button>
             )}
           </div>
         }
@@ -179,6 +257,17 @@ export default function ContactListPage() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
         loading={deleteMutation.isPending}
+      />
+
+      <DataAllocationDialog
+        open={allocateOpen}
+        onClose={() => setAllocateOpen(false)}
+        entityType="contact"
+        selectedIds={selectedIds}
+        onSuccess={() => {
+          setSelectedIds([]);
+          queryClient.invalidateQueries({ queryKey: ['contacts'] });
+        }}
       />
     </PageWrapper>
   );

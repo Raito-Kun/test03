@@ -3,6 +3,12 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
+/* Hide scrollbar for tab overflow areas */
+@utility scrollbar-hide {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -46,6 +52,10 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
+    --color-pls-blue: var(--pls-blue);
+    --color-pls-green: var(--pls-green);
+    --color-pls-yellow: var(--pls-yellow);
+    --color-pls-red: var(--pls-red);
 }
 
 :root {
@@ -55,7 +65,7 @@
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
+    --primary: #0080ff;
     --primary-foreground: oklch(0.985 0 0);
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
@@ -63,8 +73,13 @@
     --muted-foreground: oklch(0.556 0 0);
     --accent: oklch(0.97 0 0);
     --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
+    --destructive: #e63946;
     --border: oklch(0.922 0 0);
+    --pls-blue: #0080ff;
+    --pls-green: #2ecc40;
+    --pls-yellow: #f4c430;
+    --pls-red: #e63946;
+    --pls-sidebar-bg: #0d1b2a;
     --input: oklch(0.922 0 0);
     --ring: oklch(0.708 0 0);
     --chart-1: oklch(0.87 0 0);

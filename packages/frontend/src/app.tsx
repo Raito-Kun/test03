@@ -25,6 +25,9 @@ const CampaignList = lazy(() => import('@/pages/campaigns/campaign-list'));
 const CampaignDetail = lazy(() => import('@/pages/campaigns/campaign-detail'));
 const ReportsPage = lazy(() => import('@/pages/reports/reports-page'));
 const SettingsPage = lazy(() => import('@/pages/settings/settings-page'));
+const PermissionManager = lazy(() => import('@/pages/settings/permission-manager'));
+const ExtensionConfig = lazy(() => import('@/pages/settings/extension-config'));
+const LiveDashboard = lazy(() => import('@/pages/monitoring/live-dashboard'));
 
 function PageLoader() {
   return (
@@ -68,6 +71,9 @@ function App() {
               <Route path="/campaigns/:id" element={<CampaignDetail />} />
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/settings/permissions" element={<PermissionManager />} />
+              <Route path="/settings/extensions" element={<ExtensionConfig />} />
+              <Route path="/monitoring" element={<LiveDashboard />} />
             </Route>
           </Route>
         </Routes>

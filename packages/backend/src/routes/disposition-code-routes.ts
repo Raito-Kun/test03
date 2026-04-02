@@ -8,8 +8,8 @@ const router = Router();
 router.use(authMiddleware);
 
 router.get('/', ctrl.listDispositionCodes);
-router.post('/', requireRole('admin', 'manager'), ctrl.createDispositionCode);
-router.patch('/:id', requireRole('admin', 'manager'), ctrl.updateDispositionCode);
-router.delete('/:id', requireRole('admin', 'manager'), ctrl.deleteDispositionCode);
+router.post('/', requireRole('super_admin', 'admin', 'manager'), ctrl.createDispositionCode);
+router.patch('/:id', requireRole('super_admin', 'admin', 'manager'), ctrl.updateDispositionCode);
+router.delete('/:id', requireRole('super_admin', 'admin', 'manager'), ctrl.deleteDispositionCode);
 
 export default router;

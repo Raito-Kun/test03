@@ -49,3 +49,22 @@ PS C:\Users\Raito\OneDrive\TRAINNING\VIBE CODING\02.CRM> Set-ExecutionPolicy -Sc
 	9.11 : /ck:plan validate & 'c:\Users\Raito\OneDrive\TRAINNING\VIBE CODING\02.CRM\plans\260324-1850-crm-phase1-mvp' 
 	9.12 : /ck:cook --auto C:\Users\Raito\OneDrive\TRAINNING\VIBE CODING\02.CRM\plans\260324-1850-crm-phase1-mvp\plan.md
 	
+
+10. Các câu hỏi gợi ý
+1. Các task, bugs còn lại
+List all remaining tasks, bugs, or incomplete items across all phases. What's not done yet?
+2. 
+Where is the WebRTC softphone UI located? Which page and which component renders the dialpad?
+
+11. Các lưu ý :
+	11.1 : Chạy song song các luồng					: I want to run 4 thread parralles and they can run together without conflict
+	11.2 : 
+
+============================================PROJECT CÓ SẴN============================
+1. Tạo docs cho code hiện tại				: /docs init
+2. Update docs 								: /ck:docs update
+3. Test sau khi plan  						: /ck:test 
+4. Fix bugs									: /ck:bug
+5. Copy image vào CLI						: Alt+V					
+
+	

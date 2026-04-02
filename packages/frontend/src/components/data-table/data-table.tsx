@@ -11,7 +11,7 @@ import { ChevronLeft, ChevronRight, Search, ArrowUpDown } from 'lucide-react';
 
 export interface Column<T> {
   key: string;
-  label: string;
+  label: React.ReactNode;
   sortable?: boolean;
   render?: (row: T) => React.ReactNode;
   className?: string;

@@ -32,6 +32,8 @@ export interface ListCallLogsFilter {
   disposition?: string;
   campaignId?: string;
   search?: string;
+  hangupCause?: string;
+  sipCode?: string;
 }
 
 export async function listCallLogs(
@@ -46,6 +48,8 @@ export async function listCallLogs(
   if (filters.direction) where.direction = filters.direction;
   if (filters.disposition) where.dispositionCodeId = filters.disposition;
   if (filters.campaignId) where.campaignId = filters.campaignId;
+  if (filters.hangupCause) where.hangupCause = filters.hangupCause;
+  if (filters.sipCode) where.sipCode = { contains: filters.sipCode };
 
   if (filters.search) {
     where.OR = [

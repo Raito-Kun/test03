@@ -8,6 +8,32 @@ import prisma from '../lib/prisma';
 const router = Router();
 router.use(authMiddleware);
 
+/** GET /scripts/active?campaignId=X — resolve script by campaign */
+router.get('/active', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.userId;
+    const campaignId = req.query.campaignId as string | undefined;
+    const product = req.query.product as string | undefined;
+    const script = await scriptService.resolveScript(userId, campaignId, product);
+    res.json({ success: true, data: script });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** GET /scripts/default — return the default script */
+router.get('/default', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const defaultScript = await prisma.callScript.findFirst({
+      where: { type: 'default', isActive: true },
+      orderBy: { sortOrder: 'asc' },
+    });
+    res.json({ success: true, data: defaultScript });
+  } catch (err) {
+    next(err);
+  }
+});
+
 /** GET /scripts/active-call — resolve script for agent's current/recent call */
 router.get('/active-call', async (req: Request, res: Response, next: NextFunction) => {
   try {

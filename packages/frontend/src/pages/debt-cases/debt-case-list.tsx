@@ -1,23 +1,26 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { PageWrapper } from '@/components/page-wrapper';
 import { DataTable, type Column } from '@/components/data-table/data-table';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Phone } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Phone, RefreshCw, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePagination } from '@/hooks/use-pagination';
 import api from '@/services/api-client';
 import { useAuthStore } from '@/stores/auth-store';
 import { useAgentStatusStore } from '@/stores/agent-status-store';
 import { VI } from '@/lib/vi-text';
+import { ExportButton } from '@/components/export-button';
 import { formatMoney, fmtPhone, checkCallBlocked } from '@/lib/format';
 import { DEBT_TIERS, DEBT_STATUSES, type DebtTier, type DebtStatus } from '@shared/constants/enums';
+import { DataAllocationDialog } from '@/components/data-allocation-dialog';
 
 interface DebtCase {
   id: string;
@@ -51,14 +54,29 @@ const STATUS_COLORS: Record<DebtStatus, string> = {
 
 export default function DebtCaseListPage() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const queryClient = useQueryClient();
+  const { user, hasPermission } = useAuthStore();
   const myStatus = useAgentStatusStore((s) => s.myStatus);
   const [tierFilter, setTierFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [allocateOpen, setAllocateOpen] = useState(false);
   const { page, setPage, limit, setLimit, sortKey, sortOrder, handleSort, queryParams } = usePagination();
+
+  const canAllocate = hasPermission('crm.data_allocation');
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  }
+
+  function toggleSelectAll(rows: DebtCase[]) {
+    const allIds = rows.map((r) => r.id);
+    const allSelected = allIds.every((id) => selectedIds.includes(id));
+    setSelectedIds(allSelected ? selectedIds.filter((id) => !allIds.includes(id)) : [...new Set([...selectedIds, ...allIds])]);
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ['debt-cases', queryParams, tierFilter, statusFilter, dateFrom, dateTo, appliedSearch],
@@ -73,7 +91,30 @@ export default function DebtCaseListPage() {
     },
   });
 
+  const currentPageRows = data?.items ?? [];
+  const allPageSelected = currentPageRows.length > 0 && currentPageRows.every((r) => selectedIds.includes(r.id));
+
   const columns: Column<DebtCase>[] = [
+    ...(canAllocate ? [{
+      key: '_select',
+      label: (
+        <Checkbox
+          checked={allPageSelected}
+          onCheckedChange={() => toggleSelectAll(currentPageRows)}
+          aria-label="Chọn tất cả"
+        />
+      ) as React.ReactNode,
+      render: (row: DebtCase) => (
+        <span onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={selectedIds.includes(row.id)}
+            onCheckedChange={() => toggleSelect(row.id)}
+            aria-label="Chọn"
+          />
+        </span>
+      ),
+      className: 'w-10',
+    }] : []),
     { key: 'contact', label: VI.contact.fullName, render: (row) => row.contact?.fullName ?? '—' },
     {
       key: 'phone', label: VI.contact.phone,
@@ -116,23 +157,27 @@ export default function DebtCaseListPage() {
 
   const toolbar = (
     <div className="flex items-end gap-2 flex-wrap">
-      <Select value={tierFilter || 'all'} onValueChange={(v) => setTierFilter(!v || v === 'all' ? '' : v)}>
+      <Select value={tierFilter || undefined} onValueChange={(v) => setTierFilter(v === '_all' ? '' : v || '')}>
         <SelectTrigger className="w-40">
-          <SelectValue placeholder={VI.debt.tier} />
+          {tierFilter
+            ? <span>{VI.debt.tiers[tierFilter as DebtTier]}</span>
+            : <span className="text-muted-foreground">Tất cả nhóm nợ</span>}
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">{VI.actions.filter} — {VI.debt.tier}</SelectItem>
+          <SelectItem value="_all">Tất cả nhóm nợ</SelectItem>
           {DEBT_TIERS.map((t) => (
             <SelectItem key={t} value={t}>{VI.debt.tiers[t]}</SelectItem>
           ))}
         </SelectContent>
       </Select>
-      <Select value={statusFilter || 'all'} onValueChange={(v) => setStatusFilter(!v || v === 'all' ? '' : v)}>
+      <Select value={statusFilter || undefined} onValueChange={(v) => setStatusFilter(v === '_all' ? '' : v || '')}>
         <SelectTrigger className="w-44">
-          <SelectValue placeholder={VI.debt.status} />
+          {statusFilter
+            ? <span>{VI.debt.statuses[statusFilter as DebtStatus]}</span>
+            : <span className="text-muted-foreground">Tất cả trạng thái</span>}
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">{VI.actions.filter} — {VI.debt.status}</SelectItem>
+          <SelectItem value="_all">Tất cả trạng thái</SelectItem>
           {DEBT_STATUSES.map((s) => (
             <SelectItem key={s} value={s}>{VI.debt.statuses[s]}</SelectItem>
           ))}
@@ -152,8 +197,26 @@ export default function DebtCaseListPage() {
     </div>
   );
 
+  const refreshButton = (
+    <Button
+      variant="outline"
+      size="icon"
+      onClick={() => queryClient.invalidateQueries({ queryKey: ['debt-cases'] })}
+      title={VI.actions.refresh}
+    >
+      <RefreshCw className="h-4 w-4" />
+    </Button>
+  );
+
+  const allocateButton = canAllocate && selectedIds.length > 0 ? (
+    <Button variant="outline" size="sm" onClick={() => setAllocateOpen(true)} className="gap-1.5">
+      <Users className="h-4 w-4" />
+      Phân bổ ({selectedIds.length})
+    </Button>
+  ) : null;
+
   return (
-    <PageWrapper title={VI.debt.title}>
+    <PageWrapper title={VI.debt.title} actions={<>{allocateButton}{refreshButton}<ExportButton entity="debt-cases" filters={{ search: appliedSearch || '', tier: tierFilter, status: statusFilter }} /></>}>
       <DataTable<DebtCase>
         columns={columns}
         data={data?.items ?? []}
@@ -169,6 +232,17 @@ export default function DebtCaseListPage() {
         sortOrder={sortOrder}
         onRowClick={(row) => navigate(`/debt-cases/${row.id}`)}
         toolbar={toolbar}
+      />
+
+      <DataAllocationDialog
+        open={allocateOpen}
+        onClose={() => setAllocateOpen(false)}
+        entityType="debt_case"
+        selectedIds={selectedIds}
+        onSuccess={() => {
+          setSelectedIds([]);
+          queryClient.invalidateQueries({ queryKey: ['debt-cases'] });
+        }}
       />
     </PageWrapper>
   );

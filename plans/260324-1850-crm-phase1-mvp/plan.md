@@ -1,13 +1,13 @@
 ---
-title: "CRM Omnichannel Phase 1 MVP"
-description: "Full-stack CRM for Telesale & Collection with FusionPBX/FreeSWITCH integration — Softphone mode, 18 DB tables, ~55 API endpoints"
+title: "CRM Omnichannel Phase 1 MVP + v1.2.0 Gap Closure"
+description: "Full-stack CRM for Telesale & Collection with FusionPBX/FreeSWITCH integration — Softphone mode, 17 DB tables, 70+ API endpoints, 20 advanced features"
 status: completed
 priority: P1
-effort: 6-8w
+effort: 10w
 branch: main
-tags: [crm, voip, telesale, collection, fusionpbx, mvp]
+tags: [crm, voip, telesale, collection, fusionpbx, mvp, complete]
 created: 2026-03-24
-completed: 2026-03-25
+completed: 2026-03-28
 ---
 
 # CRM Omnichannel — Phase 1 MVP
@@ -36,10 +36,14 @@ Frontend: SPA with sidebar layout, call bar, real-time updates via Socket.IO
 | 07 | [Dashboard & Reports](./phase-07-dashboard-reports.md) | 3d | completed |
 | 08 | [Frontend UI](./phase-08-frontend-ui.md) | 7d | completed |
 | 09 | [Integration Testing & Security](./phase-09-testing-security.md) | 3d | completed |
-| 10 | [AI-Powered UI/UX Redesign](./phase-10-ai-ux-redesign.md) | 7d | completed |
-| -- | Buffer (integration issues, unknowns) | 5d | not_used |
+| 10 | [Super Admin + Permissions](./phase-10-ai-ux-redesign.md) | 1d | completed |
+| 11 | [Extension Mapping Config](./phase-11-extension-mapping.md) | 1d | completed |
+| 12 | [Lead Scoring + Auto-Assign](./phase-12-lead-scoring.md) | 1d | completed |
+| 13 | [Contact Merge + Export UI](./phase-13-contact-merge.md) | 1d | completed |
+| 14 | [Call Script Management](./phase-14-call-scripts.md) | 1d | completed |
+| 15 | [Monitoring + QA Timestamps](./phase-15-monitoring.md) | 1d | completed |
 
-**Total: 50 working days (~10 weeks) — Phase 1 MVP + AI Features DELIVERED**
+**Total: 44 working days (8.8 weeks) — Phase 1 MVP + 20 Advanced Features + v1.1.1 fixes + v1.2.0 Gap Closure DELIVERED**
 
 ## Key Dependencies
 - FusionPBX 5.5.7 / FreeSWITCH 1.10.x running with ESL port 8021 accessible
@@ -53,23 +57,49 @@ Frontend: SPA with sidebar layout, call bar, real-time updates via Socket.IO
 - [ESL/WebRTC Stack](../reports/researcher-260324-1736-freeswitch-esl-webrtc-stack.md) — modesl recommended
 - [FusionPBX Assessment](../reports/researcher-260324-1748-fusionpbx-crm-integration-assessment.md) — all 10 capabilities supported
 
-## Definition of Done (Phase 1)
-- Agent click-to-call (softphone) works end-to-end
-- CDR auto-received via webhook, parsed, stored
-- Recording playback with RBAC
-- Tickets (Phieu ghi) CRUD operational
-- Basic dashboard shows call stats + agent statuses
-- 6-role RBAC enforced on all endpoints (list AND single-resource)
+## Definition of Done (Phase 1 + v1.2.0)
 
-## Deferral List (explicitly NOT in MVP)
-- Waveform audio player (use HTML5 `<audio>` with speed dropdown instead)
-- Hierarchical ticket categories (use flat list with parent_id for future)
-- Macro keyboard shortcuts (basic macro selection only)
-- Dark/light theme toggle (ship light theme only)
-- Per-campaign disposition codes (global only in Phase 1)
-- Scheduled reports / email reports
-- Embedded WebRTC softphone (SIP.js) — use external FusionPBX softphone or SIP client for MVP
-- Bulk recording download
+### Core MVP (Phases 1-11)
+- ✅ Agent click-to-call (softphone) works end-to-end
+- ✅ CDR auto-received via webhook, parsed, stored
+- ✅ Recording playback with RBAC
+- ✅ Tickets (Phieu ghi) CRUD operational
+- ✅ Basic dashboard shows call stats + agent statuses
+- ✅ 6-role RBAC enforced on all endpoints (list AND single-resource)
+
+### Gap Closure (v1.2.0, Phases 12-15)
+- ✅ Lead scoring with rule-based algorithm
+- ✅ Auto-assign leads/campaigns (round-robin)
+- ✅ Auto-escalation debt tier (daily cron)
+- ✅ Follow-up reminders (cron + API)
+- ✅ Call script management & display during call
+- ✅ Contact merge (duplicate dedup)
+- ✅ Export Excel UI (all list pages)
+- ✅ Live monitoring dashboard (real-time agent grid)
+- ✅ QA annotation at timestamp (markers in player)
+- ✅ Bulk recording download (ZIP archive)
+- ✅ Attended transfer (warm transfer)
+- ✅ SLA reporting (response + resolution time)
+- ✅ Wrap-up auto-timer (30s countdown)
+- ✅ Dashboard KPIs (contact/close/PTP/recovery rates)
+- ✅ Tags/segments UI
+- ✅ Macro templates in ticket UI
+- ✅ Inbound call popup enhancements
+- ✅ Campaign progress bar (real-time %)
+- ✅ Lead source tracking UI
+- ✅ Agent status auto-detection (ESL events)
+
+## Deferral List (Phase 2+)
+- Waveform audio player (use HTML5 `<audio>` with speed dropdown instead) — Phase 2
+- Hierarchical ticket categories (use flat list with parent_id for future) — Phase 2
+- Macro keyboard shortcuts (basic macro selection only) — Phase 2
+- Dark/light theme toggle (ship light theme only) — Phase 2
+- Per-campaign disposition codes (global only in Phase 1) — Phase 2
+- Scheduled reports / email reports — Phase 2
+- Embedded WebRTC softphone (SIP.js) — use external FusionPBX softphone or SIP client for MVP — Phase 2
+- Listen/Whisper/Barge (call supervision) — Phase 2
+- AI transcription & call summary — Phase 2
+- Zalo OA / SMS integration — Phase 2
 
 ## MVP-Minus Cut Line (if timeline slips)
 If Phase 04 VoIP takes >7d, defer these to Phase 2:

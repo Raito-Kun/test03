@@ -80,6 +80,15 @@ export async function updateDebtCase(req: Request, res: Response, next: NextFunc
   }
 }
 
+export async function escalateDebtTiers(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const result = await debtCaseService.escalateDebtTiers();
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function recordPTP(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { promiseDate, promiseAmount } = ptpSchema.parse(req.body);

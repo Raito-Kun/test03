@@ -4,23 +4,48 @@ import { getAllAgentStatuses } from './agent-status-service';
 import { buildScopeWhere } from '../middleware/data-scope-middleware';
 
 const CACHE_TTL = 30; // 30 seconds
+const UTC7_OFFSET_MS = 7 * 60 * 60 * 1000;
 
-function cacheKey(role: string, teamId: string | null): string {
-  return `dashboard:overview:${role}:${teamId || 'all'}`;
+function cacheKey(role: string, teamId: string | null, userId?: string): string {
+  return `dashboard:overview:${role}:${teamId || 'all'}:${userId || 'all'}`;
 }
 
 function agentsCacheKey(role: string, teamId: string | null): string {
   return `dashboard:agents:${role}:${teamId || 'all'}`;
 }
 
-export async function getOverview(dataScope: Record<string, unknown>, role: string, teamId: string | null) {
-  const key = cacheKey(role, teamId);
+/** Midnight UTC+7 for today → UTC Date */
+function todayMidnightUTC7(): Date {
+  const nowUtc = Date.now();
+  const nowUtc7 = nowUtc + UTC7_OFFSET_MS;
+  const d = new Date(nowUtc7);
+  // Zero out time in UTC+7
+  d.setUTCHours(0, 0, 0, 0);
+  // Convert back to UTC
+  return new Date(d.getTime() - UTC7_OFFSET_MS);
+}
+
+/** Count distinct call_uuids matching where clause */
+async function countDistinctCalls(where: Record<string, unknown>): Promise<number> {
+  const result = await prisma.callLog.groupBy({
+    by: ['callUuid'],
+    where,
+  });
+  return result.length;
+}
+
+export async function getOverview(
+  dataScope: Record<string, unknown>,
+  role: string,
+  teamId: string | null,
+  userId?: string,
+) {
+  const key = cacheKey(role, teamId, userId);
   const cached = await redis.get(key);
   if (cached) return JSON.parse(cached);
 
   const scopeWhere = buildScopeWhere(dataScope, 'userId', 'user');
-  const today = new Date();
-  const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const dayStart = todayMidnightUTC7();
   const dayEnd = new Date(dayStart.getTime() + 86400000);
 
   const [
@@ -32,15 +57,10 @@ export async function getOverview(dataScope: Record<string, unknown>, role: stri
     openTickets,
     activeDebtCases,
   ] = await Promise.all([
-    prisma.callLog.count({
-      where: { ...scopeWhere, startTime: { gte: dayStart, lt: dayEnd } },
-    }),
-    prisma.callLog.count({
-      where: { ...scopeWhere, startTime: { gte: dayStart, lt: dayEnd }, answerTime: { not: null } },
-    }),
+    countDistinctCalls({ ...scopeWhere, startTime: { gte: dayStart, lt: dayEnd } }),
+    countDistinctCalls({ ...scopeWhere, startTime: { gte: dayStart, lt: dayEnd }, answerTime: { not: null } }),
     prisma.user.count({ where: { status: 'active' } }),
-    // On-call count from agent status logs (approximate)
-    prisma.agentStatusLog.count({ where: { status: 'on_call', endedAt: null } }),
+    prisma.agentStatusLog.count({ where: { status: 'on_call', endedAt: null, startedAt: { gte: new Date(Date.now() - 86400000) } } }),
     prisma.lead.count({ where: { createdAt: { gte: dayStart, lt: dayEnd } } }),
     prisma.ticket.count({ where: { status: { in: ['open', 'in_progress'] } } }),
     prisma.debtCase.count({ where: { status: { in: ['active', 'in_progress', 'promise_to_pay'] } } }),
@@ -49,6 +69,56 @@ export async function getOverview(dataScope: Record<string, unknown>, role: stri
   const answerRate = totalCallsToday > 0
     ? Math.round((answeredCallsToday / totalCallsToday) * 100)
     : 0;
+
+  // Additional KPIs
+  const [
+    totalLeads,
+    wonLeads,
+    totalDebtCases,
+    ptpDebtCases,
+    paidDebtCases,
+    paidAmountAgg,
+    totalOutstandingAgg,
+    wrapUpDurationAvg,
+  ] = await Promise.all([
+    prisma.lead.count({ where: { createdAt: { gte: dayStart, lt: dayEnd } } }),
+    prisma.lead.count({ where: { status: 'won', updatedAt: { gte: dayStart, lt: dayEnd } } }),
+    prisma.debtCase.count({ where: { createdAt: { gte: dayStart, lt: dayEnd } } }),
+    prisma.debtCase.count({ where: { status: 'promise_to_pay', updatedAt: { gte: dayStart, lt: dayEnd } } }),
+    prisma.debtCase.count({ where: { status: 'paid', updatedAt: { gte: dayStart, lt: dayEnd } } }),
+    prisma.debtCase.aggregate({
+      where: { status: 'paid', updatedAt: { gte: dayStart, lt: dayEnd } },
+      _sum: { paidAmount: true },
+    }),
+    prisma.debtCase.aggregate({
+      where: { status: { in: ['active', 'in_progress', 'promise_to_pay'] } },
+      _sum: { outstandingAmount: true },
+    }),
+    // placeholder — avgWrapUpSeconds computed after
+    Promise.resolve(null),
+  ]);
+
+  const closeRate = totalLeads > 0 ? Math.round((wonLeads / totalLeads) * 100) : 0;
+  const ptpRate = totalDebtCases > 0 ? Math.round((ptpDebtCases / totalDebtCases) * 100) : 0;
+  const recoveryRate = totalDebtCases > 0 ? Math.round((paidDebtCases / totalDebtCases) * 100) : 0;
+
+  void wrapUpDurationAvg; // computed separately below
+
+  // Compute average wrap-up duration using wrapUpDuration field
+  let avgWrapUpSeconds = 0;
+  try {
+    const wrapUpAgg = await prisma.agentStatusLog.aggregate({
+      where: {
+        status: 'wrap_up',
+        startedAt: { gte: dayStart, lt: dayEnd },
+        wrapUpDuration: { not: null },
+      },
+      _avg: { wrapUpDuration: true },
+    });
+    avgWrapUpSeconds = Math.round(wrapUpAgg._avg.wrapUpDuration || 0);
+  } catch {
+    // ignore
+  }
 
   const result = {
     calls: {
@@ -60,9 +130,22 @@ export async function getOverview(dataScope: Record<string, unknown>, role: stri
       total: agentCount,
       onCall: onCallCount,
     },
-    leads: { newToday: newLeadsToday },
+    leads: {
+      newToday: newLeadsToday,
+      wonToday: wonLeads,
+      closeRatePercent: closeRate,
+    },
     tickets: { open: openTickets },
-    debtCases: { active: activeDebtCases },
+    debtCases: {
+      active: activeDebtCases,
+      ptpToday: ptpDebtCases,
+      ptpRatePercent: ptpRate,
+      paidToday: paidDebtCases,
+      recoveryRatePercent: recoveryRate,
+      amountCollectedToday: paidAmountAgg._sum.paidAmount || 0,
+      totalOutstanding: totalOutstandingAgg._sum.outstandingAmount || 0,
+    },
+    wrapUp: { avgDurationSeconds: avgWrapUpSeconds },
     generatedAt: new Date().toISOString(),
   };
 

@@ -17,7 +17,10 @@ declare global {
  */
 export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
+  // Support query string token for browser media elements (<audio>, <a download>)
+  const queryToken = req.query.token as string | undefined;
+
+  if (!authHeader?.startsWith('Bearer ') && !queryToken) {
     res.status(401).json({
       success: false,
       error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
@@ -25,7 +28,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
     return;
   }
 
-  const token = authHeader.slice(7);
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : queryToken!;
   try {
     req.user = verifyAccessToken(token);
     next();

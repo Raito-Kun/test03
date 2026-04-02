@@ -15,10 +15,10 @@ router.use(applyDataScope('assignedTo'));
 router.use((req, _res, next) => { if (req.dataScope) req.dataScope['_hasCreatedBy'] = true; next(); });
 
 router.get('/', contactCtrl.listContacts);
-router.post('/', requireRole('admin', 'manager', 'leader', 'agent_telesale', 'agent_collection'), contactCtrl.createContact);
+router.post('/', requireRole('super_admin', 'admin', 'manager', 'leader', 'agent_telesale', 'agent_collection'), contactCtrl.createContact);
 
 // Import/Export
-router.post('/import', requireRole('admin', 'manager', 'leader'), upload.single('file'), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/import', requireRole('super_admin', 'admin', 'manager', 'leader'), upload.single('file'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.file) { res.status(400).json({ success: false, error: { message: 'File required' } }); return; }
     const result = await importService.importContacts(req.file.buffer, req.user!.userId);
@@ -26,7 +26,7 @@ router.post('/import', requireRole('admin', 'manager', 'leader'), upload.single(
   } catch (err) { next(err); }
 });
 
-router.get('/export', requireRole('admin', 'manager', 'leader'), async (req: Request, res: Response, next: NextFunction) => {
+router.get('/export', requireRole('super_admin', 'admin', 'manager', 'leader'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const buffer = await importService.exportContacts({
       search: req.query.search as string | undefined,
@@ -39,8 +39,8 @@ router.get('/export', requireRole('admin', 'manager', 'leader'), async (req: Req
 });
 
 router.get('/:id', contactCtrl.getContact);
-router.patch('/:id', requireRole('admin', 'manager', 'leader', 'agent_telesale', 'agent_collection'), contactCtrl.updateContact);
-router.delete('/:id', requireRole('admin', 'manager'), contactCtrl.deleteContact);
+router.patch('/:id', requireRole('super_admin', 'admin', 'manager', 'leader', 'agent_telesale', 'agent_collection'), contactCtrl.updateContact);
+router.delete('/:id', requireRole('super_admin', 'admin', 'manager'), contactCtrl.deleteContact);
 router.get('/:id/timeline', contactCtrl.getTimeline);
 
 export default router;

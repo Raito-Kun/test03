@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
+import { RefreshCw } from 'lucide-react';
 import { VI } from '@/lib/vi-text';
 import api from '@/services/api-client';
 import { usePagination } from '@/hooks/use-pagination';
 import { PageWrapper } from '@/components/page-wrapper';
 import { DataTable, type Column } from '@/components/data-table/data-table';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import TicketForm from './ticket-form';
+import { ExportButton } from '@/components/export-button';
 
 const TICKET_STATUSES = ['open', 'in_progress', 'resolved', 'closed'] as const;
 const TICKET_PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
@@ -42,6 +45,7 @@ interface Ticket {
 
 export default function TicketListPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -88,23 +92,27 @@ export default function TicketListPage() {
 
   const toolbar = (
     <div className="flex gap-2">
-      <Select value={statusFilter || 'all'} onValueChange={(v) => setStatusFilter(!v || v === 'all' ? '' : v)}>
+      <Select value={statusFilter || undefined} onValueChange={(v) => setStatusFilter(v === '_all' ? '' : v || '')}>
         <SelectTrigger className="w-40">
-          <SelectValue placeholder={VI.ticket.status} />
+          {statusFilter
+            ? <span>{VI.ticket.statuses[statusFilter as TicketStatus]}</span>
+            : <span className="text-muted-foreground">Tất cả trạng thái</span>}
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">{VI.actions.filter} — {VI.ticket.status}</SelectItem>
+          <SelectItem value="_all">Tất cả trạng thái</SelectItem>
           {TICKET_STATUSES.map((s) => (
             <SelectItem key={s} value={s}>{VI.ticket.statuses[s]}</SelectItem>
           ))}
         </SelectContent>
       </Select>
-      <Select value={priorityFilter || 'all'} onValueChange={(v) => setPriorityFilter(!v || v === 'all' ? '' : v)}>
+      <Select value={priorityFilter || undefined} onValueChange={(v) => setPriorityFilter(v === '_all' ? '' : v || '')}>
         <SelectTrigger className="w-40">
-          <SelectValue placeholder={VI.ticket.priority} />
+          {priorityFilter
+            ? <span>{VI.ticket.priorities[priorityFilter as TicketPriority]}</span>
+            : <span className="text-muted-foreground">Tất cả mức độ</span>}
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">{VI.actions.filter} — {VI.ticket.priority}</SelectItem>
+          <SelectItem value="_all">Tất cả mức độ</SelectItem>
           {TICKET_PRIORITIES.map((p) => (
             <SelectItem key={p} value={p}>{VI.ticket.priorities[p]}</SelectItem>
           ))}
@@ -114,7 +122,11 @@ export default function TicketListPage() {
   );
 
   return (
-    <PageWrapper title={VI.ticket.title} onCreate={() => setShowForm(true)}>
+    <PageWrapper title={VI.ticket.title} onCreate={() => setShowForm(true)} actions={
+      <><Button variant="outline" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ['tickets'] })} title={VI.actions.refresh}>
+        <RefreshCw className="h-4 w-4" />
+      </Button><ExportButton entity="tickets" filters={{ search: search || '', status: statusFilter, priority: priorityFilter }} /></>
+    }>
       <DataTable
         columns={columns}
         data={data?.items ?? []}

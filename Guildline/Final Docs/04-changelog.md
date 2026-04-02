@@ -1,5 +1,136 @@
 # CRM Omnichannel — Changelog
 
+## Version 1.2.0 (2026-03-28)
+
+### Feature: Lead Scoring & Automation
+- **Lead Scoring**: Rule-based algorithm in `lead-scoring-service.ts`
+  - Score calculation based on: qualification status, engagement history, conversion likelihood
+  - Auto-updated on lead status transitions
+- **Auto-Assign Leads**: Round-robin assignment endpoint `POST /leads/assign`
+  - Distributes leads evenly among available agents
+  - UI dialog for bulk assign to users/team
+- **Auto-Escalation Debt Tier**: Daily cron + manual endpoint
+  - Auto-escalate tier based on days overdue
+  - `POST /debt-cases/escalate` for manual escalation
+  - Promise-to-Pay auto-reminder cron job
+- **Follow-Up Reminders**: Enhanced cron job + API
+  - `GET /leads/follow-ups` to fetch due follow-ups
+  - Automated notification trigger on schedule
+
+### Feature: Call Script Management
+- **Script Service**: Full CRUD in `call-script-service.ts`
+  - Script templates per campaign
+  - Variable substitution ({{contact.name}}, {{lead.status}}, etc.)
+- **Script Display During Call**: Call script panel + auto-popup
+  - `call-script-panel.tsx` component
+  - Auto-display when call connected
+  - Quick-reference during customer interaction
+
+### Feature: Contact Management Enhancement
+- **Contact Merge**: Deduplication dialog
+  - `contact-merge-dialog.tsx` + service
+  - Merge by phone number, consolidate history
+  - Merges related leads, debt cases, tickets
+- **Contact Custom Fields**: UI extended
+  - Tags/segments support in UI
+  - Custom field editor in contact detail
+
+### Feature: Export & Reporting
+- **Export Excel UI**: Button on all 6 list pages
+  - `export-button.tsx` component
+  - Contacts, Leads, Debt Cases, Call Logs, Campaigns, Tickets
+  - Direct download with filters applied
+- **SLA Reporting**: First response + resolution time
+  - `first_response_at`, `resolved_at` tracking on tickets
+  - `GET /reports/sla` endpoint with agent/team breakdown
+  - SLA metrics in dashboard
+
+### Feature: Call Operations
+- **Attended Transfer**: ESL att_xfer support
+  - `POST /calls/attended-transfer` endpoint
+  - Agent consults before transferring (warm transfer)
+- **Bulk Recording Download**: ZIP archive
+  - `POST /call-logs/bulk-download` with filter params
+  - Checkbox UI to select recordings
+  - ZIP returned with metadata CSV
+
+### Feature: Monitoring & Supervision
+- **Live Monitoring Dashboard**: Real-time agent grid
+  - `live-dashboard.tsx` new page
+  - Agent status, current calls, call duration
+  - Real-time updates via Socket.IO
+  - `GET /monitoring/live` endpoint
+- **QA Annotation at Timestamp**: Markers in recording
+  - `qa-timestamp-annotations.tsx` component
+  - `POST /qa-timestamps`, `GET /qa-timestamps/:callLogId`
+  - Mark specific moments for QA review
+  - UI timestamp markers in player
+
+### Feature: Agent Status & UX
+- **Agent Status Auto-Detection**: From ESL events
+  - Auto-transition: ringing → on_call → wrap-up → ready
+  - ESL event listener in `esl-service.ts`
+  - Real-time status grid updates
+- **Wrap-up Auto-Timer**: 30s countdown
+  - Auto-triggered after hangup
+  - Countdown UI in call bar
+  - Auto-transition to ready after timeout
+- **Inbound Call Popup Improvements**:
+  - Show recent call history with customer
+  - Ticket count display
+  - Quick-access to contact detail
+
+### Feature: Campaign & Lead Management
+- **Campaign Progress Bar**: Real-time % completion
+  - Progress tracking on campaign list
+  - Completion % = (assigned + contacted + won) / total leads
+  - Real-time update on lead status change
+- **Lead Source Tracking UI**: Enforced source field
+  - Source dropdown on lead form (web, phone, referral, etc.)
+  - Filter by source in lead list
+  - Report by source in analytics
+
+### Feature: Ticket & Macro
+- **Macro Templates in Ticket UI**:
+  - Apply macros when creating/updating ticket
+  - `POST /macros/apply` endpoint
+  - Variable substitution in templates
+  - Quick-reply preset messages
+
+### Database Changes
+- New migrations: contact_extended_fields, expand_lead_fields, expand_debt_fields
+- New tables: script, script_template, qa_timestamp
+- Enhanced fields: lead (source enforced), contact (tags, custom_fields), debt_case (tier_escalation_date)
+
+### API Endpoints Added (20 new)
+- `POST /leads/assign` — Auto-assign leads
+- `POST /leads/score` — Recalculate lead score
+- `GET /leads/follow-ups` — Fetch due follow-ups
+- `POST /debt-cases/escalate` — Manual tier escalation
+- `POST /contacts/merge` — Merge duplicate contacts
+- `GET /export/:entity` — Export to Excel
+- `POST /call-logs/bulk-download` — ZIP archive download
+- `POST /calls/attended-transfer` — Warm transfer
+- `GET /monitoring/live` — Live dashboard data
+- `POST /qa-timestamps` — Create annotation
+- `GET /qa-timestamps/:callLogId` — List annotations
+- `POST /scripts` — Create script
+- `PATCH /scripts/:id` — Update script
+- `DELETE /scripts/:id` — Delete script
+- `GET /scripts/active` — Scripts for active campaign
+- `GET /scripts/default` — Default script templates
+- `GET /scripts/active-call` — Script for current call
+- `POST /macros/apply` — Apply macro template
+- `GET /reports/sla` — SLA metrics report
+- `PUT /agent-status/wrap-up-timer` — Update wrap-up status
+
+### Files Changed
+- Backend: 20+ files (services, routes, controllers, migrations)
+- Frontend: 15+ files (new pages, components, dialogs)
+- Shared: 5+ files (enums, types updates)
+
+---
+
 ## Version 1.1.1 (2026-03-27)
 
 ### CDR Deduplication Fix (Critical)

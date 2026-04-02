@@ -9,6 +9,7 @@ interface User {
   role: Role;
   teamId: string | null;
   sipExtension: string | null;
+  permissions: string[];
 }
 
 interface AuthState {
@@ -18,6 +19,8 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   bootstrap: () => Promise<void>;
+  setUser: (user: User) => void;
+  hasPermission: (key: string) => boolean;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -51,5 +54,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch {
       set({ user: null, isAuthenticated: false, isBootstrapping: false });
     }
+  },
+
+  setUser: (user: User) => set({ user }),
+
+  hasPermission: (key: string): boolean => {
+    const { user } = useAuthStore.getState();
+    if (!user) return false;
+    if ((user.role as string) === 'super_admin') return true;
+    return user.permissions?.includes(key) ?? false;
   },
 }));

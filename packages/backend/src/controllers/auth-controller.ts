@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
+import bcrypt from 'bcryptjs';
 import { loginSchema } from '@crm/shared/src/validation/auth-schemas';
 import * as authService from '../services/auth-service';
+import prisma from '../lib/prisma';
 
 const isProd = process.env.NODE_ENV === 'production';
 const COOKIE_NAME = 'crm_refresh_token';
@@ -96,6 +98,47 @@ export async function meHandler(req: Request, res: Response, next: NextFunction)
   try {
     const user = await authService.getProfile(req.user!.userId);
     res.json({ success: true, data: user });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** PATCH /auth/me — handles password change or sipExtension update */
+export async function updateMeHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.user!.userId;
+    const { currentPassword, newPassword, sipExtension } = req.body;
+
+    // Password change flow
+    if (currentPassword !== undefined || newPassword !== undefined) {
+      if (!currentPassword || !newPassword) {
+        res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'currentPassword and newPassword required' } });
+        return;
+      }
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) {
+        res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'User not found' } });
+        return;
+      }
+      const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!valid) {
+        res.status(400).json({ success: false, error: { code: 'INVALID_PASSWORD', message: 'Current password is incorrect' } });
+        return;
+      }
+      const hash = await bcrypt.hash(newPassword, 10);
+      await prisma.user.update({ where: { id: userId }, data: { passwordHash: hash } });
+      res.json({ success: true, data: null });
+      return;
+    }
+
+    // SIP extension update flow
+    if (sipExtension !== undefined) {
+      const updated = await authService.updateProfile(userId, { sipExtension: sipExtension || undefined });
+      res.json({ success: true, data: updated });
+      return;
+    }
+
+    res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'No valid fields to update' } });
   } catch (err) {
     next(err);
   }

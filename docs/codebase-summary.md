@@ -4,11 +4,11 @@
 
 CRM Omnichannel is a comprehensive customer relationship management platform with integrated VoIP capabilities, built as a monorepo using TypeScript, Node.js, React, PostgreSQL, and FreeSWITCH PBX integration.
 
-**Project Status**: MVP Complete (Phases 1-11 Done, Phase 12 Testing In Progress)
+**Project Status**: Advanced Features Complete (Phases 1-15 Done)
 **Repository**: Monorepo structure with packages/backend, packages/frontend, packages/shared, packages/mcp-server
 **Team**: Full-stack development team
 **Start Date**: 2026-01-15
-**Current Phase**: Phase 12 (Smart Test Suite - In Progress)
+**Current Phase**: Phase 15 Complete (v1.2.0 deployed to 10.10.101.207)
 
 ## Monorepo Structure
 
@@ -68,16 +68,16 @@ packages/
 | Logging | Winston | ^3.17.0 |
 | Security | Helmet, bcryptjs, rate-limit | Latest |
 
-### Database Models (17 Tables)
+### Database Models (17+ Tables)
 
 **Core Entities**:
 - User (accounts with roles and team assignments)
 - Team (organizational teams: sales, collections, support)
-- Contact (customer/prospect information)
-- Lead (sales lead tracking with status pipeline)
-- DebtCase (debt collection cases)
+- Contact (customer/prospect information, + tags, socialProfiles)
+- Lead (sales lead tracking + scoring, followUpDueDate)
+- DebtCase (debt collection cases + DPD, escalationHistory)
 - Campaign (outbound/inbound campaigns)
-- Ticket (support ticket lifecycle)
+- Ticket (support ticket lifecycle + SLA fields)
 - Macro (message templates)
 - Notification (user notifications)
 - Dashboard (widget configurations)
@@ -85,6 +85,11 @@ packages/
 **VoIP & Call Management**:
 - Call (active call tracking)
 - CallLog (historical CDR records)
+- Script (call script templates, Phase 15+)
+- AgentStatusLog (agent status history + wrapUpDuration)
+
+**QA & Annotations**:
+- QaAnnotation (QA scores + timestamp, category, Phase 15+)
 
 **RBAC & Permissions** (Phase 10+):
 - Permission (dynamic permission definitions)
@@ -93,43 +98,60 @@ packages/
 **Supporting**:
 - AuditLog (action tracking)
 
-### API Endpoints (57+)
+### API Endpoints (70+)
 
 **Auth & Users** (19 endpoints):
-- POST /api/v1/auth/register
-- POST /api/v1/auth/login
-- POST /api/v1/auth/refresh
-- POST /api/v1/auth/logout
-- GET /api/v1/users, GET /api/v1/users/:id
+- POST /api/v1/auth/register, /login, /refresh, /logout
+- GET /api/v1/users (+ list), GET /api/v1/users/:id
 - PATCH /api/v1/users/:id, DELETE /api/v1/users/:id
 - GET /api/v1/teams, POST /api/v1/teams (CRUD)
 
 **CRM Features** (9 endpoints):
-- Contacts: CRUD + timeline
-- Leads: CRUD + status transitions
-- DebtCases: CRUD
-- Campaigns: CRUD
+- Contacts: CRUD + timeline (+ merge, import, tags)
+- Leads: CRUD + status transitions (+ scoring, assignment, follow-ups)
+- DebtCases: CRUD (+ escalation)
+- Campaigns: CRUD (+ import, progress)
 
-**VoIP & Calls** (8 endpoints):
+**VoIP & Calls** (8+ endpoints):
 - Calls: POST /initiate, GET list, GET detail
-- Call Actions: PATCH /transfer, /hold, /end
+- Call Actions: PATCH /transfer, /hold, /end (+ attended-transfer, wrap-up)
 - CDR Webhooks: POST /webhooks/cdr
-- Agent Status: GET /agents, PATCH /agents/:id/status
+- Agent Status: GET /agents, PATCH /agents/:id/status (auto-detection)
 
-**Call History & QA** (8 endpoints):
-- CallLogs: GET list, GET detail, analytics
+**Call History & QA** (8+ endpoints):
+- CallLogs: GET list, GET detail, analytics (+ bulk-download)
 - Disposition Codes: CRUD
-- QA Annotations: CRUD
+- QA Annotations: CRUD (+ timestamps)
 
-**Ticketing** (10 endpoints):
-- Tickets: CRUD + bulk actions
+**Ticketing** (10+ endpoints):
+- Tickets: CRUD + bulk actions (+ SLA tracking)
 - Categories: CRUD
 - Comments: Add/list
+- Macros: Apply endpoint
 
-**Analytics & Reports** (5 endpoints):
-- Dashboard: GET /dashboard
-- Reports: Agent performance, campaign ROI, contact funnel
+**Scripts & Templates** (3+ endpoints, Phase 15+):
+- GET /api/v1/scripts/active
+- GET /api/v1/scripts/default
+- GET /api/v1/scripts/active-call/:callId
+
+**Analytics & Reports** (5+ endpoints):
+- Dashboard: GET /dashboard (enhanced KPIs)
+- Reports: Agent performance, campaign ROI, contact funnel (+ SLA)
 - Analytics: Daily calls, conversion rates
+
+**Lead Scoring & Assignment** (2+ endpoints, Phase 15+):
+- GET /api/v1/leads/scored-list
+- POST /api/v1/leads/assign-bulk
+- GET /api/v1/leads/follow-ups
+
+**Debt Management** (1 endpoint, Phase 15+):
+- POST /api/v1/debt-cases/escalate (manual trigger)
+
+**Monitoring** (1 endpoint, Phase 15+):
+- GET /api/v1/monitoring/live (agent grid + active calls)
+
+**Export** (1 endpoint, Phase 15+):
+- GET /api/v1/export/:entity (contacts|leads|debt-cases|call-logs|tickets|campaigns)
 
 **Permissions** (3 endpoints, Phase 10+):
 - GET /api/v1/permissions
@@ -264,20 +286,21 @@ Real-time UI Updates
 | Routing | React Router | ^7.1.0 |
 | Real-time | Socket.IO Client | ^4.8.0 |
 
-### 14 Feature Pages
+### 15+ Feature Pages
 
 1. **Auth Pages** (3): Login, Register, Forgot Password
-2. **Dashboard**: Executive KPI overview with widgets
-3. **Contacts**: List, detail, create/edit pages
-4. **Leads**: Sales pipeline with status workflow
-5. **Debt Cases**: Collection case tracking
-6. **Call Logs**: Historical records with analytics
-7. **Campaigns**: Campaign management
-8. **Tickets**: Support ticket lifecycle
-9. **Reports**: Analytics dashboards (agent performance, ROI, funnel)
+2. **Dashboard**: Executive KPI overview with widgets (enhanced KPIs, Phase 15+)
+3. **Contacts**: List, detail, create/edit pages (+ merge, import, tags, Phase 15+)
+4. **Leads**: Sales pipeline with status workflow (+ scoring, follow-ups, auto-assign, Phase 15+)
+5. **Debt Cases**: Collection case tracking (+ escalation history, Phase 15+)
+6. **Call Logs**: Historical records with analytics (+ bulk download, QA timestamps, Phase 15+)
+7. **Campaigns**: Campaign management (+ progress bar, import, auto-assign, Phase 15+)
+8. **Tickets**: Support ticket lifecycle (+ SLA tracking, macro templates, Phase 15+)
+9. **Reports**: Analytics dashboards (agent performance, ROI, funnel, + SLA, Phase 15+)
 10. **Settings**: User profile + team configuration
 11. **Extensions**: Extension mapping (admin only)
 12. **Permissions**: Permission manager (super_admin only)
+13. **Monitoring**: Live monitoring dashboard (agent grid, active calls, Phase 15+)
 
 ### Component Structure
 
@@ -401,32 +424,40 @@ packages/backend/tests/
 ### 1. Multi-Channel Communication
 - Click-to-call (C2C) integration with FreeSWITCH
 - Outbound call origination via ESL
-- Call transfer (blind and attended)
+- Call transfer (blind and attended, Phase 15+)
 - Real-time call state tracking
+- Auto-detection of agent status from ESL events (Phase 15+)
 
 ### 2. CRM Core
-- Contact management with relationship tracking
-- Lead pipeline with status workflow
-- Debt case aging and collection tracking
+- Contact management with relationship tracking (+ merge, tags, Phase 15+)
+- Lead pipeline with status workflow (+ scoring, follow-ups, Phase 15+)
+- Debt case aging and collection tracking (+ auto-escalation, Phase 15+)
 - Activity timeline for all entities
+- Bulk import workflows (CSV, Phase 15+)
 
 ### 3. VoIP & Call Center
 - Extension mapping with SIP registration tracking
-- Call logs with CDR analytics
-- QA annotations with scoring
+- Call logs with CDR analytics (+ bulk download, Phase 15+)
+- QA annotations with scoring (+ timestamp markers, Phase 15+)
 - Call recording tracking
+- Call script templates with variable substitution (Phase 15+)
+- Wrap-up auto-timer (30s countdown after hangup, Phase 15+)
 
 ### 4. Ticketing & Support
 - Ticket lifecycle management
-- SLA tracking (first response, resolution)
+- SLA tracking (first response, resolution, Phase 15+)
 - Auto-routing and assignment
 - Ticket categories and priorities
+- Macro templates for quick responses (Phase 15+)
 
 ### 5. Analytics & Reporting
-- Executive dashboard with KPIs
+- Executive dashboard with enhanced KPIs (Phase 15+)
+  - Contact rate, close rate, PTP rate, recovery rate
+  - Wrap-up average, amount collected
 - Agent performance metrics
 - Campaign ROI analysis
 - Contact funnel tracking
+- SLA compliance reporting (Phase 15+)
 
 ### 6. Security & Access Control
 - Role-based access control (RBAC)
@@ -439,6 +470,27 @@ packages/backend/tests/
 - Live call state updates
 - Real-time notifications
 - Agent status tracking
+- Live monitoring dashboard (Phase 15+)
+- Real-time lead scoring updates (Phase 15+)
+
+### 8. Lead & Debt Management (Phase 15+)
+- Intelligent lead scoring (rule-based: source, status, verification, call count, recency)
+- Automatic lead assignment to agents
+- Follow-up lead discovery (overdue, due-today, due-this-week)
+- Automatic debt tier escalation (DPD-based)
+- Daily escalation cron job + manual trigger
+
+### 9. Data Management (Phase 15+)
+- Excel export for all entities (contacts, leads, debt-cases, call-logs, tickets, campaigns)
+- Bulk recording download as ZIP archives
+- CSV import with deduplication
+- Contact merge with conflict resolution
+
+### 10. Compliance & Quality
+- QA timestamp annotations on recordings with categories
+- SLA tracking and reporting
+- Audit logging and compliance reports
+- Permission-based feature access control
 
 ## Development Workflow
 
@@ -510,36 +562,38 @@ docker-compose -f docker-compose.prod.yml up
 - **Phase 09** ✓ Testing & Production Hardening
 - **Phase 10** ✓ Super Admin Role + Permission Manager
 - **Phase 11** ✓ Extension Mapping Config
+- **Phase 15** ✓ Gap Analysis Features & Advanced Features (v1.2.0)
 
 ### In Progress
 
-- **Phase 12** Smart Test Suite (comprehensive test coverage expansion)
+- **Phase 16** (Planned) Advanced Features: Predictive dialing, ML refinements, Webhooks, Mobile app
 
 ### Next Steps
 
-1. Complete Phase 12 comprehensive test coverage
-2. Deploy to staging environment
-3. Production smoke tests
-4. User onboarding and training
-5. Post-launch monitoring and feature enhancements
+1. Complete Phase 16 planning and scope definition
+2. Deploy Phase 15 to additional environments
+3. User feedback collection and roadmap adjustment
+4. Advanced analytics implementation
+5. Third-party integrations (Salesforce, HubSpot, etc.)
 
 ## Metrics & Statistics
 
 | Metric | Value |
 |--------|-------|
-| Backend Files | 85+ TypeScript files |
-| Frontend Files | 81+ TypeScript/TSX files |
-| API Endpoints | 57+ |
-| Database Tables | 17 |
-| Controllers | 21 |
-| Services | 21 |
-| Frontend Pages | 14 |
+| Backend Files | 100+ TypeScript files |
+| Frontend Files | 95+ TypeScript/TSX files |
+| API Endpoints | 70+ |
+| Database Tables | 17 (+ extended fields) |
+| Controllers | 26+ |
+| Services | 26+ |
+| Frontend Pages | 15 |
+| Frontend Components | 30+ |
 | Middleware | 6 |
-| Lines of Code (Backend) | ~9,500 |
-| Lines of Code (Frontend) | ~7,000 |
+| Lines of Code (Backend) | ~12,000 |
+| Lines of Code (Frontend) | ~9,500 |
 | Test Coverage | 49+ tests |
 | Tech Debt | Low (consistent patterns) |
-| Project Completion | 91.7% (11/12 phases) |
+| Project Completion | 93.75% (15/16 phases) |
 
 ## Dependencies & External Services
 
@@ -569,7 +623,8 @@ docker-compose -f docker-compose.prod.yml up
 
 ---
 
-**Last Updated**: 2026-03-26
+**Last Updated**: 2026-03-28
 **Maintained By**: Development Team
-**Status**: MVP Complete + Phase 12 In Progress
-**Next Review**: 2026-03-31
+**Status**: Advanced Features Complete (v1.2.0)
+**Deployed To**: 10.10.101.207
+**Next Review**: 2026-04-15

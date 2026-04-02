@@ -11,7 +11,7 @@ router.put('/status', ctrl.setMyStatus);
 router.get('/status', ctrl.getMyStatus);
 router.get(
   '/statuses',
-  requireRole('admin', 'manager', 'leader'),
+  requireRole('super_admin', 'admin', 'manager', 'leader'),
   ctrl.getAllStatuses,
 );
 

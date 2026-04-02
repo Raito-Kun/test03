@@ -13,6 +13,76 @@ const timestampSchema = z.object({
   severity: z.enum(['info', 'warning', 'error']).default('info'),
 });
 
+const createTimestampSchema = z.object({
+  callLogId: z.string().uuid(),
+  timestamp: z.number().min(0),
+  text: z.string().min(1).max(500),
+  category: z.enum(['compliance', 'quality', 'coaching', 'issue']).default('quality'),
+  sentiment: z.enum(['positive', 'negative', 'neutral']).default('neutral'),
+});
+
+/** POST /qa-timestamps — save standalone timestamp annotation */
+router.post('/', requirePermission('view_recordings'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const input = createTimestampSchema.parse(req.body);
+    const reviewerId = req.user!.userId;
+
+    // Find or create QA annotation for this call + reviewer
+    let annotation = await prisma.qaAnnotation.findFirst({
+      where: { callLogId: input.callLogId, reviewerId },
+    });
+
+    if (!annotation) {
+      annotation = await prisma.qaAnnotation.create({
+        data: { callLogId: input.callLogId, reviewerId, score: 0, timestampNote: [] },
+      });
+    }
+
+    const existing = (annotation.timestampNote as Array<Record<string, unknown>>) || [];
+    existing.push({
+      time: input.timestamp,
+      note: input.text,
+      severity: 'info',
+      category: input.category,
+      sentiment: input.sentiment,
+    });
+    existing.sort((a, b) => (a.time as number) - (b.time as number));
+
+    // Cast to Prisma-compatible JSON input
+    const { Prisma } = await import('@prisma/client');
+    await prisma.qaAnnotation.update({
+      where: { id: annotation.id },
+      data: { timestampNote: existing as unknown as typeof Prisma.JsonNull },
+    });
+
+    res.status(201).json({ success: true, data: { annotationId: annotation.id, timestamps: existing } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** GET /qa-timestamps/:callLogId — get all timestamp annotations for a call */
+router.get('/:callLogId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const annotations = await prisma.qaAnnotation.findMany({
+      where: { callLogId: req.params.callLogId as string },
+      select: {
+        id: true,
+        score: true,
+        comment: true,
+        timestampNote: true,
+        reviewer: { select: { fullName: true } },
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({ success: true, data: annotations });
+  } catch (err) {
+    next(err);
+  }
+});
+
 /** POST /qa-timestamps/:annotationId — add timestamp annotation to existing QA annotation */
 router.post('/:annotationId', requirePermission('view_recordings'), async (req: Request, res: Response, next: NextFunction) => {
   try {

@@ -13,6 +13,15 @@ import { VI } from '@/lib/vi-text';
 import { LEAD_STATUSES, type LeadStatus } from '@shared/constants/enums';
 import { toast } from 'sonner';
 
+const LEAD_SOURCES = [
+  { value: 'website', label: 'Website' },
+  { value: 'referral', label: 'Giới thiệu' },
+  { value: 'phone', label: 'Điện thoại' },
+  { value: 'email', label: 'Email' },
+  { value: 'social', label: 'Mạng xã hội' },
+  { value: 'other', label: 'Khác' },
+] as const;
+
 interface LeadFormProps {
   open: boolean;
   onClose: () => void;
@@ -24,6 +33,7 @@ interface LeadFormProps {
     score: number | null;
     notes: string | null;
     followUpDate: string | null;
+    source?: string | null;
   };
 }
 
@@ -33,6 +43,7 @@ export default function LeadForm({ open, onClose, onSuccess, initialData }: Lead
   const [status, setStatus] = useState<LeadStatus>(initialData?.status ?? 'new');
   const [score, setScore] = useState(initialData?.score?.toString() ?? '');
   const [notes, setNotes] = useState(initialData?.notes ?? '');
+  const [source, setSource] = useState(initialData?.source ?? '');
   const [followUpDate, setFollowUpDate] = useState(
     initialData?.followUpDate ? initialData.followUpDate.substring(0, 10) : ''
   );
@@ -45,6 +56,7 @@ export default function LeadForm({ open, onClose, onSuccess, initialData }: Lead
         score: score ? Number(score) : undefined,
         notes: notes || undefined,
         followUpDate: followUpDate || undefined,
+        source: source || undefined,
       };
       if (isEdit) {
         await api.patch(`/leads/${initialData.id}`, payload);
@@ -70,11 +82,11 @@ export default function LeadForm({ open, onClose, onSuccess, initialData }: Lead
 
         <div className="space-y-4">
           <div className="space-y-1">
-            <Label>Contact ID</Label>
+            <Label>Mã liên hệ</Label>
             <Input
               value={contactId}
               onChange={(e) => setContactId(e.target.value)}
-              placeholder="Contact ID"
+              placeholder="Mã liên hệ"
             />
           </div>
 
@@ -102,6 +114,23 @@ export default function LeadForm({ open, onClose, onSuccess, initialData }: Lead
               onChange={(e) => setScore(e.target.value)}
               placeholder="0"
             />
+          </div>
+
+          <div className="space-y-1">
+            <Label>Nguồn</Label>
+            <Select value={source || undefined} onValueChange={(v) => setSource(v === '_none' ? '' : v || '')}>
+              <SelectTrigger>
+                {source
+                  ? <span>{LEAD_SOURCES.find((s) => s.value === source)?.label || source}</span>
+                  : <SelectValue placeholder="Chọn nguồn" />}
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_none">— Không có —</SelectItem>
+                {LEAD_SOURCES.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1">

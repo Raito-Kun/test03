@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { authMiddleware } from '../middleware/auth-middleware';
 import { requireRole } from '../middleware/rbac-middleware';
@@ -6,12 +7,27 @@ import { applyDataScope } from '../middleware/data-scope-middleware';
 import * as callLogCtrl from '../controllers/call-log-controller';
 import * as dispositionCtrl from '../controllers/disposition-code-controller';
 import * as qaCtrl from '../controllers/qa-annotation-controller';
+import { bulkDownloadRecordings } from '../services/recording-service';
 import prisma from '../lib/prisma';
 import logger from '../lib/logger';
 
 const router = Router();
 
 router.use(authMiddleware);
+
+const bulkDownloadSchema = z.object({
+  callLogIds: z.array(z.string().uuid()).min(1).max(50),
+});
+
+/** POST /call-logs/bulk-download — download zip of recording files */
+router.post('/bulk-download', requireRole('super_admin', 'admin', 'manager', 'qa', 'leader'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const input = bulkDownloadSchema.parse(req.body);
+    await bulkDownloadRecordings(input.callLogIds, req.user!.userId, req, res);
+  } catch (err) {
+    next(err);
+  }
+});
 
 // Manual call log from softphone (when CDR webhook is not available)
 router.post('/manual', async (req: Request, res: Response, next: NextFunction) => {
@@ -49,7 +65,7 @@ router.post('/:id/disposition', dispositionCtrl.setCallDisposition);
 // QA annotation on call
 router.post(
   '/:id/qa',
-  requireRole('qa', 'leader', 'manager'),
+  requireRole('super_admin', 'qa', 'leader', 'manager'),
   qaCtrl.createQa,
 );
 

@@ -49,6 +49,15 @@ export async function createLead(req: Request, res: Response, next: NextFunction
   }
 }
 
+export async function listFollowUps(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const leads = await leadService.listFollowUps(req.dataScope || {});
+    res.json({ success: true, data: leads, total: leads.length });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function updateLead(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const input = updateLeadSchema.parse(req.body);

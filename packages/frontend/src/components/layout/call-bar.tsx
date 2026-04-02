@@ -1,14 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useCallStore } from '@/stores/call-store';
 import { VI } from '@/lib/vi-text';
+import { fmtPhone } from '@/lib/format';
 import api from '@/services/api-client';
 import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
-import { Phone, PhoneOff, Pause, Play, Mic, MicOff, ArrowRightLeft } from 'lucide-react';
+import { Phone, PhoneOff, Pause, Play, Mic, MicOff, ArrowRightLeft, Clock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+const WRAPUP_DURATION = 30; // seconds
 
 function formatDuration(startedAt: number): string {
   const seconds = Math.floor((Date.now() - startedAt) / 1000);
@@ -21,6 +24,8 @@ export function CallBar() {
   const { activeCall, isMuted, isHeld, disposition, setMuted, setHeld, setDisposition, endCall } = useCallStore();
   const [timer, setTimer] = useState('00:00');
   const [showTransfer, setShowTransfer] = useState(false);
+  const [wrapUpRemaining, setWrapUpRemaining] = useState<number | null>(null);
+  const wrapUpRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { data: dispositionCodes } = useQuery({
     queryKey: ['disposition-codes'],
@@ -38,6 +43,29 @@ export function CallBar() {
     }, 1000);
     return () => clearInterval(interval);
   }, [activeCall]);
+
+  // Wrap-up timer: starts when call state is 'wrap_up'
+  useEffect(() => {
+    if (activeCall?.state === 'wrap_up' && wrapUpRemaining === null) {
+      setWrapUpRemaining(WRAPUP_DURATION);
+    }
+    if (!activeCall) {
+      setWrapUpRemaining(null);
+      if (wrapUpRef.current) clearInterval(wrapUpRef.current);
+    }
+  }, [activeCall?.state, activeCall]);
+
+  useEffect(() => {
+    if (wrapUpRemaining === null) return;
+    if (wrapUpRemaining <= 0) {
+      endCall();
+      return;
+    }
+    wrapUpRef.current = setInterval(() => {
+      setWrapUpRemaining((prev) => (prev !== null ? prev - 1 : null));
+    }, 1000);
+    return () => { if (wrapUpRef.current) clearInterval(wrapUpRef.current); };
+  }, [wrapUpRemaining, endCall]);
 
   if (!activeCall) return null;
 
@@ -65,7 +93,7 @@ export function CallBar() {
         {/* Contact info */}
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{activeCall.contactName}</p>
-          <p className="text-xs text-muted-foreground">{activeCall.phone}</p>
+          <p className="text-xs text-muted-foreground">{fmtPhone(activeCall.phone)}</p>
         </div>
 
         {/* Timer + state */}
@@ -75,6 +103,21 @@ export function CallBar() {
             {activeCall.direction === 'inbound' ? VI.callLog.inbound : VI.callLog.outbound}
           </p>
         </div>
+
+        {/* Wrap-up timer */}
+        {wrapUpRemaining !== null && (
+          <div className="flex items-center gap-1.5 rounded-full bg-purple-100 px-3 py-1 text-purple-700">
+            <Clock className="h-3.5 w-3.5 animate-pulse" />
+            <span className="text-sm font-mono font-semibold">{wrapUpRemaining}s</span>
+            <span className="text-xs">kết thúc</span>
+            <button
+              className="ml-1 text-xs underline hover:no-underline"
+              onClick={() => { setWrapUpRemaining(null); endCall(); }}
+            >
+              Xong
+            </button>
+          </div>
+        )}
 
         {/* Controls */}
         <div className="flex items-center gap-2">

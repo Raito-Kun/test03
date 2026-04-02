@@ -1,22 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useCustomerTabStore } from '@/stores/customer-tab-store';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { ArrowLeft, Edit2, Phone } from 'lucide-react';
-import { toast } from 'sonner';
+import { ArrowLeft, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ClickToCallButton } from '@/components/click-to-call-button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { VI } from '@/lib/vi-text';
+import { fmtPhone } from '@/lib/format';
 import api from '@/services/api-client';
 import type { LeadStatus } from '@shared/constants/enums';
 import LeadForm from './lead-form';
+
+const LEAD_SOURCE_LABELS: Record<string, string> = {
+  website: 'Website', referral: 'Giới thiệu', phone: 'Điện thoại',
+  email: 'Email', social: 'Mạng xã hội', other: 'Khác',
+};
 
 interface Lead {
   id: string;
   status: LeadStatus;
   score: number | null;
+  leadScore: number | null;
+  source: string | null;
   notes: string | null;
   followUpDate: string | null;
   createdAt: string;
@@ -46,12 +55,10 @@ export default function LeadDetailPage() {
     enabled: !!id,
   });
 
-  function handleCall() {
-    if (!lead?.contact?.phone) return;
-    api.post('/calls/originate', { phone: lead.contact.phone }).then(() => {
-      toast.success(`Đang gọi ${lead.contact!.phone}...`);
-    }).catch(() => toast.error('Không thể thực hiện cuộc gọi'));
-  }
+  const updateTabLabel = useCustomerTabStore((s) => s.updateTabLabel);
+  useEffect(() => {
+    if (id && lead?.contact?.fullName) updateTabLabel(id, lead.contact.fullName);
+  }, [id, lead?.contact?.fullName, updateTabLabel]);
 
   if (isLoading) {
     return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-64 w-full" /></div>;
@@ -72,9 +79,7 @@ export default function LeadDetailPage() {
           <Badge className={STATUS_COLORS[lead.status]}>{VI.lead.statuses[lead.status]}</Badge>
         </div>
         {lead.contact?.phone && (
-          <Button variant="outline" onClick={handleCall}>
-            <Phone className="mr-2 h-4 w-4" /> Gọi
-          </Button>
+          <ClickToCallButton phone={lead.contact.phone} contactName={lead.contact.fullName} />
         )}
         <Button variant="outline" onClick={() => setEditOpen(true)}>
           <Edit2 className="mr-2 h-4 w-4" /> {VI.actions.edit}
@@ -85,8 +90,17 @@ export default function LeadDetailPage() {
         <Card>
           <CardHeader><CardTitle>Thông tin Lead</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
-            <div><p className="text-xs text-muted-foreground">{VI.lead.score}</p><p className="font-medium">{lead.score ?? '—'}</p></div>
+            <div>
+              <p className="text-xs text-muted-foreground">{VI.lead.score}</p>
+              {(() => {
+                const score = lead.leadScore ?? lead.score;
+                if (score == null) return <p className="font-medium">—</p>;
+                const color = score >= 70 ? 'bg-green-100 text-green-800' : score >= 40 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800';
+                return <Badge className={color}>{score}/100</Badge>;
+              })()}
+            </div>
             <div><p className="text-xs text-muted-foreground">{VI.lead.campaign}</p><p className="font-medium">{lead.campaign?.name ?? '—'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Nguồn</p><p className="font-medium">{lead.source ? (LEAD_SOURCE_LABELS[lead.source] ?? lead.source) : '—'}</p></div>
             <div><p className="text-xs text-muted-foreground">{VI.lead.followUp}</p><p className="font-medium">{lead.followUpDate ? format(new Date(lead.followUpDate), 'dd/MM/yyyy') : '—'}</p></div>
             <div><p className="text-xs text-muted-foreground">{VI.contact.assignedTo}</p><p className="font-medium">{lead.assignedTo?.fullName ?? '—'}</p></div>
             <div><p className="text-xs text-muted-foreground">{VI.contact.createdAt}</p><p className="font-medium">{format(new Date(lead.createdAt), 'dd/MM/yyyy HH:mm')}</p></div>
@@ -101,7 +115,7 @@ export default function LeadDetailPage() {
             <CardHeader><CardTitle>{VI.contact.tabs.info}</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
               <div><p className="text-xs text-muted-foreground">{VI.contact.fullName}</p><p className="font-medium">{lead.contact.fullName}</p></div>
-              <div><p className="text-xs text-muted-foreground">{VI.contact.phone}</p><p className="font-medium">{lead.contact.phone}</p></div>
+              <div><p className="text-xs text-muted-foreground">{VI.contact.phone}</p><p className="font-medium">{fmtPhone(lead.contact.phone)}</p></div>
             </CardContent>
           </Card>
         )}

@@ -15,7 +15,7 @@ function createRedisStore(prefix: string) {
 /** Global API rate limit: 60 req/min per user */
 export const globalLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: isTest ? 1000 : 60,
+  max: isTest ? 1000 : parseInt(process.env.GLOBAL_RATE_LIMIT || '120', 10),
   standardHeaders: true,
   legacyHeaders: false,
   message: {

@@ -4,7 +4,7 @@
 
 CRM Omnichannel platform with VoIP integration for sales, collections, and support teams.
 
-**Version**: 1.1.1 | **Start**: 2026-01-15 | **Status**: Phases 1-11 Complete, Phase 14 Testing In Progress
+**Version**: 1.2.0 | **Start**: 2026-01-15 | **Status**: Phases 1-15 Complete, Full Feature Parity with PRD §4.1-4.4
 
 ## Phase Summary
 
@@ -22,8 +22,12 @@ CRM Omnichannel platform with VoIP integration for sales, collections, and suppo
 | 10 | Super Admin + Permission Manager | ✓ Complete | 3 | 1 day |
 | 11 | Extension Mapping Config | ✓ Complete | 2 | 1 day |
 | — | CDR Dedup + SIP + i18n (v1.1.1) | ✓ Complete | — | 1 day |
+| 12 | Lead Scoring + Auto-Assignment | ✓ Complete | 4 | 1 day |
+| 13 | Contact Merge + Export UI | ✓ Complete | 3 | 1 day |
+| 14 | Call Script Management | ✓ Complete | 4 | 1 day |
+| 15 | Monitoring + QA Timestamps | ✓ Complete | 4 | 1 day |
 
-**Total**: 57+ API endpoints, 17 DB tables, 14 frontend pages, 49+ tests
+**Total**: 70+ API endpoints, 17 DB tables, 15 frontend pages, 65+ tests
 
 ## Phase Details
 
@@ -97,6 +101,29 @@ CRM Omnichannel platform with VoIP integration for sales, collections, and suppo
 - Call source tagging (C2C, Auto Call, etc.)
 - Recording sync fix (rsync)
 - Nginx no-cache for index.html
+
+### v1.2.0: Gap Closure + Advanced Features
+**20 Features Implemented**
+- Lead scoring (rule-based algorithm)
+- Auto-assign leads & campaigns (round-robin)
+- Auto-escalation debt tier (daily cron + endpoint)
+- Follow-up reminders (cron + GET /leads/follow-ups)
+- Call script management & display during call
+- Contact merge (duplicate dedup dialog)
+- Export Excel UI (all 6 list pages)
+- Live monitoring dashboard (real-time agent grid)
+- QA annotation at timestamp (markers + service)
+- Bulk recording download (ZIP archive)
+- Attended transfer (ESL att_xfer endpoint)
+- SLA reporting (first response + resolution time)
+- Wrap-up auto-timer (30s countdown)
+- Dashboard KPIs (contact/close/PTP/recovery rates)
+- Tags/segments UI on contacts
+- Macro templates in ticket UI
+- Inbound call popup enhancements (history + tickets)
+- Campaign progress bar (real-time %)
+- Lead source tracking UI
+- Agent status auto-detection (ESL events)
 
 ## Tech Stack
 

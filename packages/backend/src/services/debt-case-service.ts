@@ -148,6 +148,70 @@ export async function updateDebtCase(
   return debtCase;
 }
 
+/** Derive tier label from DPD value */
+function tierFromDpd(dpd: number): string {
+  if (dpd <= 0) return 'current';
+  if (dpd <= 30) return 'dpd_1_30';
+  if (dpd <= 60) return 'dpd_31_60';
+  if (dpd <= 90) return 'dpd_61_90';
+  return 'dpd_90_plus';
+}
+
+interface EscalationResult {
+  checked: number;
+  updated: number;
+  details: Array<{ id: string; oldTier: string; newTier: string; dpd: number }>;
+}
+
+/**
+ * Auto-escalate debt tiers for all active cases based on dueDate vs today.
+ * Called manually via POST /debt-cases/escalate (admin only).
+ */
+export async function escalateDebtTiers(): Promise<EscalationResult> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Fetch active debt cases that have a dueDate
+  const cases = await prisma.debtCase.findMany({
+    where: {
+      status: { notIn: ['paid', 'written_off'] },
+      dueDate: { not: null },
+    },
+    select: { id: true, dueDate: true, dpd: true, tier: true },
+  });
+
+  const toUpdate: Array<{ id: string; dpd: number; tier: string; oldTier: string }> = [];
+
+  for (const c of cases) {
+    if (!c.dueDate) continue;
+    const dueDate = new Date(c.dueDate);
+    dueDate.setHours(0, 0, 0, 0);
+    const dpd = Math.max(0, Math.floor((today.getTime() - dueDate.getTime()) / 86400000));
+    const newTier = tierFromDpd(dpd);
+
+    if (dpd !== c.dpd || newTier !== c.tier) {
+      toUpdate.push({ id: c.id, dpd, tier: newTier, oldTier: String(c.tier) });
+    }
+  }
+
+  if (toUpdate.length > 0) {
+    await prisma.$transaction(
+      toUpdate.map((u) =>
+        prisma.debtCase.update({
+          where: { id: u.id },
+          data: { dpd: u.dpd, tier: u.tier as never },
+        }),
+      ),
+    );
+  }
+
+  return {
+    checked: cases.length,
+    updated: toUpdate.length,
+    details: toUpdate.map((u) => ({ id: u.id, oldTier: u.oldTier, newTier: u.tier, dpd: u.dpd })),
+  };
+}
+
 /** Record Promise to Pay */
 export async function recordPTP(
   id: string,

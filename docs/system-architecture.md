@@ -40,7 +40,7 @@ packages/frontend/src/
 └── main.tsx          # Entry point
 ```
 
-**Page Structure** (14 pages):
+**Page Structure** (14+ pages):
 - Auth: login, register, forgot-password
 - Dashboard: overview with KPIs
 - Contacts: list, detail, create/edit
@@ -49,8 +49,16 @@ packages/frontend/src/
 - CallLogs: list, detail
 - Campaigns: list, detail
 - Tickets: list, detail, create/edit
-- Reports: analytics dashboards
+- Reports: 3-tab analytics (summary, detail, charts) with shared filters
 - Settings: user and team config
+
+**Reports Page Components** (Phase 16+):
+- `reports-page.tsx` — Main page with tab routing, shared filter state management, session memory
+- `report-filters.tsx` — Shared filter bar component (date range, agent, team, search button)
+- `report-summary-tab.tsx` — Summary with "Theo nhân viên" / "Theo team" sub-tabs
+- `report-detail-tab.tsx` — Paginated call log table with result and SIP code filters
+- `report-charts-tab.tsx` — 4 Recharts visualizations (bar, bar, line, pie)
+- `report-export-button.tsx` — CSV export component (reusable, context-aware)
 
 ### Shared
 
@@ -126,6 +134,13 @@ HTTP Response
 - Returns 403 if user lacks permission
 - Applied per-route to enforce access control
 
+#### Permission Middleware (`permission-middleware.ts`)
+- `requirePermission(...permissionKeys)` factory function
+- Checks permission keys against database/cache (Redis TTL: 5min)
+- super_admin always passes (hardcoded bypass)
+- Returns 403 if user lacks permission
+- Seamless fallback to database if cache miss
+
 #### Data Scope Middleware (`data-scope-middleware.ts`)
 - `applyDataScope(userField)` factory function
 - Builds Prisma WHERE conditions based on user role:
@@ -182,12 +197,43 @@ export async function listContacts(pagination, filters, dataScope) {
 
 | Role | Access Level | Data Scope |
 |------|--------------|-----------|
+| **super_admin** | Full system + permission management | All data + manage permissions |
 | **admin** | Full system access | All data |
 | **manager** | Department oversight | All team data |
 | **qa** | Quality assurance | All data (audit only) |
 | **leader** | Team management | Team members' data |
 | **agent_telesale** | Sales operations | Own assigned records |
 | **agent_collection** | Collection operations | Own assigned records |
+
+### Permission System (Phase 10+)
+
+**Permission Table**: Dynamic RBAC permissions stored in database
+- **ID**: UUID primary key
+- **Key**: Unique permission identifier (e.g., "manage_users", "view_reports")
+- **Label**: User-friendly label (Vietnamese/English)
+- **Group**: UI grouping category (e.g., "users", "reports", "calls")
+
+**RolePermission Table**: Many-to-many mapping roles to permissions
+- **Role**: Enum value (admin, manager, leader, agent_telesale, agent_collection, qa)
+- **PermissionId**: Foreign key to Permission table
+- **Granted**: Boolean flag for permission grant/revoke
+
+**13 Standard Permissions**:
+1. `view_reports` - Access report dashboards
+2. `make_calls` - Initiate VoIP calls
+3. `export_excel` - Export data to Excel
+4. `view_recordings` - Access call recordings
+5. `manage_campaigns` - Create/edit campaigns
+6. `manage_users` - User account management
+7. `manage_permissions` - Permission matrix management
+8. `manage_extensions` - Extension mapping and reassignment
+9. `view_dashboard` - Dashboard access
+10. `manage_tickets` - Ticket lifecycle management
+11. `manage_debt_cases` - Debt case operations
+12. `manage_leads` - Lead pipeline management
+13. `manage_contacts` - Contact management
+
+**super_admin Behavior**: Automatically has all permissions (hardcoded bypass in middleware)
 
 ### Error Format
 
@@ -222,45 +268,192 @@ Common error codes:
 
 ### Architecture
 
+Frontend (Socket.IO) ↔ Backend (Node.js) ↔ ESL Daemon ↔ FreeSWITCH (PBX) + CDR Webhook ↔ PostgreSQL
+
+**Key Components**:
+- **ESL Daemon**: Persistent FreeSWITCH connection (port 8021), auto-reconnect, Socket.IO broadcast
+- **Call Controller**: `POST /initiate`, `POST /:id/transfer`, `POST /:id/end`, `GET /calls`
+- **CDR Webhook**: `POST /webhooks/cdr` receives XML, parses, stores CallLog, emits Socket.IO events
+- **Recording Service**: Tracks S3/local storage status, provides download/playback endpoints
+
+#### Permission Controller & Service (Phase 10+)
+- `GET /api/v1/permissions` → List all permissions
+- `PUT /api/v1/permissions/role/:role` → Update role permission matrix
+- `GET /api/v1/permissions/user` → Get current user's permissions
+- Caches permissions in Redis (5min TTL)
+
+#### Extension Controller & Service (Phase 11+)
+- `GET /api/v1/extensions` → List all extensions with SIP registration status
+- `PUT /api/v1/extensions/:ext/assign` → Reassign extension to agent
+- Queries FreeSWITCH via ESL service for registration status
+- Fallback to "Unknown" status if ESL unavailable
+
+#### Lead Scoring & Assignment Services (Phase 15+)
+- `GET /api/v1/leads/scored-list` → List leads with calculated scores
+- `POST /api/v1/leads/assign-bulk` → Bulk assign leads to agents
+- Score calculation: source (10%), status (40%), verification (15%), call count (20%), recency (15%)
+- Auto-recalculate scores on contact/lead updates
+
+#### Debt Escalation Service (Phase 15+)
+- `POST /api/v1/debt-cases/escalate` → Manual escalation trigger
+- Daily cron job at 2 AM for automatic escalation
+- Escalation rules: 30 DPD → Tier 2, 60 DPD → Tier 3, 90+ DPD → Collections
+- Audit logging on all escalations
+
+#### Call Script Service (Phase 15+)
+- `GET /api/v1/scripts/active` → List active call scripts
+- `GET /api/v1/scripts/default` → Get default script template
+- `GET /api/v1/scripts/active-call/:callId` → Get script with variables substituted
+- Variable substitution: ${contact.name}, ${lead.amount}, ${contact.phone}, etc.
+- Template storage in Script table
+
+#### Attended Transfer Service (Phase 15+)
+- `POST /api/v1/calls/attended-transfer` → Supervised transfer
+- ESL command: att_xfer (attended transfer)
+- Supports extension or external number routing
+- Call remains active during transfer setup
+
+#### Wrap-up Auto-Timer (Phase 15+)
+- Auto-transition: HANGUP event → wrap_up status (30s timer)
+- Auto-transition: Timer expires → ready status
+- Agent can override: click "Ready" earlier
+- Stored in AgentStatusLog.wrapUpDuration
+
+#### Monitoring Service (Phase 15+)
+- `GET /api/v1/monitoring/live` → Real-time agent grid and active calls
+- Metrics: agent count by status, active calls, idle time, availability
+- Team filtering, status aggregation
+- Real-time updates via Socket.IO
+
+#### Export Service (Phase 15+)
+- `GET /api/v1/export/:entity` → Export contacts|leads|debt-cases|call-logs|tickets|campaigns
+- Formats: Excel (xlsx), CSV
+- Query params: optional filters (dateRange, status, team)
+- Returns: formatted file with summary sheet + pivot tables
+
+#### QA Annotations Service (Phase 15+)
+- `POST /api/v1/qa-timestamps` → Create timestamp annotation
+- `GET /api/v1/qa-timestamps/:callLogId` → List annotations for call
+- Fields: timestamp (ms), category (quality|compliance|training|issue), notes, severity
+- UI: overlay on audio player with clickable markers
+
+#### SLA Tracking (Phase 15+)
+- `GET /api/v1/reports/sla` → SLA compliance report
+- Ticket fields: firstResponseAt, resolvedAt, slaBreached
+- SLA rule: firstResponseAt <= createdAt + 4 hours
+- Report metrics: first response time, resolution time, breach %
+
+#### Contact Merge & Lead Import Services (Phase 15+)
+- `POST /api/v1/contacts/merge` → Merge duplicate contacts
+- Field conflict resolution: priority ranking
+- `POST /api/v1/leads/import-csv` → Bulk import leads from CSV
+
+#### Permission Hierarchy Data Model (Phase 17+)
+
 ```
-Frontend (UI)
-    ↓
-Socket.IO (real-time events)
-    ↓
-Backend (Node.js)
-    ↓
-ESL Daemon (modesl library) ←→ FreeSWITCH (PBX)
-    ↓
-CDR Webhook ← Call Detail Records (XML)
-    ↓
-Call Log Service → PostgreSQL
+PermissionGroup
+  id          UUID
+  key         String (unique)
+  label       String
+  parentId    UUID? (self-referential FK → PermissionGroup.id)
+  order       Int
+
+Permission
+  id          UUID
+  key         String (unique)
+  label       String
+  groupId     UUID (FK → PermissionGroup.id)
+
+RolePermission
+  role        Role (enum)
+  permissionId UUID (FK → Permission.id)
+  granted     Boolean
 ```
 
-### Components
+Parent-child toggle rules enforced at UI and API level:
+- Parent toggled OFF → all children in same role column set to false
+- Parent toggled ON → all children in same role column set to true
+- Children can be individually toggled when parent is ON
+- super_admin: all permissions hardcoded ON, switches disabled
 
-#### ESL Daemon (`lib/esl-daemon.ts`)
-- Maintains persistent connection to FreeSWITCH ESL port (8021)
-- Listens for ESL events (call state changes, agent status)
-- Auto-reconnects on connection loss
-- Non-blocking initialization (doesn't block server startup)
-- Emits events to Socket.IO for real-time UI updates
+#### Data Scope Middleware Flow (Phase 17+)
 
-#### Call Controller & Service
-- `POST /api/v1/calls/initiate` → Create outbound call
-- `POST /api/v1/calls/:id/transfer` → Blind/attended transfer
-- `POST /api/v1/calls/:id/end` → Disconnect call
-- `GET /api/v1/calls` → List active calls with data scoping
+```
+Request arrives with req.user (userId, role, teamId)
+    ↓
+applyDataScope() middleware executes
+    ↓
+switch (req.user.role):
+  agent_telesale | agent_collection
+    → req.dataScope = { type: 'own', userId }
+  leader
+    → req.dataScope = { type: 'team', teamId }
+  manager | admin | qa | super_admin
+    → req.dataScope = { type: 'all' }
+    ↓
+buildScopeWhere(dataScope, assignedField):
+  'own'  → { [assignedField]: userId }
+  'team' → { assignedUser: { teamId } }
+  'all'  → {}
+    ↓
+Prisma query uses WHERE clause
+```
 
-#### CDR Webhook (`webhook-controller.ts`)
-- `POST /api/v1/webhooks/cdr` → Receives XML call detail records
-- Parses FreeSWITCH XML → Extracts call metadata
-- Creates CallLog record in PostgreSQL
-- Triggers call-ended events to Socket.IO
+#### Data Allocation Flow (Phase 17+)
 
-#### Recording Service (`recording-service.ts`)
-- Monitors S3/local storage for call recordings
-- Tracks recording status (available, failed, none)
-- Provides download/playback endpoints
+```
+Leader/Manager selects records on list page (checkbox)
+    ↓
+Clicks "Phân bổ" button
+    ↓
+DataAllocationDialog opens:
+  - Fetches team members from GET /api/v1/users?teamId=...
+  - Agent dropdown populated
+    ↓
+User selects agent → clicks Confirm
+    ↓
+POST /api/v1/{entity}/allocate
+  Body: { ids: UUID[], agentId: UUID }
+    ↓
+Backend:
+  1. Validates leader/manager has permission over records (dataScope check)
+  2. Updates assignedTo = agentId for all records in ids[]
+  3. Returns { updated: N }
+    ↓
+Frontend: success toast, table refreshes, selection cleared
+    ↓
+Allocated agent now sees records (dataScope filter includes their userId)
+```
+- `POST /api/v1/contacts/import-csv` → Bulk import contacts from CSV
+- Validation and deduplication during import
+
+#### Reports API Services (Phase 16+)
+- `GET /api/v1/reports/calls/summary` → Per-agent call statistics
+  - Params: fromDate, toDate, agentId, teamId
+  - Returns: Agent name, total calls, answered, no answer, busy, voicemail, avg duration, last call time
+  - Sorting: by total calls descending
+- `GET /api/v1/reports/calls/summary-by-team` → Per-team call statistics
+  - Params: fromDate, toDate, teamId
+  - Returns: Team name, total calls, per-agent average, team-level metrics
+- `GET /api/v1/reports/calls/detail` → Paginated detail logs with advanced filtering
+  - Params: fromDate, toDate, agentId, teamId, page, limit, result, sipCode
+  - Returns: Paginated call records with time, agent, contact, direction, result, SIP code, duration, recording, notes
+  - Default limit: 20 items per page
+- `GET /api/v1/reports/calls/charts` → Chart datasets for 4 visualizations
+  - Params: fromDate, toDate, teamId
+  - Returns: 4 datasets — calls by day (30d), agent comparison (top 10), weekly trend (12w), result distribution (pie)
+
+#### Report Service Layer (Phase 16+)
+**report-summary-service.ts**:
+- `getCallSummaryByAgent(fromDate, toDate, agentId?, teamId?)`: Aggregates call stats per agent
+- `getCallSummaryByTeam(fromDate, toDate, teamId?)`: Aggregates call stats per team
+
+**report-detail-service.ts**:
+- `getCallDetail(fromDate, toDate, agentId?, teamId?, page, limit, result?, sipCode?)`: Returns paginated detail logs with multi-filter support
+
+**report-chart-service.ts**:
+- `getCallCharts(fromDate, toDate, teamId?)`: Returns 4 chart datasets for visualization
+- Datasets: daily calls, agent comparison, weekly trend, result pie
 
 ## Frontend Architecture
 
@@ -362,10 +555,13 @@ socket.on('ticket:updated', (data) => {
 **Real-time Events Listened**:
 - `call:initiated` - New outbound call
 - `call:ended` - Call completed
-- `agent:status_changed` - Agent availability
+- `agent:status_changed` - Agent availability (+ wrap_up events)
 - `ticket:updated` - Ticket status change
 - `notification:new` - New notification
 - `contact:assigned` - Contact reassignment
+- `lead:scored` - Lead score calculated (Phase 15+)
+- `debt:escalated` - Debt case escalation (Phase 15+)
+- `monitoring:agent_update` - Live monitoring agent status (Phase 15+)
 
 ### Utility Functions (lib/)
 
@@ -428,16 +624,21 @@ Core entities:
 |-------|---------|
 | User | System users with roles and team assignments |
 | Team | Organizational teams (sales, collections, support) |
-| Contact | Customer/prospect contact information |
-| Lead | Sales lead tracking with status pipeline |
-| DebtCase | Debt collection cases with aging tiers |
+| Contact | Customer/prospect contact information (+ tags, socialProfiles) |
+| Lead | Sales lead tracking with status pipeline (+ leadScore, followUpDueDate) |
+| DebtCase | Debt collection cases with aging tiers (+ daysPassDue, escalationHistory) |
 | Campaign | Outbound/inbound call campaigns |
 | Call | Active call tracking (linked to ESL) |
 | CallLog | Historical call records (CDR data) |
-| Ticket | Support tickets with lifecycle tracking |
+| Ticket | Support tickets with lifecycle tracking (+ SLA fields) |
 | Macro | Pre-configured message templates |
 | Notification | User notifications (in-app + email) |
 | Dashboard | User dashboard widget configurations |
+| Permission | Dynamic RBAC permission definitions |
+| RolePermission | Role-permission many-to-many mapping |
+| Script | Call script templates with variables |
+| AgentStatusLog | Agent status history (+ wrapUpDuration) |
+| QaAnnotation | QA annotations on calls (+ timestamp, category) |
 
 ### Key Relationships
 
@@ -446,6 +647,9 @@ Core entities:
 - Lead → Contact, Campaign, AssignedUser
 - Call → Contact, CallLog, AssignedUser
 - Ticket → Contact, AssignedUser, Category
+- Reports services → CallLog (aggregations, filtering, no new tables)
+
+**Note**: Phase 16 Reports page uses existing CallLog table. No new schema migrations required.
 
 ## Data Flow Diagrams
 
@@ -525,37 +729,7 @@ npm run test         # Run Vitest suite (49 tests)
 
 ### Production (Phase 09 Complete)
 
-#### Docker Compose Stack
-```yaml
-services:
-  backend:
-    - Node.js 18 Alpine (optimized image)
-    - Express.js API on port 4000
-    - PM2 fork mode (multi-process load balancing)
-    - Connects to PostgreSQL, Redis, FreeSWITCH
-
-  frontend:
-    - Node.js 18 build → nginx serving
-    - Static assets with cache headers
-    - Nginx on port 3000 (behind reverse proxy)
-    - Gzip compression enabled
-
-  postgresql:
-    - PostgreSQL 13+ (production database)
-    - Volume-mounted data persistence
-    - Configured with connection pooling
-
-  redis:
-    - Redis server (cache + rate limiting)
-    - Session storage (optional)
-
-  nginx:
-    - Reverse proxy on port 80/443
-    - SSL/TLS termination
-    - Static asset serving with caching
-    - Gzip compression
-    - Rate limiting at gateway level
-```
+**Docker Compose Services**: backend (Node 18 Alpine, PM2 fork mode), frontend (nginx), PostgreSQL (13+), Redis, Nginx reverse proxy (SSL/TLS ready, gzip, rate limiting)
 
 #### Docker File Structure
 - **Backend Dockerfile**: Multi-stage, production optimized
@@ -664,8 +838,19 @@ Features:
 - **Data Scoping**: RBAC enforcement and data isolation
 - **Error Handling**: Edge cases and error responses
 
+### MCP Server Integration
+
+**Claude MCP Server** (`packages/mcp-server/`):
+- 8 Claude integration tools for VoIP management
+- Extension querying and management
+- Call log retrieval and analytics
+- Permission and user management
+- Real-time system status monitoring
+- Secure JWT authentication for API calls
+
 ---
 
-**Last Updated**: 2026-03-25
-**Version**: 1.0.0-release (MVP Complete)
-**Status**: Ready for Production Deployment
+**Last Updated**: 2026-04-01
+**Version**: 1.2.1-release (Reports Page Redesign Complete)
+**Status**: Phase 16 Complete, Deployed to 10.10.101.207
+**Previous Version**: 1.2.0-release (Phase 15 Gap Analysis)

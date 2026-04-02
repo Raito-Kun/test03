@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <rect width="120" height="120" rx="20" fill="#0d1b2a"/>
+  <text x="60" y="52" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold" font-size="28" fill="#0080ff">PLS</text>
+  <text x="60" y="78" text-anchor="middle" font-family="Arial, sans-serif" font-weight="600" font-size="14" fill="rgba(255,255,255,0.75)">CRM</text>
+  <circle cx="25" cy="95" r="5" fill="#2ecc40"/>
+  <circle cx="45" cy="95" r="5" fill="#0080ff"/>
+  <circle cx="65" cy="95" r="5" fill="#f4c430"/>
+  <circle cx="85" cy="95" r="5" fill="#e63946"/>
+</svg>

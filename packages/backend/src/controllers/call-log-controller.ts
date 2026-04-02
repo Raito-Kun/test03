@@ -17,6 +17,8 @@ export async function listCallLogs(req: Request, res: Response, next: NextFuncti
       disposition: req.query.disposition as string | undefined,
       campaignId: (req.query.campaignId || req.query.campaign_id) as string | undefined,
       search: req.query.search as string | undefined,
+      hangupCause: req.query.hangupCause as string | undefined,
+      sipCode: req.query.sipCode as string | undefined,
     };
     const result = await callLogService.listCallLogs(pagination, filters, req.dataScope || {});
     res.json({ success: true, ...result });

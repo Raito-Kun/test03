@@ -12,5 +12,6 @@ router.post('/originate', callLimiter, ctrl.originateCall);
 router.post('/hangup', ctrl.hangupCall);
 router.post('/hold', ctrl.holdCall);
 router.post('/transfer', ctrl.transferCall);
+router.post('/attended-transfer', ctrl.attendedTransferCall);
 
 export default router;
