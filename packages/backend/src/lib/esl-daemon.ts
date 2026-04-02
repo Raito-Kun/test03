@@ -1,14 +1,11 @@
 import { EventEmitter } from 'events';
 import logger from './logger';
 import redis from './redis';
+import prisma from './prisma';
 
 // modesl has no official TS types — use require
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const esl = require('modesl');
-
-const ESL_HOST = process.env.ESL_HOST || '127.0.0.1';
-const ESL_PORT = parseInt(process.env.ESL_PORT || '8021', 10);
-const ESL_PASSWORD = process.env.ESL_PASSWORD || 'ClueCon';
 
 const CALL_TTL = 7200; // 2 hours
 
@@ -25,11 +22,31 @@ class EslDaemon extends EventEmitter {
   private reconnectDelay = 1000;
   private destroyed = false;
 
-  connect(): void {
+  /** Load ESL config from active cluster in DB, fallback to env vars */
+  private async getEslConfig(): Promise<{ host: string; port: number; password: string }> {
+    try {
+      const cluster = await prisma.pbxCluster.findFirst({ where: { isActive: true } });
+      if (cluster) {
+        logger.info('ESL config loaded from active cluster', { cluster: cluster.name, host: cluster.eslHost });
+        return { host: cluster.eslHost, port: cluster.eslPort, password: cluster.eslPassword };
+      }
+    } catch (err) {
+      logger.warn('Failed to load ESL config from DB, using env vars', { error: (err as Error).message });
+    }
+    return {
+      host: process.env.ESL_HOST || '127.0.0.1',
+      port: parseInt(process.env.ESL_PORT || '8021', 10),
+      password: process.env.ESL_PASSWORD || 'ClueCon',
+    };
+  }
+
+  async connect(): Promise<void> {
     if (this.destroyed) return;
 
+    const { host, port, password } = await this.getEslConfig();
+
     try {
-      this.conn = new esl.Connection(ESL_HOST, ESL_PORT, ESL_PASSWORD, () => {
+      this.conn = new esl.Connection(host, port, password, () => {
         logger.info('ESL connected to FreeSWITCH');
         this.reconnectDelay = 1000;
 

@@ -23,7 +23,7 @@ interface ActiveCall {
   direction: string;
 }
 
-/** Get currently active calls from FreeSWITCH */
+/** Get currently active calls from FreeSWITCH (deduplicated by call_uuid) */
 export async function getActiveCalls(): Promise<ActiveCall[]> {
   try {
     const body = await eslApi('show channels as json');
@@ -36,28 +36,72 @@ export async function getActiveCalls(): Promise<ActiveCall[]> {
       select: { sipExtension: true, fullName: true },
     });
     const extMap = new Map(agents.map((a) => [a.sipExtension, a.fullName]));
+    const knownExtensions = new Set(extMap.keys());
 
-    const calls: ActiveCall[] = [];
+    // Group channels by call_uuid to deduplicate A-leg, B-leg, loopback legs
+    const callMap = new Map<string, {
+      uuid: string;
+      agentExt: string;
+      customerNumber: string;
+      direction: string;
+      created: number;
+    }>();
+
     for (const ch of rows) {
-      // Skip non-call channels
       if (!ch.uuid || ch.callstate === 'DOWN') continue;
 
+      const callUuid = ch.call_uuid || ch.uuid;
       const callerNum = ch.cid_num || ch.caller_id_number || '';
       const destNum = ch.dest || ch.callee_id_number || '';
       const created = ch.created_epoch ? parseInt(ch.created_epoch, 10) : 0;
-      const duration = created ? Math.floor(Date.now() / 1000) - created : 0;
 
-      // Determine agent extension
-      const ext = callerNum.length <= 4 ? callerNum : (destNum.length <= 4 ? destNum : '');
+      // Identify which number is the agent extension and which is the customer
+      const callerIsExt = callerNum.length <= 4 && knownExtensions.has(callerNum);
+      const destIsExt = destNum.length <= 4 && knownExtensions.has(destNum);
 
+      let agentExt = '';
+      let customerNumber = '';
+
+      if (callerIsExt) {
+        agentExt = callerNum;
+        customerNumber = destNum;
+      } else if (destIsExt) {
+        agentExt = destNum;
+        customerNumber = callerNum;
+      } else {
+        // Fallback: shorter number is likely the extension
+        agentExt = callerNum.length <= 4 ? callerNum : (destNum.length <= 4 ? destNum : '');
+        customerNumber = agentExt === callerNum ? destNum : callerNum;
+      }
+
+      // Skip loopback/internal legs with no useful info
+      if (!agentExt && !customerNumber) continue;
+
+      const existing = callMap.get(callUuid);
+      // Keep the leg that has the best agent extension match
+      if (!existing || (agentExt && !existing.agentExt) || (agentExt && customerNumber.length > 4)) {
+        callMap.set(callUuid, {
+          uuid: ch.uuid,
+          agentExt,
+          customerNumber,
+          direction: ch.direction || 'outbound',
+          created,
+        });
+      }
+    }
+
+    // Build deduplicated call list
+    const calls: ActiveCall[] = [];
+    for (const [, call] of callMap) {
+      const duration = call.created ? Math.floor(Date.now() / 1000) - call.created : 0;
       calls.push({
-        uuid: ch.uuid,
-        callerNumber: callerNum,
-        destNumber: destNum,
+        uuid: call.uuid,
+        callerNumber: call.customerNumber,
+        destNumber: call.customerNumber,
         duration,
-        agentExtension: ext,
-        agentName: extMap.get(ext) || '',
-        direction: ch.direction || 'outbound',
+        agentExtension: call.agentExt,
+        agentName: extMap.get(call.agentExt) || '',
+        direction: call.direction,
       });
     }
 
