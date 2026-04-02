@@ -49,24 +49,24 @@ export async function getClusterById(id: string) {
 
 export interface ClusterInput {
   name: string;
-  description?: string;
+  description?: string | null;
   eslHost: string;
   eslPort?: number;
   eslPassword: string;
   sipDomain: string;
-  sipWssUrl?: string;
+  sipWssUrl?: string | null;
   pbxIp: string;
   gatewayName: string;
-  recordingPath?: string;
-  recordingUrlPrefix?: string;
-  cdrReportUrl?: string;
-  aiApiEndpoint?: string;
-  aiApiKey?: string;
-  smtpHost?: string;
+  recordingPath?: string | null;
+  recordingUrlPrefix?: string | null;
+  cdrReportUrl?: string | null;
+  aiApiEndpoint?: string | null;
+  aiApiKey?: string | null;
+  smtpHost?: string | null;
   smtpPort?: number;
-  smtpUser?: string;
-  smtpPassword?: string;
-  smtpFrom?: string;
+  smtpUser?: string | null;
+  smtpPassword?: string | null;
+  smtpFrom?: string | null;
 }
 
 export async function createCluster(input: ClusterInput, userId: string, req?: Request) {

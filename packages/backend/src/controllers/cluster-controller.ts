@@ -2,26 +2,33 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import * as clusterService from '../services/cluster-service';
 
+// nullish() accepts string | null | undefined — needed because DB returns null for empty optional fields
+const optStr = z.string().nullish();
+const optPort = z.preprocess(
+  (v) => (v === 0 || v === null || v === undefined || Number.isNaN(v as number) ? undefined : v),
+  z.number().int().min(1).max(65535).optional(),
+);
+
 const clusterBaseSchema = z.object({
   name: z.string().min(1).max(255),
-  description: z.string().optional(),
+  description: optStr,
   eslHost: z.string().min(1),
-  eslPort: z.number().int().min(1).max(65535).optional(),
+  eslPort: optPort,
   eslPassword: z.string().min(1),
   sipDomain: z.string().min(1),
-  sipWssUrl: z.string().optional(),
+  sipWssUrl: optStr,
   pbxIp: z.string().min(1),
   gatewayName: z.string().min(1),
-  recordingPath: z.string().optional(),
-  recordingUrlPrefix: z.string().optional(),
-  cdrReportUrl: z.string().optional(),
-  aiApiEndpoint: z.string().optional(),
-  aiApiKey: z.string().optional(),
-  smtpHost: z.string().optional(),
-  smtpPort: z.preprocess((v) => (v === 0 || v === null || Number.isNaN(v) ? undefined : v), z.number().int().min(1).max(65535).optional()),
-  smtpUser: z.string().optional(),
-  smtpPassword: z.string().optional(),
-  smtpFrom: z.string().optional(),
+  recordingPath: optStr,
+  recordingUrlPrefix: optStr,
+  cdrReportUrl: optStr,
+  aiApiEndpoint: optStr,
+  aiApiKey: optStr,
+  smtpHost: optStr,
+  smtpPort: optPort,
+  smtpUser: optStr,
+  smtpPassword: optStr,
+  smtpFrom: optStr,
 });
 
 const updateClusterSchema = clusterBaseSchema.partial();
@@ -73,6 +80,10 @@ export async function updateCluster(req: Request, res: Response, next: NextFunct
     const cluster = await clusterService.updateCluster(req.params.id as string, input, req.user!.userId, req);
     res.json({ success: true, data: cluster });
   } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(422).json({ success: false, error: { code: 'VALIDATION_ERROR', message: err.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ') } });
+      return;
+    }
     handleError(err, res, next);
   }
 }
