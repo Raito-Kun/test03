@@ -165,6 +165,13 @@ export default function ClusterManagement() {
               onChange={setFormData}
               onSaved={handleSaved}
               onDeleted={handleDeleted}
+              onCancel={() => {
+                if (selectedId === 'new') {
+                  setSelectedId(null);
+                } else if (clusterDetail) {
+                  setFormData(clusterDetail);
+                }
+              }}
             />
           )}
         </div>

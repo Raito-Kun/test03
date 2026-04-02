@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Loader2, Trash2, RefreshCw, ArrowRightLeft } from 'lucide-react';
+import { Loader2, Trash2, RefreshCw, ArrowRightLeft, Save, X } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,6 +39,7 @@ interface Props {
   onChange: (data: ClusterFormData) => void;
   onSaved: () => void;
   onDeleted: () => void;
+  onCancel: () => void;
 }
 
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
@@ -52,11 +53,22 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
-export default function ClusterDetailForm({ cluster, onChange, onSaved, onDeleted }: Props) {
+export default function ClusterDetailForm({ cluster, onChange, onSaved, onDeleted, onCancel }: Props) {
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmSwitch, setConfirmSwitch] = useState(false);
   const isNew = !cluster.id;
+
+  // Track original values to detect unsaved changes
+  const originalRef = useRef<string>(JSON.stringify(cluster));
+  useEffect(() => {
+    originalRef.current = JSON.stringify(cluster);
+  }, [cluster.id]);
+
+  const hasChanges = useMemo(
+    () => JSON.stringify(cluster) !== originalRef.current,
+    [cluster],
+  );
 
   function update<K extends keyof ClusterFormData>(key: K, value: ClusterFormData[K]) {
     onChange({ ...cluster, [key]: value });
@@ -69,16 +81,23 @@ export default function ClusterDetailForm({ cluster, onChange, onSaved, onDelete
         : api.put(`/clusters/${cluster.id}`, cluster).then((r) => r.data.data),
     onSuccess: () => {
       toast.success('Đã lưu cấu hình cụm');
+      originalRef.current = JSON.stringify(cluster);
       queryClient.invalidateQueries({ queryKey: ['clusters'] });
       onSaved();
     },
-    onError: () => toast.error('Lưu thất bại'),
+    onError: (err: any) => {
+      const msg = err?.response?.data?.error?.message || 'Lưu thất bại';
+      toast.error(msg);
+    },
   });
 
   const testMutation = useMutation({
     mutationFn: () => api.post(`/clusters/${cluster.id}/test-connection`).then((r) => r.data),
     onSuccess: (data) => toast.success(data.message ?? 'Kết nối thành công'),
-    onError: () => toast.error('Kết nối thất bại'),
+    onError: (err: any) => {
+      const msg = err?.response?.data?.error?.message || 'Kết nối thất bại';
+      toast.error(msg);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -104,6 +123,19 @@ export default function ClusterDetailForm({ cluster, onChange, onSaved, onDelete
 
   return (
     <div className="flex flex-col h-full">
+      {/* Header with unsaved indicator */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <h3 className="text-base font-semibold">{isNew ? 'Tạo cụm mới' : cluster.name}</h3>
+          {hasChanges && (
+            <span className="inline-flex items-center gap-1 text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200">
+              <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
+              Chưa lưu
+            </span>
+          )}
+        </div>
+      </div>
+
       <Tabs defaultValue="connection" className="flex-1 flex flex-col">
         <TabsList className="grid w-full grid-cols-4 mb-4">
           <TabsTrigger value="connection">Kết nối tổng đài</TabsTrigger>
@@ -191,9 +223,6 @@ export default function ClusterDetailForm({ cluster, onChange, onSaved, onDelete
           <TabsContent value="users" className="mt-0">
             <div className="flex flex-col items-center justify-center h-32 gap-3 text-muted-foreground border rounded-lg">
               <p className="text-sm">Quản lý người dùng cụm này đang phát triển</p>
-              <Button variant="outline" size="sm" onClick={() => toast.info('Tính năng đang phát triển')}>
-                Tạo users mặc định
-              </Button>
             </div>
           </TabsContent>
         </div>
@@ -215,10 +244,16 @@ export default function ClusterDetailForm({ cluster, onChange, onSaved, onDelete
             </Button>
           )}
         </div>
-        <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-          {saveMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-          Lưu
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onCancel}>
+            <X className="h-4 w-4 mr-2" />
+            Hủy
+          </Button>
+          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+            {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+            Lưu thay đổi
+          </Button>
+        </div>
       </div>
 
       {/* Delete confirm */}

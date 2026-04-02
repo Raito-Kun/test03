@@ -5,7 +5,7 @@ import * as clusterCtrl from '../controllers/cluster-controller';
 
 const router = Router();
 router.use(authMiddleware);
-router.use(requireRole('super_admin'));
+router.use(requireRole('super_admin', 'admin'));
 
 router.get('/', clusterCtrl.listClusters);
 router.get('/active', clusterCtrl.getActiveCluster);

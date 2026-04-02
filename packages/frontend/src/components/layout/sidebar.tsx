@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import {
   LayoutDashboard, Users, Target, Landmark, PhoneCall,
   Megaphone, FileText, BarChart3, Settings, ChevronLeft,
-  ShieldCheck, Phone, Monitor, LifeBuoy,
+  ShieldCheck, Phone, Monitor, LifeBuoy, Users2, Server,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { SidebarNavGroup, NavItem } from './sidebar-nav-group';
@@ -18,6 +18,11 @@ const roleVisibility: Record<string, string[]> = {
   'settings/permissions': ['super_admin', 'admin'],
   'settings/extensions': ['super_admin', 'admin'],
   monitoring: ['super_admin', 'admin', 'manager', 'leader'],
+  'monitoring/live-calls': ['super_admin', 'admin', 'manager', 'leader'],
+  'monitoring/agent-status': ['super_admin', 'admin', 'manager', 'leader'],
+  'monitoring/team-stats': ['super_admin', 'admin', 'manager', 'leader'],
+  'settings/teams': ['super_admin', 'admin', 'manager', 'leader'],
+  'settings/clusters': ['super_admin', 'admin'],
 };
 
 function canView(to: string, role: string | undefined): boolean {
@@ -30,6 +35,7 @@ function canView(to: string, role: string | undefined): boolean {
 const GROUP_DEFAULTS: Record<string, boolean> = {
   monitor: true,
   crm: true,
+  campaigns: true,
   callcenter: true,
   support: true,
 };
@@ -67,16 +73,22 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     return items.filter((item) => canView(item.to, role));
   }
 
-  const group1Items: NavItem[] = [
+  const group1Items: NavItem[] = filterItems([
     { to: '/', label: 'Tổng quan', icon: LayoutDashboard },
     { to: '/monitoring', label: 'Hoạt động trong ngày', icon: Monitor },
-  ];
+    { to: '/monitoring/live-calls', label: 'Cuộc gọi trực tiếp', icon: PhoneCall },
+    { to: '/monitoring/agent-status', label: 'Trạng thái agent', icon: Users },
+    { to: '/monitoring/team-stats', label: 'Giám sát theo team', icon: BarChart3 },
+  ]);
 
   const group2Items: NavItem[] = [
-    { to: '/contacts', label: 'Danh bạ', icon: Users },
-    { to: '/leads', label: 'Khách hàng tiềm năng', icon: Target },
+    { to: '/contacts', label: 'Danh sách khách hàng', icon: Users },
+    { to: '/leads', label: 'Nhóm khách hàng', icon: Target },
     { to: '/debt-cases', label: 'Công nợ', icon: Landmark },
-    { to: '/campaigns', label: 'Chiến dịch', icon: Megaphone },
+  ];
+
+  const groupCampaignItems: NavItem[] = [
+    { to: '/campaigns', label: 'Danh sách chiến dịch', icon: Megaphone },
   ];
 
   const group3Items: NavItem[] = filterItems([
@@ -90,6 +102,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   ]);
 
   const bottomItems: NavItem[] = filterItems([
+    { to: '/settings/teams', label: 'Quản lý team', icon: Users2 },
+    { to: '/settings/clusters', label: 'Khai báo cụm PBX', icon: Server },
     { to: '/settings', label: 'Cài đặt', icon: Settings },
     { to: '/settings/permissions', label: 'Phân quyền', icon: ShieldCheck },
   ]);
@@ -104,10 +118,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         className={({ isActive }) =>
           cn(
             'group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
-            'hover:bg-[rgba(255,255,255,0.08)] hover:text-white',
+            'hover:bg-[rgba(255,255,255,0.1)] hover:text-white',
             isActive
-              ? 'bg-[rgba(0,128,255,0.2)] text-white shadow-sm'
-              : 'text-[rgba(255,255,255,0.75)]',
+              ? 'bg-[rgba(41,182,246,0.15)] text-white shadow-sm'
+              : 'text-[rgba(255,255,255,0.8)]',
             collapsed && 'justify-center px-2',
           )
         }
@@ -117,11 +131,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             {isActive && (
               <motion.div
                 layoutId="sidebar-active"
-                className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-[#0080ff]"
+                className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-[#29b6f6]"
                 transition={{ type: 'spring', stiffness: 350, damping: 30 }}
               />
             )}
-            <Icon className={cn('h-4 w-4 shrink-0 transition-colors', isActive && 'text-[#0080ff]')} />
+            <Icon className={cn('h-4 w-4 shrink-0 transition-colors', isActive && 'text-[#29b6f6]')} />
             {!collapsed && <span>{label}</span>}
           </>
         )}
@@ -145,17 +159,17 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     <motion.aside
       animate={{ width: collapsed ? 64 : 224 }}
       transition={{ duration: 0.2, ease: 'easeInOut' }}
-      className="flex flex-col bg-[#0d1b2a] text-slate-300 shadow-xl overflow-hidden"
+      className="flex flex-col bg-[#0d2137] text-slate-300 shadow-xl overflow-hidden"
     >
       {/* Logo */}
-      <div className="flex h-14 items-center px-4 border-b border-slate-800 shrink-0">
+      <div className="flex h-14 items-center px-4 border-b border-[rgba(255,255,255,0.08)] shrink-0">
         <div className="flex items-center gap-2">
           <img src="/logo-pls.png" alt="CRM PLS" className="h-8 w-8 rounded-lg shrink-0 object-contain" />
           {!collapsed && (
             <motion.span
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-lg font-bold text-white whitespace-nowrap"
+              className="text-lg font-bold text-[#29b6f6] whitespace-nowrap"
             >
               CRM PLS
             </motion.span>
@@ -164,7 +178,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         <button
           onClick={onToggle}
           className={cn(
-            'ml-auto flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-slate-800 hover:text-white transition-colors',
+            'ml-auto flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-[rgba(255,255,255,0.1)] hover:text-white transition-colors',
             collapsed && 'mx-auto ml-0',
           )}
         >
@@ -193,6 +207,15 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           isOpen={openGroups.crm ?? true}
           onToggle={toggleGroup}
         />
+        <SidebarNavGroup
+          groupKey="campaigns"
+          label="Chiến dịch"
+          icon={Megaphone}
+          items={groupCampaignItems}
+          collapsed={collapsed}
+          isOpen={openGroups.campaigns ?? true}
+          onToggle={toggleGroup}
+        />
         {group3Items.length > 0 && (
           <SidebarNavGroup
             groupKey="callcenter"
@@ -219,7 +242,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* Bottom system section */}
       {bottomItems.length > 0 && (
-        <div className="border-t border-slate-800 p-2 space-y-0.5">
+        <div className="border-t border-[rgba(255,255,255,0.08)] p-2 space-y-0.5">
           {!collapsed && (
             <p className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.35)]">
               Hệ thống
@@ -230,8 +253,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       )}
 
       {/* Version badge */}
-      <div className="p-3 border-t border-slate-800 shrink-0">
-        <div className={cn('rounded-lg bg-slate-800/50 p-2 text-center', collapsed && 'px-1')}>
+      <div className="p-3 border-t border-[rgba(255,255,255,0.08)] shrink-0">
+        <div className={cn('rounded-lg bg-[rgba(255,255,255,0.05)] p-2 text-center', collapsed && 'px-1')}>
           <span className="text-[10px] text-slate-500">v1.0</span>
         </div>
       </div>
