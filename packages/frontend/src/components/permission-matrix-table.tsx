@@ -3,6 +3,26 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 
+const GROUP_LABEL_MAP: Record<string, string> = {
+  switchboard: 'Tổng đài',
+  crm: 'CRM',
+  campaign: 'Chiến dịch',
+  report: 'Báo cáo',
+  ticket: 'Phiếu ghi',
+  qa: 'QA',
+  system: 'Hệ thống',
+  // Legacy groups
+  reports: 'Báo cáo',
+  calls: 'Tổng đài',
+  users: 'Hệ thống',
+  campaigns: 'Chiến dịch',
+  dashboard: 'Tổng quan',
+  tickets: 'Phiếu ghi',
+  debts: 'Công nợ',
+  leads: 'Leads',
+  contacts: 'Danh bạ',
+};
+
 export interface PermissionRow {
   id: string;
   key: string;
@@ -103,7 +123,7 @@ export default function PermissionMatrixTable({ rows, localGrants, onToggle }: P
                       {isCollapsed
                         ? <ChevronRight className="h-3.5 w-3.5" />
                         : <ChevronDown className="h-3.5 w-3.5" />}
-                      {group}
+                      {GROUP_LABEL_MAP[group] ?? group}
                       <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0 h-4">
                         {groupRows.length}
                       </Badge>

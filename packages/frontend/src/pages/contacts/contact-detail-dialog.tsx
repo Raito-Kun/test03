@@ -14,6 +14,7 @@ import { ClickToCallButton } from '@/components/click-to-call-button';
 import { VI } from '@/lib/vi-text';
 import { fmtPhone } from '@/lib/format';
 import api from '@/services/api-client';
+import { CallHistoryTab } from './call-history-tab';
 
 interface Contact {
   id: string;
@@ -192,14 +193,13 @@ export function ContactDetailDialog({ contactId, onClose }: Props) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) { setEditMode(false); onClose(); } }}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto sm:max-w-[700px]">
+      <DialogContent className="max-w-[900px] min-h-[500px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between pr-6">
-            <DialogTitle className="flex items-center gap-3">
+            <DialogTitle className="flex items-center gap-2">
               {isLoading ? <Skeleton className="h-6 w-40" /> : (contact?.fullName ?? '—')}
-              {contact && <ClickToCallButton phone={contact.phone} contactName={contact.fullName} />}
             </DialogTitle>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               {editMode ? (
                 <>
                   <Button size="sm" variant="outline" onClick={handleEditToggle}>
@@ -217,6 +217,14 @@ export function ContactDetailDialog({ contactId, onClose }: Props) {
                   <Edit2 className="mr-1 h-3.5 w-3.5" /> {VI.actions.edit}
                 </Button>
               )}
+              {contact && (
+                <ClickToCallButton
+                  phone={contact.phone}
+                  contactName={contact.fullName}
+                  size="default"
+                  variant="default"
+                />
+              )}
             </div>
           </div>
         </DialogHeader>
@@ -229,12 +237,13 @@ export function ContactDetailDialog({ contactId, onClose }: Props) {
 
         {contact && (
           <Tabs defaultValue="basic" className="mt-2">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="basic">{VI.contact.sections.basic}</TabsTrigger>
               <TabsTrigger value="work">{VI.contact.sections.work}</TabsTrigger>
               <TabsTrigger value="address">{VI.contact.sections.address}</TabsTrigger>
               <TabsTrigger value="finance">{VI.contact.sections.finance}</TabsTrigger>
               <TabsTrigger value="notes">{VI.contact.sections.notes}</TabsTrigger>
+              <TabsTrigger value="call-history">Lịch sử cuộc gọi</TabsTrigger>
             </TabsList>
 
             {/* Basic info */}
@@ -302,6 +311,11 @@ export function ContactDetailDialog({ contactId, onClose }: Props) {
               <div className="space-y-1 pt-2 border-t text-xs text-muted-foreground">
                 <p>{VI.contact.createdAt}: {format(new Date(contact.createdAt), 'dd/MM/yyyy HH:mm')}</p>
               </div>
+            </TabsContent>
+
+            {/* Call History */}
+            <TabsContent value="call-history" className="mt-4">
+              <CallHistoryTab contactId={contactId!} phone={contact.phone} />
             </TabsContent>
           </Tabs>
         )}

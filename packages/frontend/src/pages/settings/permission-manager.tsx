@@ -14,14 +14,44 @@ import PermissionMatrixTable from '@/components/permission-matrix-table';
 import type { PermissionRow, EditableRole } from '@/components/permission-matrix-table';
 import RoleTabPanel from '@/components/role-tab-panel';
 
+const GROUP_LABEL_MAP: Record<string, string> = {
+  switchboard: 'Tổng đài',
+  crm: 'CRM',
+  campaign: 'Chiến dịch',
+  report: 'Báo cáo',
+  ticket: 'Phiếu ghi',
+  qa: 'QA',
+  system: 'Hệ thống',
+  // Legacy groups
+  reports: 'Báo cáo',
+  calls: 'Tổng đài',
+  users: 'Hệ thống',
+  campaigns: 'Chiến dịch',
+  dashboard: 'Tổng quan',
+  tickets: 'Phiếu ghi',
+  debts: 'Công nợ',
+  leads: 'Leads',
+  contacts: 'Danh bạ',
+};
+
 const GROUP_ICONS: Record<string, React.ElementType> = {
-  'Tổng đài': Phone,
-  'CRM': ShieldCheck,
-  'Chiến dịch': Megaphone,
-  'Báo cáo': BarChart2,
-  'Phiếu ghi': FileText,
-  'QA': Star,
-  'Hệ thống': Settings,
+  switchboard: Phone,
+  crm: ShieldCheck,
+  campaign: Megaphone,
+  report: BarChart2,
+  ticket: FileText,
+  qa: Star,
+  system: Settings,
+  // Legacy
+  reports: BarChart2,
+  calls: Phone,
+  users: Settings,
+  campaigns: Megaphone,
+  dashboard: BarChart2,
+  tickets: FileText,
+  debts: ShieldCheck,
+  leads: ShieldCheck,
+  contacts: ShieldCheck,
 };
 
 function GroupIcon({ group }: { group: string }) {
@@ -137,7 +167,7 @@ export default function PermissionManager() {
                         <span className={isActive ? 'text-primary-foreground' : 'text-muted-foreground'}>
                           <GroupIcon group={group} />
                         </span>
-                        <span className="flex-1 truncate">{group}</span>
+                        <span className="flex-1 truncate">{GROUP_LABEL_MAP[group] ?? group}</span>
                         <span className={`text-xs rounded-full px-1.5 ${
                           isActive
                             ? 'bg-primary-foreground/20 text-primary-foreground'
@@ -156,7 +186,7 @@ export default function PermissionManager() {
             <div className="flex-1 min-w-0 rounded-lg border bg-card overflow-hidden">
               <div className="p-3 border-b flex items-center gap-2">
                 {currentGroup && <GroupIcon group={currentGroup} />}
-                <span className="font-medium text-sm">{currentGroup ?? 'Tất cả quyền'}</span>
+                <span className="font-medium text-sm">{currentGroup ? (GROUP_LABEL_MAP[currentGroup] ?? currentGroup) : 'Tất cả quyền'}</span>
                 <span className="text-xs text-muted-foreground ml-auto">
                   {filteredRows.length} quyền
                 </span>
