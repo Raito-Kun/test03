@@ -21,7 +21,7 @@ import { usePagination } from '@/hooks/use-pagination';
 import api from '@/services/api-client';
 import { useAuthStore } from '@/stores/auth-store';
 import { useAgentStatusStore } from '@/stores/agent-status-store';
-import { ImportButton } from '@/components/import-button';
+import { ContactImportWizardButton } from './contact-import-wizard';
 import { ContactForm } from './contact-form';
 import { ContactDetailDialog } from './contact-detail-dialog';
 import { DataAllocationDialog } from '@/components/data-allocation-dialog';
@@ -157,14 +157,9 @@ export default function ContactListPage() {
     </Button>
   );
 
-  const importAction = hasPermission('import_contacts') ? (
-    <ImportButton
-      endpoint="/contacts/import"
-      templateType="contacts"
-      label="Nhập CSV"
-      invalidateKeys={['contacts']}
-    />
-  ) : undefined;
+  const importAction = ['super_admin', 'admin', 'manager', 'leader'].includes(user?.role ?? '')
+    ? <ContactImportWizardButton />
+    : undefined;
 
   const allocateButton = canAllocate && selectedIds.length > 0 ? (
     <Button
