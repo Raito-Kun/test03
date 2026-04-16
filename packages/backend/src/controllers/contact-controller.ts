@@ -44,7 +44,7 @@ export async function listContacts(req: Request, res: Response, next: NextFuncti
       dateFrom: req.query.dateFrom as string | undefined,
       dateTo: req.query.dateTo as string | undefined,
     };
-    const result = await contactService.listContacts(pagination, filters, req.dataScope || {});
+    const result = await contactService.listContacts(pagination, filters, req.dataScope || {}, req.user!.clusterId);
     res.json({ success: true, ...result });
   } catch (err) {
     next(err);
@@ -55,7 +55,7 @@ export async function listContacts(req: Request, res: Response, next: NextFuncti
 export async function createContact(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const input = createContactSchema.parse(req.body);
-    const contact = await contactService.createContact(input, req.user!.userId, req);
+    const contact = await contactService.createContact(input, req.user!.userId, req, req.user!.clusterId);
     res.status(201).json({ success: true, data: contact });
   } catch (err) {
     next(err);
@@ -65,7 +65,7 @@ export async function createContact(req: Request, res: Response, next: NextFunct
 /** GET /contacts/:id */
 export async function getContact(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const contact = await contactService.getContactById(req.params.id as string, req.dataScope || {});
+    const contact = await contactService.getContactById(req.params.id as string, req.dataScope || {}, req.user!.clusterId);
     res.json({ success: true, data: contact });
   } catch (err: unknown) {
     const error = err as Error & { code?: string };
@@ -87,6 +87,7 @@ export async function updateContact(req: Request, res: Response, next: NextFunct
       req.user!.userId,
       req.dataScope || {},
       req,
+      req.user!.clusterId,
     );
     res.json({ success: true, data: contact });
   } catch (err: unknown) {
@@ -99,10 +100,31 @@ export async function updateContact(req: Request, res: Response, next: NextFunct
   }
 }
 
+/** POST /contacts/bulk-delete  body: { ids: string[] } */
+export async function bulkDeleteContacts(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const ids = (req.body?.ids ?? []) as unknown;
+    if (!Array.isArray(ids) || ids.length === 0 || !ids.every((x) => typeof x === 'string')) {
+      res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'ids must be a non-empty string[]' } });
+      return;
+    }
+    const result = await contactService.bulkDeleteContacts(
+      ids as string[],
+      req.user!.userId,
+      req.dataScope || {},
+      req,
+      req.user!.clusterId,
+    );
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
 /** DELETE /contacts/:id */
 export async function deleteContact(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    await contactService.deleteContact(req.params.id as string, req.user!.userId, req.dataScope || {}, req);
+    await contactService.deleteContact(req.params.id as string, req.user!.userId, req.dataScope || {}, req, req.user!.clusterId);
     res.json({ success: true, data: null });
   } catch (err: unknown) {
     const error = err as Error & { code?: string };
@@ -117,7 +139,7 @@ export async function deleteContact(req: Request, res: Response, next: NextFunct
 /** GET /contacts/:id/timeline */
 export async function getTimeline(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const timeline = await contactService.getContactTimeline(req.params.id as string, req.dataScope || {});
+    const timeline = await contactService.getContactTimeline(req.params.id as string, req.dataScope || {}, req.user!.clusterId);
     res.json({ success: true, data: timeline });
   } catch (err: unknown) {
     const error = err as Error & { code?: string };

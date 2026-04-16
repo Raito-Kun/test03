@@ -88,7 +88,7 @@ router.post('/import/commit',
           return;
         }
       }
-      const result = await commitWizardRows(inputs, req.user!.userId);
+      const result = await commitWizardRows(inputs, req.user!.userId, req.user!.clusterId);
       res.json({ success: true, data: result });
     } catch (err) { next(err); }
   },
@@ -105,6 +105,10 @@ router.get('/export', requireRole('super_admin', 'admin', 'manager', 'leader'), 
     res.send(buffer);
   } catch (err) { next(err); }
 });
+
+// Bulk delete — placed BEFORE `/:id` so the string "bulk-delete" doesn't
+// get captured as an :id param.
+router.post('/bulk-delete', requireRole('super_admin', 'admin', 'manager'), contactCtrl.bulkDeleteContacts);
 
 router.get('/:id', contactCtrl.getContact);
 router.patch('/:id', requireRole('super_admin', 'admin', 'manager', 'leader', 'agent'), contactCtrl.updateContact);

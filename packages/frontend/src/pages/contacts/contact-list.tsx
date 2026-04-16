@@ -92,6 +92,33 @@ export default function ContactListPage() {
     onError: () => toast.error('Xóa thất bại'),
   });
 
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (ids: string[]) =>
+      api.post<{ data: { deleted: number; errors: Array<{ id: string; error: string }> } }>(
+        '/contacts/bulk-delete', { ids },
+      ).then((r) => r.data.data),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      setBulkDeleteOpen(false);
+      setSelectedIds([]);
+      const msg = `Đã xóa ${result.deleted} liên hệ`;
+      if (result.errors?.length > 0) {
+        toast.warning(msg, {
+          description: `${result.errors.length} bản ghi lỗi: ${result.errors.slice(0, 2).map((e) => e.error).join('; ')}`,
+          duration: 8000,
+        });
+      } else {
+        toast.success(msg);
+      }
+    },
+    onError: (err: { response?: { data?: { error?: { message?: string } } } }) => {
+      toast.error(err?.response?.data?.error?.message || 'Xóa hàng loạt thất bại');
+    },
+  });
+
+  const canBulkDelete = ['super_admin', 'admin', 'manager'].includes(user?.role ?? '');
+
   const currentPageRows = data?.data ?? [];
   const allPageSelected = currentPageRows.length > 0 && currentPageRows.every((r) => selectedIds.includes(r.id));
 
@@ -173,12 +200,24 @@ export default function ContactListPage() {
     </Button>
   ) : null;
 
+  const bulkDeleteButton = canBulkDelete && selectedIds.length > 0 ? (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => setBulkDeleteOpen(true)}
+      className="gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/10"
+    >
+      <Trash2 className="h-4 w-4" />
+      Xóa đã chọn ({selectedIds.length})
+    </Button>
+  ) : null;
+
   return (
     <PageWrapper
       title={VI.contact.title}
       createLabel={VI.actions.create}
       onCreate={() => setFormOpen(true)}
-      actions={<>{allocateButton}{refreshButton}{importAction}<ContactMergeButton /><ExportButton entity="contacts" filters={{ search: pagination.search }} /></>}
+      actions={<>{bulkDeleteButton}{allocateButton}{refreshButton}{importAction}<ContactMergeButton /><ExportButton entity="contacts" filters={{ search: pagination.search }} /></>}
     >
       <DataTable
         columns={columns}
@@ -252,6 +291,15 @@ export default function ContactListPage() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
         loading={deleteMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        onConfirm={() => bulkDeleteMutation.mutate(selectedIds)}
+        loading={bulkDeleteMutation.isPending}
+        title="Xóa liên hệ hàng loạt"
+        description={`Bạn sắp xóa ${selectedIds.length} liên hệ đã chọn. Hành động này không thể hoàn tác.`}
       />
 
       <DataAllocationDialog

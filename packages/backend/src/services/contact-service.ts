@@ -253,6 +253,31 @@ export async function deleteContact(
   logAudit(userId, 'delete', 'contacts', id, null, req);
 }
 
+/**
+ * Bulk delete — loops per-id to reuse the single-delete cascade logic and
+ * keep audit entries one-per-contact. IDs the caller cannot access are
+ * collected as errors instead of aborting the whole operation.
+ */
+export async function bulkDeleteContacts(
+  ids: string[],
+  userId: string,
+  dataScope: Record<string, unknown>,
+  req?: Request,
+  userClusterId?: string | null,
+): Promise<{ deleted: number; errors: Array<{ id: string; error: string }> }> {
+  const result = { deleted: 0, errors: [] as Array<{ id: string; error: string }> };
+  for (const id of ids) {
+    try {
+      await deleteContact(id, userId, dataScope, req, userClusterId);
+      result.deleted++;
+    } catch (err) {
+      const e = err as Error & { code?: string };
+      result.errors.push({ id, error: e.message.slice(0, 200) });
+    }
+  }
+  return result;
+}
+
 /** Get contact timeline: calls + tickets + leads + debt cases ordered by date */
 export async function getContactTimeline(id: string, dataScope: Record<string, unknown>, userClusterId?: string | null) {
   await getContactById(id, dataScope, userClusterId);
