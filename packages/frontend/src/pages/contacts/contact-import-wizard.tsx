@@ -250,14 +250,46 @@ export function ContactImportWizard({ open, onClose }: ContactImportWizardProps)
   );
 }
 
-// UTF-8 BOM prefix so Excel renders Vietnamese diacritics correctly when opening CSV.
+// Template columns mirror the ContactForm UI (19 fields) + Nguồn for import provenance.
+// Required columns are marked with " (*)" — the backend parser strips "(...)" before
+// header-mapping, so the suffix is purely a visual cue for users opening in Excel.
+// UTF-8 BOM prefix ensures Excel renders Vietnamese diacritics correctly.
 function downloadContactTemplate() {
-  const rows = [
-    ['Họ tên', 'Số điện thoại', 'Email', 'Nguồn', 'Ghi chú'],
-    ['Nguyễn Văn An', '0901234567', 'an.nguyen@example.com', 'website', 'Khách quan tâm gói VIP'],
-    ['Trần Thị Bình', '0912345678', 'binh.tran@example.com', 'zalo', 'Liên hệ lại sau 2 ngày'],
-    ['Lê Hoàng Cường', '0987654321', '', 'facebook', ''],
+  const headers = [
+    'Họ tên (*)', 'Số điện thoại (*)', 'Số ĐT phụ', 'Email',
+    'Giới tính', 'Ngày sinh', 'Nhãn',
+    'Công ty', 'Chức vụ', 'Email công ty', 'Nghề nghiệp', 'Thu nhập',
+    'Tỉnh/Thành', 'Quận/Huyện', 'Địa chỉ đầy đủ',
+    'Hạn mức', 'Số tài khoản', 'Ngân hàng',
+    'Ghi chú nội bộ', 'Nguồn',
   ];
+  const samples = [
+    [
+      'Nguyễn Văn An', '0901234567', '0901234568', 'an.nguyen@example.com',
+      'Nam', '1990-05-15', 'VIP, Khách cũ',
+      'Công ty ABC', 'Giám đốc', 'an@abc.com', 'Kinh doanh', '50000000',
+      'Hà Nội', 'Hoàn Kiếm', 'Số 10 đường Lý Thường Kiệt',
+      '500000000', '1234567890', 'Vietcombank',
+      'Khách quan tâm gói VIP', 'website',
+    ],
+    [
+      'Trần Thị Bình', '0912345678', '', 'binh.tran@example.com',
+      'Nữ', '15/08/1985', 'Tiềm năng',
+      'Công ty XYZ', 'Trưởng phòng', '', 'Kế toán', '25000000',
+      'Hồ Chí Minh', 'Quận 1', '45 Nguyễn Huệ',
+      '200000000', '9876543210', 'Techcombank',
+      'Liên hệ lại sau 2 ngày', 'zalo',
+    ],
+    [
+      'Lê Hoàng Cường', '0987654321', '', '',
+      'Nam', '', '',
+      '', '', '', 'Tự do', '',
+      'Đà Nẵng', 'Hải Châu', '',
+      '', '', '',
+      '', 'facebook',
+    ],
+  ];
+  const rows = [headers, ...samples];
   const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\r\n');
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
