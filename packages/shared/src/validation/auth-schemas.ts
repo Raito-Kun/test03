@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 export const loginSchema = z.object({
-  email: z.string().email('Invalid email format'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  email: z.string().min(1, 'Email is required'),
+  password: z.string().min(1, 'Password is required'),
 });
 
 export const refreshTokenSchema = z.object({
@@ -13,14 +13,15 @@ export const createUserSchema = z.object({
   email: z.string().email('Invalid email format'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   fullName: z.string().min(1, 'Full name is required').max(255),
-  role: z.enum(['admin', 'manager', 'qa', 'leader', 'agent_telesale', 'agent_collection']),
+  role: z.enum(['admin', 'manager', 'qa', 'leader', 'agent']),
   teamId: z.string().uuid().optional(),
   sipExtension: z.string().max(10).optional(),
 });
 
 export const updateUserSchema = z.object({
+  email: z.string().email('Invalid email').max(255).optional(),
   fullName: z.string().min(1).max(255).optional(),
-  role: z.enum(['admin', 'manager', 'qa', 'leader', 'agent_telesale', 'agent_collection']).optional(),
+  role: z.enum(['admin', 'manager', 'qa', 'leader', 'agent']).optional(),
   teamId: z.string().uuid().nullable().optional(),
   sipExtension: z.string().max(10).nullable().optional(),
   status: z.enum(['active', 'inactive']).optional(),
