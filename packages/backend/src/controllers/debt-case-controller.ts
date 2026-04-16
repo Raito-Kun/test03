@@ -48,7 +48,7 @@ export async function listDebtCases(req: Request, res: Response, next: NextFunct
       dateFrom: req.query.dateFrom as string | undefined,
       dateTo: req.query.dateTo as string | undefined,
     };
-    const result = await debtCaseService.listDebtCases(pagination, filters, req.dataScope || {});
+    const result = await debtCaseService.listDebtCases(pagination, filters, req.dataScope || {}, req.user!.clusterId, req.user!.role);
     res.json({ success: true, ...result });
   } catch (err) {
     next(err);
@@ -58,7 +58,7 @@ export async function listDebtCases(req: Request, res: Response, next: NextFunct
 export async function createDebtCase(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const input = createDebtCaseSchema.parse(req.body);
-    const debtCase = await debtCaseService.createDebtCase(input, req.user!.userId, req);
+    const debtCase = await debtCaseService.createDebtCase(input, req.user!.userId, req, req.user!.clusterId);
     res.status(201).json({ success: true, data: debtCase });
   } catch (err) {
     next(err);

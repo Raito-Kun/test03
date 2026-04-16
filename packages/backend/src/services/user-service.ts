@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import prisma from '../lib/prisma';
 import { PaginationParams, paginatedResponse } from '../lib/pagination';
-import { getActiveClusterId } from '../lib/active-cluster';
+import { getActiveClusterId, resolveListClusterFilter } from '../lib/active-cluster';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -28,8 +28,8 @@ interface ListUsersFilter {
   search?: string;
 }
 
-export async function listUsers(pagination: PaginationParams, filters: ListUsersFilter, userClusterId?: string | null) {
-  const clusterId = await getActiveClusterId(userClusterId);
+export async function listUsers(pagination: PaginationParams, filters: ListUsersFilter, userClusterId?: string | null, userRole?: string) {
+  const clusterId = await resolveListClusterFilter(userRole, userClusterId);
   const where: Record<string, unknown> = { ...(clusterId && { clusterId }) };
 
   if (filters.role) where.role = filters.role;

@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma';
 import { PaginationParams, paginatedResponse } from '../lib/pagination';
 import { buildScopeWhere } from '../middleware/data-scope-middleware';
+import { resolveListClusterFilter } from '../lib/active-cluster';
 
 const callLogSelect = {
   id: true,
@@ -40,9 +41,12 @@ export async function listCallLogs(
   pagination: PaginationParams,
   filters: ListCallLogsFilter,
   dataScope: Record<string, unknown>,
+  userClusterId?: string | null,
+  userRole?: string,
 ) {
+  const clusterId = await resolveListClusterFilter(userRole, userClusterId);
   const scopeWhere = buildScopeWhere(dataScope, 'userId', 'user');
-  const where: Record<string, unknown> = { ...scopeWhere };
+  const where: Record<string, unknown> = { ...scopeWhere, ...(clusterId && { clusterId }) };
 
   if (filters.userId) where.userId = filters.userId;
   if (filters.direction) where.direction = filters.direction;

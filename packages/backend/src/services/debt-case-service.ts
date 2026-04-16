@@ -3,6 +3,7 @@ import { PaginationParams, paginatedResponse } from '../lib/pagination';
 import { buildScopeWhere } from '../middleware/data-scope-middleware';
 import { logAudit } from '../lib/audit';
 import { Request } from 'express';
+import { getActiveClusterId, resolveListClusterFilter } from '../lib/active-cluster';
 
 const debtCaseSelect = {
   id: true,
@@ -43,9 +44,12 @@ export async function listDebtCases(
   pagination: PaginationParams,
   filters: ListDebtCasesFilter,
   dataScope: Record<string, unknown>,
+  userClusterId?: string | null,
+  userRole?: string,
 ) {
+  const clusterId = await resolveListClusterFilter(userRole, userClusterId);
   const scopeWhere = buildScopeWhere(dataScope, 'assignedTo');
-  const where: Record<string, unknown> = { ...scopeWhere };
+  const where: Record<string, unknown> = { ...scopeWhere, ...(clusterId && { clusterId }) };
 
   if (filters.status) where.status = filters.status;
   if (filters.tier) where.tier = filters.tier;
@@ -84,7 +88,9 @@ interface CreateDebtCaseInput {
   assignedTo?: string;
 }
 
-export async function createDebtCase(input: CreateDebtCaseInput, userId: string, req?: Request) {
+export async function createDebtCase(input: CreateDebtCaseInput, userId: string, req?: Request, userClusterId?: string | null) {
+  const clusterId = await getActiveClusterId(userClusterId);
+
   // Auto-calculate tier from DPD
   const dpd = input.dpd || 0;
   const tier = dpd <= 0 ? 'current' : dpd <= 30 ? 'dpd_1_30' : dpd <= 60 ? 'dpd_31_60' : dpd <= 90 ? 'dpd_61_90' : 'dpd_90_plus';
@@ -104,6 +110,7 @@ export async function createDebtCase(input: CreateDebtCaseInput, userId: string,
       debtGroup: input.debtGroup || null,
       dueDate: input.dueDate ? new Date(input.dueDate) : null,
       assignedTo: input.assignedTo || userId,
+      ...(clusterId && { clusterId }),
     },
     select: debtCaseSelect,
   });

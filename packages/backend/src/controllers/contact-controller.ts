@@ -44,7 +44,7 @@ export async function listContacts(req: Request, res: Response, next: NextFuncti
       dateFrom: req.query.dateFrom as string | undefined,
       dateTo: req.query.dateTo as string | undefined,
     };
-    const result = await contactService.listContacts(pagination, filters, req.dataScope || {}, req.user!.clusterId);
+    const result = await contactService.listContacts(pagination, filters, req.dataScope || {}, req.user!.clusterId, req.user!.role);
     res.json({ success: true, ...result });
   } catch (err) {
     next(err);
@@ -65,7 +65,7 @@ export async function createContact(req: Request, res: Response, next: NextFunct
 /** GET /contacts/:id */
 export async function getContact(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const contact = await contactService.getContactById(req.params.id as string, req.dataScope || {}, req.user!.clusterId);
+    const contact = await contactService.getContactById(req.params.id as string, req.dataScope || {}, req.user!.clusterId, req.user!.role);
     res.json({ success: true, data: contact });
   } catch (err: unknown) {
     const error = err as Error & { code?: string };
@@ -88,6 +88,7 @@ export async function updateContact(req: Request, res: Response, next: NextFunct
       req.dataScope || {},
       req,
       req.user!.clusterId,
+      req.user!.role,
     );
     res.json({ success: true, data: contact });
   } catch (err: unknown) {
@@ -114,6 +115,7 @@ export async function bulkDeleteContacts(req: Request, res: Response, next: Next
       req.dataScope || {},
       req,
       req.user!.clusterId,
+      req.user!.role,
     );
     res.json({ success: true, data: result });
   } catch (err) {
@@ -124,7 +126,7 @@ export async function bulkDeleteContacts(req: Request, res: Response, next: Next
 /** DELETE /contacts/:id */
 export async function deleteContact(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    await contactService.deleteContact(req.params.id as string, req.user!.userId, req.dataScope || {}, req, req.user!.clusterId);
+    await contactService.deleteContact(req.params.id as string, req.user!.userId, req.dataScope || {}, req, req.user!.clusterId, req.user!.role);
     res.json({ success: true, data: null });
   } catch (err: unknown) {
     const error = err as Error & { code?: string };
@@ -139,7 +141,7 @@ export async function deleteContact(req: Request, res: Response, next: NextFunct
 /** GET /contacts/:id/timeline */
 export async function getTimeline(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const timeline = await contactService.getContactTimeline(req.params.id as string, req.dataScope || {}, req.user!.clusterId);
+    const timeline = await contactService.getContactTimeline(req.params.id as string, req.dataScope || {}, req.user!.clusterId, req.user!.role);
     res.json({ success: true, data: timeline });
   } catch (err: unknown) {
     const error = err as Error & { code?: string };

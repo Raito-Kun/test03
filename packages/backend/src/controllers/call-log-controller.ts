@@ -20,7 +20,7 @@ export async function listCallLogs(req: Request, res: Response, next: NextFuncti
       hangupCause: req.query.hangupCause as string | undefined,
       sipCode: req.query.sipCode as string | undefined,
     };
-    const result = await callLogService.listCallLogs(pagination, filters, req.dataScope || {});
+    const result = await callLogService.listCallLogs(pagination, filters, req.dataScope || {}, req.user!.clusterId, req.user!.role);
     res.json({ success: true, ...result });
   } catch (err) {
     next(err);

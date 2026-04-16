@@ -2,7 +2,7 @@ import prisma from '../lib/prisma';
 import { PaginationParams, paginatedResponse } from '../lib/pagination';
 import { buildScopeWhere } from '../middleware/data-scope-middleware';
 import { logAudit } from '../lib/audit';
-import { getActiveClusterId } from '../lib/active-cluster';
+import { getActiveClusterId, resolveListClusterFilter } from '../lib/active-cluster';
 import { Request } from 'express';
 
 /** Ensure Vietnamese phone numbers have leading 0 (9xxxxxxxx → 09xxxxxxxx).
@@ -60,9 +60,11 @@ export async function listContacts(
   filters: ListContactsFilter,
   dataScope: Record<string, unknown>,
   userClusterId?: string | null,
+  userRole?: string,
 ) {
   const scopeWhere = buildScopeWhere(dataScope, 'assignedTo');
-  const clusterId = await getActiveClusterId(userClusterId);
+  // super_admin bypasses cluster filter (cross-tenant role).
+  const clusterId = await resolveListClusterFilter(userRole, userClusterId);
   const where: Record<string, unknown> = { ...scopeWhere, ...(clusterId && { clusterId }) };
 
   if (filters.source) where.source = filters.source;
@@ -160,8 +162,8 @@ export async function createContact(input: CreateContactInput, userId: string, r
   return contact;
 }
 
-export async function getContactById(id: string, dataScope: Record<string, unknown>, userClusterId?: string | null) {
-  const clusterId = await getActiveClusterId(userClusterId);
+export async function getContactById(id: string, dataScope: Record<string, unknown>, userClusterId?: string | null, userRole?: string) {
+  const clusterId = await resolveListClusterFilter(userRole, userClusterId);
   const scopeWhere = buildScopeWhere(dataScope, 'assignedTo');
   const contact = await prisma.contact.findFirst({
     where: { id, ...scopeWhere, ...(clusterId && { clusterId }) },
@@ -192,9 +194,10 @@ export async function updateContact(
   dataScope: Record<string, unknown>,
   req?: Request,
   userClusterId?: string | null,
+  userRole?: string,
 ) {
   // IDOR protection: verify access via data scope
-  await getContactById(id, dataScope, userClusterId);
+  await getContactById(id, dataScope, userClusterId, userRole);
 
   const contact = await prisma.contact.update({
     where: { id },
@@ -238,8 +241,9 @@ export async function deleteContact(
   dataScope: Record<string, unknown>,
   req?: Request,
   userClusterId?: string | null,
+  userRole?: string,
 ) {
-  await getContactById(id, dataScope, userClusterId);
+  await getContactById(id, dataScope, userClusterId, userRole);
   // Cascade cleanup — delete/unlink dependents to avoid FK constraint violations
   // Non-nullable FK: delete dependent records
   await prisma.lead.deleteMany({ where: { contactId: id } });
@@ -264,11 +268,12 @@ export async function bulkDeleteContacts(
   dataScope: Record<string, unknown>,
   req?: Request,
   userClusterId?: string | null,
+  userRole?: string,
 ): Promise<{ deleted: number; errors: Array<{ id: string; error: string }> }> {
   const result = { deleted: 0, errors: [] as Array<{ id: string; error: string }> };
   for (const id of ids) {
     try {
-      await deleteContact(id, userId, dataScope, req, userClusterId);
+      await deleteContact(id, userId, dataScope, req, userClusterId, userRole);
       result.deleted++;
     } catch (err) {
       const e = err as Error & { code?: string };
@@ -279,8 +284,8 @@ export async function bulkDeleteContacts(
 }
 
 /** Get contact timeline: calls + tickets + leads + debt cases ordered by date */
-export async function getContactTimeline(id: string, dataScope: Record<string, unknown>, userClusterId?: string | null) {
-  await getContactById(id, dataScope, userClusterId);
+export async function getContactTimeline(id: string, dataScope: Record<string, unknown>, userClusterId?: string | null, userRole?: string) {
+  await getContactById(id, dataScope, userClusterId, userRole);
 
   const [calls, tickets, leads, debtCases] = await Promise.all([
     prisma.callLog.findMany({

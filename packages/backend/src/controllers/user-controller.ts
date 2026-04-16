@@ -32,7 +32,7 @@ export async function listUsers(req: Request, res: Response, next: NextFunction)
       search: req.query.search as string | undefined,
     };
 
-    const result = await userService.listUsers(pagination, filters, req.user!.clusterId);
+    const result = await userService.listUsers(pagination, filters, req.user!.clusterId, req.user!.role);
     res.json({ success: true, ...result });
   } catch (err) {
     next(err);

@@ -4,6 +4,7 @@ import { buildScopeWhere } from '../middleware/data-scope-middleware';
 import { logAudit } from '../lib/audit';
 import { calculateScore } from './lead-scoring-service';
 import { Request } from 'express';
+import { getActiveClusterId, resolveListClusterFilter } from '../lib/active-cluster';
 
 const leadSelect = {
   id: true,
@@ -39,9 +40,12 @@ export async function listLeads(
   pagination: PaginationParams,
   filters: ListLeadsFilter,
   dataScope: Record<string, unknown>,
+  userClusterId?: string | null,
+  userRole?: string,
 ) {
+  const clusterId = await resolveListClusterFilter(userRole, userClusterId);
   const scopeWhere = buildScopeWhere(dataScope, 'assignedTo');
-  const where: Record<string, unknown> = { ...scopeWhere };
+  const where: Record<string, unknown> = { ...scopeWhere, ...(clusterId && { clusterId }) };
 
   if (filters.status) where.status = filters.status;
   if (filters.campaignId) where.campaignId = filters.campaignId;
@@ -77,7 +81,9 @@ interface CreateLeadInput {
   notes?: string;
 }
 
-export async function createLead(input: CreateLeadInput, userId: string, req?: Request) {
+export async function createLead(input: CreateLeadInput, userId: string, req?: Request, userClusterId?: string | null) {
+  const clusterId = await getActiveClusterId(userClusterId);
+
   // Fetch contact info for scoring
   const contact = await prisma.contact.findUnique({
     where: { id: input.contactId },
@@ -107,6 +113,7 @@ export async function createLead(input: CreateLeadInput, userId: string, req?: R
       assignedTo: input.assignedTo || userId,
       nextFollowUp: input.nextFollowUp ? new Date(input.nextFollowUp) : null,
       notes: input.notes || null,
+      ...(clusterId && { clusterId }),
     },
     select: leadSelect,
   });
@@ -168,7 +175,8 @@ export async function updateLead(
 }
 
 /** Return leads whose nextFollowUp is today or earlier (overdue) */
-export async function listFollowUps(dataScope: Record<string, unknown>) {
+export async function listFollowUps(dataScope: Record<string, unknown>, userClusterId?: string | null, userRole?: string) {
+  const clusterId = await resolveListClusterFilter(userRole, userClusterId);
   const scopeWhere = buildScopeWhere(dataScope, 'assignedTo');
   const today = new Date();
   today.setHours(23, 59, 59, 999);
@@ -176,6 +184,7 @@ export async function listFollowUps(dataScope: Record<string, unknown>) {
   const leads = await prisma.lead.findMany({
     where: {
       ...scopeWhere,
+      ...(clusterId && { clusterId }),
       nextFollowUp: { lte: today },
       status: { notIn: ['won', 'lost'] },
     },

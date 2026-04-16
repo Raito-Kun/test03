@@ -32,7 +32,7 @@ export async function listLeads(req: Request, res: Response, next: NextFunction)
       dateFrom: req.query.dateFrom as string | undefined,
       dateTo: req.query.dateTo as string | undefined,
     };
-    const result = await leadService.listLeads(pagination, filters, req.dataScope || {});
+    const result = await leadService.listLeads(pagination, filters, req.dataScope || {}, req.user!.clusterId, req.user!.role);
     res.json({ success: true, ...result });
   } catch (err) {
     next(err);
@@ -42,7 +42,7 @@ export async function listLeads(req: Request, res: Response, next: NextFunction)
 export async function createLead(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const input = createLeadSchema.parse(req.body);
-    const lead = await leadService.createLead(input, req.user!.userId, req);
+    const lead = await leadService.createLead(input, req.user!.userId, req, req.user!.clusterId);
     res.status(201).json({ success: true, data: lead });
   } catch (err) {
     next(err);
@@ -51,7 +51,7 @@ export async function createLead(req: Request, res: Response, next: NextFunction
 
 export async function listFollowUps(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const leads = await leadService.listFollowUps(req.dataScope || {});
+    const leads = await leadService.listFollowUps(req.dataScope || {}, req.user!.clusterId, req.user!.role);
     res.json({ success: true, data: leads, total: leads.length });
   } catch (err) {
     next(err);
