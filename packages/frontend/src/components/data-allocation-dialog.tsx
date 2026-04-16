@@ -24,6 +24,9 @@ interface DataAllocationDialogProps {
   onClose: () => void;
   entityType: EntityType;
   selectedIds: string[];
+  /** How many of the selected rows already have an assignee (current page only).
+   *  Non-zero triggers a warning banner + confirm-overwrite button copy. */
+  alreadyAssignedCount?: number;
   onSuccess?: () => void;
 }
 
@@ -42,13 +45,15 @@ function roundRobin(ids: string[], agentIds: string[]): Map<string, string[]> {
 }
 
 export function DataAllocationDialog({
-  open, onClose, entityType, selectedIds, onSuccess,
+  open, onClose, entityType, selectedIds, alreadyAssignedCount = 0, onSuccess,
 }: DataAllocationDialogProps) {
   const [mode, setMode] = useState<Mode>('random');
   // Random mode — set of agent IDs to distribute to.
   const [randomAgents, setRandomAgents] = useState<Set<string>>(new Set());
   // Manual mode — per-entity assignment.
   const [manualMap, setManualMap] = useState<Map<string, string>>(new Map());
+  // Set to true after user explicitly clicks "ghi đè" on the warning banner.
+  const [overwriteAck, setOverwriteAck] = useState(false);
 
   const { data: agentsData, isLoading: loadingAgents } = useQuery({
     queryKey: ['data-allocation-agents'],
@@ -86,6 +91,7 @@ export function DataAllocationDialog({
     setRandomAgents(new Set());
     setManualMap(new Map());
     setMode('random');
+    setOverwriteAck(false);
     onClose();
   }, [onClose]);
 
@@ -138,6 +144,28 @@ export function DataAllocationDialog({
             Đang phân bổ <span className="font-medium text-foreground">{selectedIds.length}</span>{' '}
             {ENTITY_LABELS[entityType]}.
           </p>
+
+          {alreadyAssignedCount > 0 && (
+            <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm space-y-2">
+              <p className="text-amber-900">
+                Có <b>{alreadyAssignedCount}</b> bản ghi trên trang hiện tại đã có người phụ trách.
+                Phân bổ lại sẽ <b>ghi đè</b> người phụ trách cũ.
+              </p>
+              {!overwriteAck && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-amber-500 text-amber-900 hover:bg-amber-100"
+                  onClick={() => setOverwriteAck(true)}
+                >
+                  Tôi hiểu, cho phép ghi đè
+                </Button>
+              )}
+              {overwriteAck && (
+                <p className="text-xs text-amber-700">Đã xác nhận ghi đè. Nhấn “Xác nhận phân bổ” để tiếp tục.</p>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-2">
             {(['random', 'manual'] as Mode[]).map((m) => (
@@ -241,10 +269,16 @@ export function DataAllocationDialog({
               allocateMutation.isPending ||
               agents.length === 0 ||
               (mode === 'random' && randomAgents.size === 0) ||
-              (mode === 'manual' && manualMap.size === 0)
+              (mode === 'manual' && manualMap.size === 0) ||
+              (alreadyAssignedCount > 0 && !overwriteAck)
             }
+            variant={alreadyAssignedCount > 0 ? 'destructive' : 'default'}
           >
-            {allocateMutation.isPending ? 'Đang phân bổ...' : 'Xác nhận phân bổ'}
+            {allocateMutation.isPending
+              ? 'Đang phân bổ...'
+              : alreadyAssignedCount > 0
+              ? 'Xác nhận phân bổ (ghi đè)'
+              : 'Xác nhận phân bổ'}
           </Button>
         </DialogFooter>
       </DialogContent>

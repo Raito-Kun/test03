@@ -31,7 +31,13 @@ interface Contact {
   fullName: string;
   phone: string;
   email?: string;
-  assignedTo?: { fullName: string };
+  // Backend returns BOTH — the raw FK id and the resolved user object.
+  // Previously only `assignedTo: { fullName }` was typed which collided
+  // with the string FK and rendered '—' for every row. Keep both now
+  // so the column render can use the joined name and the allocation
+  // dialog can detect 'already assigned' state.
+  assignedTo?: string | null;
+  assignedUser?: { id: string; fullName: string } | null;
   createdAt: string;
 }
 
@@ -163,7 +169,7 @@ export default function ContactListPage() {
     {
       key: 'assignedTo',
       label: VI.contact.assignedTo,
-      render: (row) => row.assignedTo?.fullName || '—',
+      render: (row) => row.assignedUser?.fullName || '—',
     },
     {
       key: 'createdAt',
@@ -307,6 +313,13 @@ export default function ContactListPage() {
         onClose={() => setAllocateOpen(false)}
         entityType="contact"
         selectedIds={selectedIds}
+        // Count of visible-on-this-page rows that already have an assignee.
+        // Gives the dialog enough info to warn the user and switch its
+        // confirm copy to "ghi đè". Selections from other pages aren't
+        // counted here — the warning banner notes that caveat.
+        alreadyAssignedCount={
+          currentPageRows.filter((r) => selectedIds.includes(r.id) && r.assignedTo).length
+        }
         onSuccess={() => {
           setSelectedIds([]);
           queryClient.invalidateQueries({ queryKey: ['contacts'] });
