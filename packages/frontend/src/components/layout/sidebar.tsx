@@ -6,15 +6,20 @@ import { useAuthStore } from '@/stores/auth-store';
 import {
   LayoutDashboard, Users, Target, Landmark, PhoneCall,
   Megaphone, FileText, BarChart3, Settings, ChevronLeft,
-  ShieldCheck, Phone, Monitor, LifeBuoy, Users2, Server,
+  ShieldCheck, Phone, Monitor, LifeBuoy, Users2, Server, UserCog,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { SidebarNavGroup, NavItem } from './sidebar-nav-group';
+import { useFeatureFlags } from '@/hooks/use-feature-flags';
+import { FEATURE_ROUTE_MAP } from '@/lib/feature-flags';
 
 const STORAGE_KEY = 'crm-sidebar-groups';
 
 const roleVisibility: Record<string, string[]> = {
+  // Root dashboard — supervisor-only. Agents redirect to /contacts via RoleGuard.
+  '': ['super_admin', 'admin', 'manager', 'leader'],
   reports: ['super_admin', 'admin', 'manager', 'leader', 'qa'],
+  settings: ['super_admin', 'admin', 'manager', 'leader'],
   'settings/permissions': ['super_admin', 'admin'],
   'settings/extensions': ['super_admin', 'admin'],
   monitoring: ['super_admin', 'admin', 'manager', 'leader'],
@@ -23,12 +28,26 @@ const roleVisibility: Record<string, string[]> = {
   'monitoring/team-stats': ['super_admin', 'admin', 'manager', 'leader'],
   'settings/teams': ['super_admin', 'admin', 'manager', 'leader'],
   'settings/clusters': ['super_admin', 'admin'],
+  'settings/accounts': ['super_admin', 'admin'],
 };
 
-function canView(to: string, role: string | undefined): boolean {
+// Build reverse map: route path → feature key
+const routeToFeature: Record<string, string> = {};
+for (const [featureKey, routes] of Object.entries(FEATURE_ROUTE_MAP)) {
+  for (const route of routes) {
+    routeToFeature[route] = featureKey;
+  }
+}
+
+function canView(to: string, role: string | undefined, featureEnabled?: (key: string) => boolean): boolean {
   const key = to.replace(/^\//, '');
   const allowed = roleVisibility[key];
   if (allowed && role && !allowed.includes(role)) return false;
+  // Check feature flag
+  if (featureEnabled) {
+    const featureKey = routeToFeature[to];
+    if (featureKey && !featureEnabled(featureKey)) return false;
+  }
   return true;
 }
 
@@ -47,6 +66,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const role = useAuthStore((s) => s.user?.role);
+  const { isEnabled } = useFeatureFlags();
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     try {
@@ -70,7 +90,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   }
 
   function filterItems(items: NavItem[]): NavItem[] {
-    return items.filter((item) => canView(item.to, role));
+    return items.filter((item) => canView(item.to, role, isEnabled));
   }
 
   const group1Items: NavItem[] = filterItems([
@@ -81,15 +101,15 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     { to: '/monitoring/team-stats', label: 'Giám sát theo team', icon: BarChart3 },
   ]);
 
-  const group2Items: NavItem[] = [
+  const group2Items: NavItem[] = filterItems([
     { to: '/contacts', label: 'Danh sách khách hàng', icon: Users },
     { to: '/leads', label: 'Nhóm khách hàng', icon: Target },
     { to: '/debt-cases', label: 'Công nợ', icon: Landmark },
-  ];
+  ]);
 
-  const groupCampaignItems: NavItem[] = [
+  const groupCampaignItems: NavItem[] = filterItems([
     { to: '/campaigns', label: 'Danh sách chiến dịch', icon: Megaphone },
-  ];
+  ]);
 
   const group3Items: NavItem[] = filterItems([
     { to: '/call-logs', label: 'Lịch sử cuộc gọi', icon: PhoneCall },
@@ -104,6 +124,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const bottomItems: NavItem[] = filterItems([
     { to: '/settings/teams', label: 'Quản lý team', icon: Users2 },
     { to: '/settings/clusters', label: 'Khai báo cụm PBX', icon: Server },
+    { to: '/settings/accounts', label: 'Quản lý tài khoản', icon: UserCog },
     { to: '/settings', label: 'Cài đặt', icon: Settings },
     { to: '/settings/permissions', label: 'Phân quyền', icon: ShieldCheck },
   ]);
@@ -198,24 +219,28 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           onToggle={toggleGroup}
           isFirst
         />
-        <SidebarNavGroup
-          groupKey="crm"
-          label="CRM"
-          icon={Users}
-          items={group2Items}
-          collapsed={collapsed}
-          isOpen={openGroups.crm ?? true}
-          onToggle={toggleGroup}
-        />
-        <SidebarNavGroup
-          groupKey="campaigns"
-          label="Chiến dịch"
-          icon={Megaphone}
-          items={groupCampaignItems}
-          collapsed={collapsed}
-          isOpen={openGroups.campaigns ?? true}
-          onToggle={toggleGroup}
-        />
+        {group2Items.length > 0 && (
+          <SidebarNavGroup
+            groupKey="crm"
+            label="CRM"
+            icon={Users}
+            items={group2Items}
+            collapsed={collapsed}
+            isOpen={openGroups.crm ?? true}
+            onToggle={toggleGroup}
+          />
+        )}
+        {groupCampaignItems.length > 0 && (
+          <SidebarNavGroup
+            groupKey="campaigns"
+            label="Chiến dịch"
+            icon={Megaphone}
+            items={groupCampaignItems}
+            collapsed={collapsed}
+            isOpen={openGroups.campaigns ?? true}
+            onToggle={toggleGroup}
+          />
+        )}
         {group3Items.length > 0 && (
           <SidebarNavGroup
             groupKey="callcenter"
