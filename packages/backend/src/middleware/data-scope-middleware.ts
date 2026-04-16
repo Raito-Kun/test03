@@ -39,15 +39,19 @@ export function applyDataScope(userField: string = 'assigned_to') {
       case 'leader':
         // Team-level access: filter entities assigned to users in the same team
         if (teamId) {
-          req.dataScope = { _teamScope: teamId, _userField: userField };
+          // _userId propagated so buildScopeWhere can OR in createdBy when
+          // the model has that column (e.g. contacts created via bulk import
+          // before assignment — would otherwise be invisible to the importer).
+          req.dataScope = { _teamScope: teamId, _userField: userField, _userId: userId };
         } else {
           // Leader without team gets full access
           req.dataScope = {};
         }
         break;
 
-      case 'agent_telesale':
-      case 'agent_collection':
+      case 'agent':
+      case 'agent_telesale':  // legacy
+      case 'agent_collection':  // legacy
         // Own data only — agents see only records assigned to them
         req.dataScope = { _agentScope: userId, _userField: userField };
         break;
@@ -79,6 +83,18 @@ export function buildScopeWhere(
 
   const teamScope = dataScope['_teamScope'] as string | undefined;
   if (teamScope) {
+    const hasCreatedBy = dataScope['_hasCreatedBy'] as boolean | undefined;
+    const scopeUserId = dataScope['_userId'] as string | undefined;
+    if (hasCreatedBy && scopeUserId) {
+      // Leader sees team members' records + their own creations (unassigned
+      // imports stay visible to the leader who uploaded them).
+      return {
+        OR: [
+          { [relationField]: { teamId: teamScope } },
+          { createdBy: scopeUserId },
+        ],
+      };
+    }
     return {
       [relationField]: { teamId: teamScope },
     };
