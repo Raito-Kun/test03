@@ -53,10 +53,11 @@ export function ImportStepPreview({ rows, totalRaw, errors, uploading, onUpload 
       {rows.length > 0 && (
         <div className="text-sm text-muted-foreground">
           Tổng: <span className="font-medium text-foreground">{totalRaw}</span> dòng,{' '}
-          <span className="font-medium text-emerald-700">{rows.length}</span> hợp lệ
+          <span className="font-medium text-emerald-700">{rows.length}</span> định dạng hợp lệ
           {errors.length > 0 && (
             <>, <span className="font-medium text-rose-700">{errors.length}</span> lỗi</>
           )}
+          <span className="ml-1 italic text-xs">(kiểm tra trùng SĐT ở bước 2)</span>
         </div>
       )}
 
@@ -79,7 +80,8 @@ export function ImportStepPreview({ rows, totalRaw, errors, uploading, onUpload 
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-muted">
               <tr>
-                <th className="px-2 py-1.5 text-left font-medium">#</th>
+                <th className="px-2 py-1.5 text-left font-medium" title="Số thứ tự trong danh sách hợp lệ">#</th>
+                <th className="px-2 py-1.5 text-left font-medium" title="Dòng trong file Excel/CSV gốc">Dòng file</th>
                 <th className="px-2 py-1.5 text-left font-medium">Họ tên</th>
                 <th className="px-2 py-1.5 text-left font-medium">SĐT</th>
                 <th className="px-2 py-1.5 text-left font-medium">Email</th>
@@ -88,8 +90,9 @@ export function ImportStepPreview({ rows, totalRaw, errors, uploading, onUpload 
               </tr>
             </thead>
             <tbody>
-              {preview.map((r) => (
+              {preview.map((r, idx) => (
                 <tr key={r.rowNumber} className="border-t">
+                  <td className="px-2 py-1 text-muted-foreground">{idx + 1}</td>
                   <td className="px-2 py-1 text-muted-foreground">{r.rowNumber}</td>
                   <td className="px-2 py-1">{r.fullName}</td>
                   <td className="px-2 py-1">{r.phone}</td>
