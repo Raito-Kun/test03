@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { ensureLeadingZero } from './contact-service';
 
 /**
  * Shared parser used by both the legacy one-shot /contacts/import endpoint
@@ -67,10 +68,11 @@ export interface ParseResult {
   totalRaw: number;
 }
 
+/** Canonicalize phone for both DB write and dedup lookup — must match
+ *  the shape produced by the UI-create path (contact-service.ensureLeadingZero)
+ *  so in-DB phones and imported phones compare equal. */
 export function normalizePhone(raw: string): string {
-  const digits = raw.replace(/\D/g, '');
-  if (digits.length === 9 && /^[3-9]/.test(digits)) return '0' + digits;
-  return digits;
+  return ensureLeadingZero(raw) ?? '';
 }
 
 function parseDate(raw: string): Date | undefined {

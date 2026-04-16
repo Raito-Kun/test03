@@ -2,10 +2,13 @@ import prisma from '../lib/prisma';
 import { PaginationParams, paginatedResponse } from '../lib/pagination';
 import { buildScopeWhere } from '../middleware/data-scope-middleware';
 import { logAudit } from '../lib/audit';
+import { getActiveClusterId } from '../lib/active-cluster';
 import { Request } from 'express';
 
-/** Ensure Vietnamese phone numbers have leading 0 (9xxxxxxxx → 09xxxxxxxx) */
-function ensureLeadingZero(phone: string | undefined | null): string | null {
+/** Ensure Vietnamese phone numbers have leading 0 (9xxxxxxxx → 09xxxxxxxx).
+ *  Exported so the CSV import parser can produce the same canonical string
+ *  that the UI-create path writes to DB — otherwise dedup matching may miss. */
+export function ensureLeadingZero(phone: string | undefined | null): string | null {
   if (!phone) return null;
   const cleaned = phone.replace(/[\s\-\.\(\)]/g, '');
   if (/^\d{9}$/.test(cleaned) && !cleaned.startsWith('0')) return `0${cleaned}`;
@@ -56,9 +59,11 @@ export async function listContacts(
   pagination: PaginationParams,
   filters: ListContactsFilter,
   dataScope: Record<string, unknown>,
+  userClusterId?: string | null,
 ) {
   const scopeWhere = buildScopeWhere(dataScope, 'assignedTo');
-  const where: Record<string, unknown> = { ...scopeWhere };
+  const clusterId = await getActiveClusterId(userClusterId);
+  const where: Record<string, unknown> = { ...scopeWhere, ...(clusterId && { clusterId }) };
 
   if (filters.source) where.source = filters.source;
   if (filters.assignedTo) where.assignedTo = filters.assignedTo;
@@ -117,9 +122,11 @@ interface CreateContactInput {
   internalNotes?: string;
 }
 
-export async function createContact(input: CreateContactInput, userId: string, req?: Request) {
+export async function createContact(input: CreateContactInput, userId: string, req?: Request, userClusterId?: string | null) {
+  const clusterId = await getActiveClusterId(userClusterId);
   const contact = await prisma.contact.create({
     data: {
+      clusterId,
       fullName: input.fullName,
       phone: ensureLeadingZero(input.phone) || input.phone,
       phoneAlt: ensureLeadingZero(input.phoneAlt) || null,
@@ -153,10 +160,11 @@ export async function createContact(input: CreateContactInput, userId: string, r
   return contact;
 }
 
-export async function getContactById(id: string, dataScope: Record<string, unknown>) {
+export async function getContactById(id: string, dataScope: Record<string, unknown>, userClusterId?: string | null) {
+  const clusterId = await getActiveClusterId(userClusterId);
   const scopeWhere = buildScopeWhere(dataScope, 'assignedTo');
   const contact = await prisma.contact.findFirst({
-    where: { id, ...scopeWhere },
+    where: { id, ...scopeWhere, ...(clusterId && { clusterId }) },
     select: {
       ...contactSelect,
       relationshipsFrom: {
@@ -183,9 +191,10 @@ export async function updateContact(
   userId: string,
   dataScope: Record<string, unknown>,
   req?: Request,
+  userClusterId?: string | null,
 ) {
   // IDOR protection: verify access via data scope
-  await getContactById(id, dataScope);
+  await getContactById(id, dataScope, userClusterId);
 
   const contact = await prisma.contact.update({
     where: { id },
@@ -228,8 +237,9 @@ export async function deleteContact(
   userId: string,
   dataScope: Record<string, unknown>,
   req?: Request,
+  userClusterId?: string | null,
 ) {
-  await getContactById(id, dataScope);
+  await getContactById(id, dataScope, userClusterId);
   // Cascade cleanup — delete/unlink dependents to avoid FK constraint violations
   // Non-nullable FK: delete dependent records
   await prisma.lead.deleteMany({ where: { contactId: id } });
@@ -244,8 +254,8 @@ export async function deleteContact(
 }
 
 /** Get contact timeline: calls + tickets + leads + debt cases ordered by date */
-export async function getContactTimeline(id: string, dataScope: Record<string, unknown>) {
-  await getContactById(id, dataScope);
+export async function getContactTimeline(id: string, dataScope: Record<string, unknown>, userClusterId?: string | null) {
+  await getContactById(id, dataScope, userClusterId);
 
   const [calls, tickets, leads, debtCases] = await Promise.all([
     prisma.callLog.findMany({

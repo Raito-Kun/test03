@@ -1,5 +1,6 @@
 import prisma from '../lib/prisma';
 import logger from '../lib/logger';
+import { getActiveClusterId } from '../lib/active-cluster';
 import type { ContactImportRow } from './contact-import-parser';
 
 /**
@@ -28,9 +29,18 @@ export interface DuplicateEntry {
   existing: ExistingContactSnapshot;
 }
 
+export interface InternalDuplicateEntry {
+  rowNumber: number;
+  new: ContactImportRow;
+  /** Row number of the first occurrence in the upload that owns this phone. */
+  firstOccurrenceRow: number;
+}
+
 export interface DedupResult {
   uniques: ContactImportRow[];
   duplicates: DuplicateEntry[];
+  /** Rows whose phone repeats earlier in the same upload — default action: skip. */
+  internalDuplicates: InternalDuplicateEntry[];
 }
 
 export interface CommitRowInput {
@@ -48,10 +58,34 @@ export interface CommitResult {
   errors: Array<{ row: number; error: string }>;
 }
 
-/** Look up existing contacts matching any of the incoming phone numbers. */
+/**
+ * Three-way classification:
+ *  - internalDuplicates: rows whose phone repeats earlier in the SAME upload
+ *  - duplicates: first-occurrence rows whose phone already exists in DB
+ *  - uniques: first-occurrence rows whose phone is new to DB
+ *
+ * Splitting in-batch dupes out prevents the prior bug where 3 rows sharing
+ * a phone all looked like 3 separate DB conflicts (or all got created and
+ * silently produced duplicates because phone has @@index, not @@unique).
+ */
 export async function checkDuplicates(rows: ContactImportRow[]): Promise<DedupResult> {
-  const phones = Array.from(new Set(rows.map((r) => r.phone).filter(Boolean)));
-  if (phones.length === 0) return { uniques: rows, duplicates: [] };
+  const firstOccurrence = new Map<string, number>();
+  const canonical: ContactImportRow[] = [];
+  const internalDuplicates: InternalDuplicateEntry[] = [];
+
+  for (const r of rows) {
+    if (!r.phone) { canonical.push(r); continue; }
+    const seenAt = firstOccurrence.get(r.phone);
+    if (seenAt === undefined) {
+      firstOccurrence.set(r.phone, r.rowNumber);
+      canonical.push(r);
+    } else {
+      internalDuplicates.push({ rowNumber: r.rowNumber, new: r, firstOccurrenceRow: seenAt });
+    }
+  }
+
+  const phones = Array.from(firstOccurrence.keys());
+  if (phones.length === 0) return { uniques: canonical, duplicates: [], internalDuplicates };
 
   const existing = await prisma.contact.findMany({
     where: { phone: { in: phones } },
@@ -64,12 +98,27 @@ export async function checkDuplicates(rows: ContactImportRow[]): Promise<DedupRe
 
   const uniques: ContactImportRow[] = [];
   const duplicates: DuplicateEntry[] = [];
-  for (const r of rows) {
+  for (const r of canonical) {
     const match = byPhone.get(r.phone);
     if (match) duplicates.push({ rowNumber: r.rowNumber, new: r, existing: match });
     else uniques.push(r);
   }
-  return { uniques, duplicates };
+
+  // Diagnostic logging — trace miscount reports back to the source.
+  // Logs phone-level decision so "5 duplicates when I expected 3" can be
+  // compared against actual DB rows without another deployment cycle.
+  logger.info('Contact wizard dedup check', {
+    totalRows: rows.length,
+    canonicalRows: canonical.length,
+    internalDuplicates: internalDuplicates.length,
+    phonesQueried: phones.length,
+    dbMatches: existing.length,
+    uniques: uniques.length,
+    dbDuplicates: duplicates.length,
+    matchedPhones: existing.map((c) => c.phone),
+  });
+
+  return { uniques, duplicates, internalDuplicates };
 }
 
 /** Build update payload for 'merge' — keep existing non-null fields, fill null with new. */
@@ -105,12 +154,18 @@ function toContactData(r: ContactImportRow): Record<string, unknown> {
  * Commit processed rows to the database.
  * Each input row carries its own action (create/overwrite/merge/skip/keep) and
  * optional per-row assigneeId. Errors are collected per-row, never thrown.
+ *
+ * Resolves the active cluster once and stamps every created contact with it,
+ * matching the regular createContact path. Without this, wizard-created
+ * contacts get clusterId=null and become invisible in the cluster-filtered list.
  */
 export async function commitWizardRows(
   inputs: CommitRowInput[],
   userId: string,
+  userClusterId?: string | null,
 ): Promise<CommitResult> {
   const result: CommitResult = { created: 0, updated: 0, skipped: 0, assigned: 0, errors: [] };
+  const clusterId = await getActiveClusterId(userClusterId);
 
   for (const input of inputs) {
     const { row, action, existingId, assignToUserId } = input;
@@ -126,7 +181,7 @@ export async function commitWizardRows(
         case 'create': {
           const data = toContactData(row);
           await prisma.contact.create({
-            data: { ...data, createdBy: userId, assignedTo: assignTo ?? null } as never,
+            data: { ...data, clusterId, createdBy: userId, assignedTo: assignTo ?? null } as never,
           });
           result.created++;
           if (assignTo) result.assigned++;
