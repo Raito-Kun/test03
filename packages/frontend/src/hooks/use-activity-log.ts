@@ -23,18 +23,11 @@ function mkEntry(tone: ActivityTone, text: string, sub?: string): ActivityEntry 
   };
 }
 
-// Seed fallback events shown before real socket events arrive
-const SEED_EVENTS: ActivityEntry[] = [
-  mkEntry("green", "Agent Nguyễn Văn A đăng nhập", "ext.101"),
-  mkEntry("violet", "Cuộc gọi đến từ 0981234567", "inbound/queue"),
-  mkEntry("orange", "Agent Trần Thị B chuyển trạng thái: Nghỉ", "status-change"),
-  mkEntry("red", "Cuộc gọi nhỡ: 0909123456", "missed/route"),
-  mkEntry("green", "Cuộc gọi kết thúc · 3:42 phút", "call-ended"),
-  mkEntry("violet", "Lead mới được tạo tự động", "crm/lead"),
-];
-
+// Activity log is a live ring buffer — starts empty and grows only from real
+// socket events scoped to the active tenant. No seed data: avoids showing
+// fake names/numbers from the design mockup to real users.
 export function useActivityLog() {
-  const [entries, setEntries] = useState<ActivityEntry[]>(SEED_EVENTS);
+  const [entries, setEntries] = useState<ActivityEntry[]>([]);
   const initialized = useRef(false);
 
   function push(entry: ActivityEntry) {

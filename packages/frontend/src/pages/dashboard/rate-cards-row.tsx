@@ -63,25 +63,26 @@ export function RateCardsRow({ data, isLoading }: RateCardsRowProps) {
     );
   }
 
+  // Fallback to 0 (never to mockup's fake 81/23/54/36). API is cluster-scoped.
   const rates = [
     {
       label: "Tỷ lệ liên hệ",
-      value: Math.round(data?.calls.answerRatePercent ?? 81),
+      value: Math.round(data?.calls.answerRatePercent ?? 0),
       source: "calls/answer-rate",
     },
     {
       label: "Tỷ lệ chốt đơn",
-      value: Math.round(data?.leads.closeRatePercent ?? 23),
+      value: Math.round(data?.leads.closeRatePercent ?? 0),
       source: "leads/close-rate",
     },
     {
       label: "Tỷ lệ PTP",
-      value: Math.round(data?.debtCases.ptpRatePercent ?? 54),
+      value: Math.round(data?.debtCases.ptpRatePercent ?? 0),
       source: "debt/ptp-rate",
     },
     {
       label: "Tỷ lệ thu hồi",
-      value: Math.round(data?.debtCases.recoveryRatePercent ?? 36),
+      value: Math.round(data?.debtCases.recoveryRatePercent ?? 0),
       source: "debt/recovery-rate",
     },
   ];

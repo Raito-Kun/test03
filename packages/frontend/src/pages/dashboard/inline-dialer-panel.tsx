@@ -3,11 +3,10 @@ import { DottedCard } from "@/components/ops/dotted-card";
 import { SectionHeader } from "@/components/ops/section-header";
 import { ClickToCallButton } from "@/components/click-to-call-button";
 
-const RECENT: { num: string; info: string; ok: boolean }[] = [
-  { num: "0981 234 567", info: "2:14", ok: true },
-  { num: "0909 876 543", info: "— FAIL", ok: false },
-  { num: "0933 111 222", info: "5:02", ok: true },
-];
+// Recent calls live only in this session. No seed — empty list on first mount
+// so no fake numbers from the mockup leak into real tenants.
+const STORAGE_KEY = "ops-dialer-recent-v1";
+const MAX_RECENT = 5;
 
 const KEYS = [
   ["1", "2", "3"],
@@ -16,8 +15,25 @@ const KEYS = [
   ["*", "0", "#"],
 ];
 
+interface RecentCall {
+  num: string;
+  at: number;
+}
+
+function loadRecent(): RecentCall[] {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.slice(0, MAX_RECENT) : [];
+  } catch {
+    return [];
+  }
+}
+
 export function InlineDialerPanel() {
   const [phone, setPhone] = useState("");
+  const [recent, setRecent] = useState<RecentCall[]>(loadRecent);
 
   const press = useCallback((k: string) => {
     setPhone((p) => (p.length < 15 ? p + k : p));
@@ -25,6 +41,17 @@ export function InlineDialerPanel() {
 
   const del = useCallback(() => {
     setPhone((p) => p.slice(0, -1));
+  }, []);
+
+  const pushRecent = useCallback((num: string) => {
+    if (!num) return;
+    setRecent((prev) => {
+      const next = [{ num, at: Date.now() }, ...prev.filter((r) => r.num !== num)].slice(0, MAX_RECENT);
+      try {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch { /* ignore quota */ }
+      return next;
+    });
   }, []);
 
   return (
@@ -68,7 +95,7 @@ export function InlineDialerPanel() {
       </div>
 
       {/* Call button */}
-      <div className="mb-3">
+      <div className="mb-3" onClickCapture={() => pushRecent(phone)}>
         <ClickToCallButton
           phone={phone}
           contactName={phone}
@@ -77,29 +104,33 @@ export function InlineDialerPanel() {
         />
       </div>
 
-      {/* Recent calls */}
+      {/* Recent calls — session-scoped, empty until user places a call */}
       <div className="mt-auto">
         <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
           GẦN ĐÂY
         </p>
-        <div className="space-y-1">
-          {RECENT.map((r) => (
-            <button
-              key={r.num}
-              onClick={() => setPhone(r.num.replace(/\s/g, ""))}
-              className="w-full flex items-center justify-between px-2 py-1 rounded-sm hover:bg-muted/60 transition-colors group"
-            >
-              <span className="font-mono text-[11px] text-foreground group-hover:text-violet-600">
-                {r.num}
-              </span>
-              <span
-                className={`font-mono text-[10px] ${r.ok ? "text-muted-foreground" : "text-rose-500"}`}
+        {recent.length === 0 ? (
+          <p className="font-mono text-[10px] text-muted-foreground/60 italic px-2 py-1">
+            Chưa có cuộc gọi nào trong phiên này
+          </p>
+        ) : (
+          <div className="space-y-1">
+            {recent.map((r) => (
+              <button
+                key={r.num}
+                onClick={() => setPhone(r.num.replace(/\s/g, ""))}
+                className="w-full flex items-center justify-between px-2 py-1 rounded-sm hover:bg-muted/60 transition-colors group"
               >
-                {r.info}
-              </span>
-            </button>
-          ))}
-        </div>
+                <span className="font-mono text-[11px] text-foreground group-hover:text-violet-600">
+                  {r.num}
+                </span>
+                <span className="font-mono text-[10px] text-muted-foreground">
+                  {new Date(r.at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Shortcuts hint */}
