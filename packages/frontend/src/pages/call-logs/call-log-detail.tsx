@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, Download, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import { VI } from '@/lib/vi-text';
 import api, { getAccessToken } from '@/services/api-client';
 import { useAuthStore } from '@/stores/auth-store';
 import { formatDuration, fmtPhone } from '@/lib/format';
+import { CallLogTicketDialog } from './call-log-ticket-dialog';
 
 const HANGUP_CAUSE_VI: Record<string, string> = {
   NORMAL_CLEARING: 'Thành công',
@@ -129,6 +130,11 @@ export function CallLogDetailContent({ id, onClose }: CallLogDetailContentProps)
     ? (call.sipReason || `Lỗi SIP ${call.sipCode}`)
     : (HANGUP_CAUSE_VI[call.hangupCause || ''] ?? call.hangupCause);
 
+  // Ticket creation gated: only answered calls (SIP 200) + agent-style roles.
+  const userRole = useAuthStore((s) => s.user?.role) ?? '';
+  const canCreateTicket = sipNum === 200 && /agent/i.test(String(userRole));
+  const [ticketDialogOpen, setTicketDialogOpen] = useState(false);
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -147,7 +153,32 @@ export function CallLogDetailContent({ id, onClose }: CallLogDetailContentProps)
             {callStatus && <span className="text-xs text-muted-foreground">{callStatus}</span>}
           </div>
         </div>
+        {canCreateTicket && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setTicketDialogOpen(true)}
+            className="shrink-0"
+            title={call.contact ? 'Tạo phiếu ghi từ cuộc gọi này' : 'Gắn liên hệ trước khi tạo phiếu ghi'}
+          >
+            <FileText className="h-4 w-4 mr-1" />
+            Tạo phiếu ghi
+          </Button>
+        )}
       </div>
+
+      <CallLogTicketDialog
+        open={ticketDialogOpen}
+        onClose={() => setTicketDialogOpen(false)}
+        onSuccess={() => { /* list refreshes on its own */ }}
+        call={ticketDialogOpen ? {
+          callLogId: call.id,
+          contactId: call.contact?.id ?? null,
+          contactName: call.contact?.fullName ?? null,
+          customerPhone: (call.direction === 'inbound' ? call.callerNumber : call.destinationNumber) ?? '',
+          startTime: call.startTime,
+        } : null}
+      />
 
       {/* 2-column layout: left = details, right = disposition + recording + QA */}
       <div className="grid grid-cols-1 gap-5 md:grid-cols-[1fr_1fr]">
