@@ -99,7 +99,7 @@ export function DataTable<T extends { id?: string }>({
               {columns.map((col) => (
                 <TableHead
                   key={col.key}
-                  className={`${col.className || ''} ${col.sortable ? 'cursor-pointer select-none' : ''} font-mono text-[10px] uppercase tracking-wider text-muted-foreground bg-muted/30`}
+                  className={`${col.className || ''} ${col.sortable ? 'cursor-pointer select-none' : ''} text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-muted/30`}
                   onClick={col.sortable ? () => handleSort(col.key) : undefined}
                 >
                   <div className="flex items-center gap-1">
@@ -123,7 +123,7 @@ export function DataTable<T extends { id?: string }>({
               ))
             ) : data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length + (actions ? 1 : 0)} className="h-24 text-center text-muted-foreground font-mono text-[11px] uppercase tracking-wider">
+                <TableCell colSpan={columns.length + (actions ? 1 : 0)} className="h-24 text-center text-muted-foreground text-sm">
                   {VI.table.noResults}
                 </TableCell>
               </TableRow>
@@ -152,14 +152,14 @@ export function DataTable<T extends { id?: string }>({
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+      <div className="flex items-center justify-between text-sm text-muted-foreground">
         <p>
           {VI.table.total}: {total}
         </p>
         <div className="flex items-center gap-2">
           {onLimitChange && (
             <Select value={String(limit)} onValueChange={(v) => onLimitChange(Number(v))}>
-              <SelectTrigger className="w-20 font-mono text-[11px]">
+              <SelectTrigger className="w-20 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

@@ -198,6 +198,7 @@ export default function CallLogListPage() {
         // SIP code is source of truth when it exists (different CDR legs can have conflicting hangupCause)
         const code = row.sipCode ? parseInt(row.sipCode, 10) : 0;
         if (code === 200) return 'Thành công';
+        if (code === 430) return 'Voicemail';
         if (code === 486) return 'Máy bận';
         if (code === 487) return 'Hủy';
         if (code === 480) return 'Không trả lời';
@@ -217,6 +218,7 @@ export default function CallLogListPage() {
         // Derive from SIP code (authoritative) with hangupCause fallback
         const code = row.sipCode ? parseInt(row.sipCode, 10) : 0;
         if (code === 200) return 'Answer';
+        if (code === 430) return 'Voicemail';
         if (code === 486) return 'Busy';
         if (code === 487) return 'Request Terminated';
         if (code === 480) return 'No Answer';
@@ -312,18 +314,21 @@ export default function CallLogListPage() {
         </SelectContent>
       </Select>
       <Select value={agentFilter || undefined} onValueChange={(v) => setAgentFilter(v === '_all' ? '' : v || '')}>
-        <SelectTrigger className="w-48">
+        <SelectTrigger className="w-36">
           {agentFilter
-            ? <span>{agents.find((a) => a.id === agentFilter)?.fullName ?? '—'}</span>
+            ? <span>{agents.find((a) => a.id === agentFilter)?.sipExtension ?? '—'}</span>
             : <span className="text-muted-foreground">Tất cả nhân viên</span>}
         </SelectTrigger>
         <SelectContent className="max-h-80">
           <SelectItem value="_all">Tất cả nhân viên</SelectItem>
-          {agents.map((a) => (
-            <SelectItem key={a.id} value={a.id}>
-              {a.fullName}{a.sipExtension ? ` · ext.${a.sipExtension}` : ''}
-            </SelectItem>
-          ))}
+          {agents
+            .filter((a) => a.sipExtension) // drop accounts without an extension (admins, system users)
+            .sort((a, b) => (a.sipExtension ?? '').localeCompare(b.sipExtension ?? '', undefined, { numeric: true }))
+            .map((a) => (
+              <SelectItem key={a.id} value={a.id}>
+                {a.sipExtension}
+              </SelectItem>
+            ))}
         </SelectContent>
       </Select>
       <div className="space-y-1">

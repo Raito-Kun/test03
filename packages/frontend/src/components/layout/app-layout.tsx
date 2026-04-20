@@ -8,6 +8,7 @@ import { OpsStatusBar } from './ops-status-bar';
 import { InboundCallPopup } from '@/components/inbound-call-popup';
 import { CallScriptPanel } from '@/components/call-script-panel';
 import { AiAssistantPanel } from '@/components/ai/ai-assistant-panel';
+import { useAuthStore } from '@/stores/auth-store';
 import { useCallStore } from '@/stores/call-store';
 import { useCustomerTabStore } from '@/stores/customer-tab-store';
 
@@ -28,6 +29,8 @@ export function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const activeCall = useCallStore((s) => s.activeCall);
+  const userRole = useAuthStore((s) => s.user?.role);
+  const isSuperAdmin = userRole === 'super_admin';
   const location = useLocation();
   const { tabs, openTab, setActiveTab } = useCustomerTabStore();
 
@@ -61,7 +64,7 @@ export function AppLayout() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header onToggleAI={() => setAiPanelOpen(!aiPanelOpen)} />
         {/* CustomerTabBar is now integrated into Header */}
-        <main className={`flex-1 overflow-auto p-6 pb-10 ${activeCall ? 'pb-24' : ''}`}>
+        <main className={`flex-1 overflow-auto p-6 ${activeCall ? 'pb-24' : isSuperAdmin ? 'pb-10' : 'pb-6'}`}>
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
@@ -85,7 +88,8 @@ export function AppLayout() {
 
       <InboundCallPopup />
       <CallScriptPanel />
-      <OpsStatusBar />
+      {/* Bottom ops status bar is a developer/operator tool — only super_admin sees it */}
+      {isSuperAdmin && <OpsStatusBar />}
     </div>
   );
 }
