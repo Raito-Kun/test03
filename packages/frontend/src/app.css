@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/jetbrains-mono";
 
 /* Hide scrollbar for tab overflow areas */
 @utility scrollbar-hide {
@@ -9,11 +10,19 @@
   &::-webkit-scrollbar { display: none; }
 }
 
+/* Ops Console: 2px dotted card frames */
+@utility border-dotted-2 {
+  border-width: 2px;
+  border-style: dotted;
+  border-color: var(--color-dotted);
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: 'Geist Variable', sans-serif;
+    --font-mono: var(--font-mono);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -56,49 +65,70 @@
     --color-pls-green: var(--pls-green);
     --color-pls-yellow: var(--pls-yellow);
     --color-pls-red: var(--pls-red);
+    --color-dotted: var(--color-dotted);
+    --color-status-ok: var(--color-status-ok);
+    --color-status-warn: var(--color-status-warn);
+    --color-status-err: var(--color-status-err);
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: #0080ff;
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: #e63946;
-    --border: oklch(0.922 0 0);
-    --pls-blue: #0080ff;
-    --pls-green: #2ecc40;
-    --pls-yellow: #f4c430;
-    --pls-red: #e63946;
-    --pls-sidebar-bg: #0d1b2a;
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    /* Ops Console palette — cream body, indigo sidebar, violet accents */
+    --background: #faf9f5;
+    --foreground: #1e1838;
+    --card: #ffffff;
+    --card-foreground: #1e1838;
+    --popover: #ffffff;
+    --popover-foreground: #1e1838;
+    --primary: #a78bfa;
+    --primary-foreground: #ffffff;
+    --secondary: #ede9fe;
+    --secondary-foreground: #1e1838;
+    --muted: #f5f4ee;
+    --muted-foreground: #6b6480;
+    --accent: #ede9fe;
+    --accent-foreground: #1e1838;
+    --destructive: #ef4444;
+    --border: #d6d3c7;
+    --input: #d6d3c7;
+    --ring: #a78bfa;
+
+    /* Legacy pls-* aliases — keep existing components from breaking */
+    --pls-blue: #a78bfa;
+    --pls-green: #10b981;
+    --pls-yellow: #f59e0b;
+    --pls-red: #ef4444;
+    --pls-sidebar-bg: #1e1838;
+
+    /* Charts remapped to violet/status palette */
+    --chart-1: #a78bfa;
+    --chart-2: #10b981;
+    --chart-3: #f59e0b;
+    --chart-4: #ef4444;
+    --chart-5: #c4b5fd;
+    --radius: 0.5rem;
+
+    /* Sidebar — dark indigo with violet accent */
+    --sidebar: #1e1838;
+    --sidebar-foreground: rgba(255,255,255,0.82);
+    --sidebar-primary: #c4b5fd;
+    --sidebar-primary-foreground: #1e1838;
+    --sidebar-accent: rgba(196,181,253,0.15);
+    --sidebar-accent-foreground: #ffffff;
+    --sidebar-border: rgba(255,255,255,0.08);
+    --sidebar-ring: #c4b5fd;
+
+    /* Ops Console additions */
+    --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --color-dotted: #d6d3c7;
+    --color-status-ok: #10b981;
+    --color-status-warn: #f59e0b;
+    --color-status-err: #ef4444;
+    --color-indigo-deep: #1e1838;
+    --color-violet-soft: #c4b5fd;
 }
 
 .dark {
+    /* Preserved for regression safety — dark toggle UI removed in phase-02 */
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);
     --card: oklch(0.205 0 0);
@@ -142,4 +172,18 @@
   html {
     @apply font-sans;
     }
+}
+
+/* PLS Theme — Table styles (retained, re-toned for cream background) */
+table thead th {
+  background-color: #f5f4ee;
+  border-bottom-color: var(--border);
+}
+
+table tbody tr:hover {
+  background-color: #f0edf9;
+}
+
+table td, table th {
+  border-color: var(--border);
 }
