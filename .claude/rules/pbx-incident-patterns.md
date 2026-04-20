@@ -23,6 +23,7 @@ Recurring FusionPBX/CDR/recording gotchas. When a symptom here matches, jump str
 
 ## Known incident log (latest first)
 
+- **2026-04-20 (part 2)** — backfill rsync (run as `root`) changed `/var/log/freeswitch/xml_cdr/` owner to `root:root`. FreeSWITCH runs as `www-data` → mod_xml_cdr silently failed every new disk write (`Permission denied`), UI started freezing again 2h after the first fix. Fix: `chown -R www-data:www-data /var/log/freeswitch/xml_cdr/`. Always run this after any rsync into FS directories.
 - **2026-04-20** — `xml_cdr.conf.xml` `log-http-and-disk` commented on `10.10.101.206`. All tenants' FusionPBX CDR UI stuck at 2026-04-17. Fix: uncomment + `reload mod_xml_cdr`. Backfilled ~4800 calls from CRM `webhook_logs` to `/var/log/freeswitch/xml_cdr/`; cron ingested.
 - **2026-04-17** — `blueva` domain on `10.10.101.206` had OUT-ALL without recording actions. All outbound C2C recording silently missing for weeks.
 - **2026-03-26** — `crm` domain OUT-ALL had no recording; `user_record` dialplan doesn't fire on loopback-B legs for external destinations.

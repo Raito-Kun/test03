@@ -145,3 +145,5 @@ Then rsync to PBX: `rsync -az /tmp/cdr-backfill/ root@<pbx>:/var/log/freeswitch/
 - mod_xml_cdr disk files are throw-away — once `xml_cdr_import.php` inserts them they get deleted. Rsync is idempotent until ingest.
 - Backup config before edit: `cp xml_cdr.conf.xml xml_cdr.conf.xml.bak-$(date +%Y%m%d)`.
 - Recordings are written by `record_session` (dialplan), unaffected by this toggle. CRM `call_logs` is populated by the webhook POST, also unaffected.
+
+**Backfill permission trap (2026-04-20 part 2):** rsync-ing XML files to `/var/log/freeswitch/xml_cdr/` as root changes the directory's owner/permissions, which silently breaks subsequent mod_xml_cdr disk writes — FreeSWITCH runs as `www-data` on Debian-based FusionPBX installs and logs `mod_xml_cdr.c:261 Error writing [...][Permission denied]` while the webhook POST still succeeds. **Always** run after backfill rsync: `chown -R www-data:www-data /var/log/freeswitch/xml_cdr/`. Verify with `ls -ld /var/log/freeswitch/xml_cdr/` — owner must be `www-data`, not `root`. Grep the FS log for the error: `grep 'Permission denied' /var/log/freeswitch/freeswitch.log | tail -5`.
