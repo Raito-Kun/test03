@@ -52,16 +52,16 @@ export function CallHistoryTab({ phone }: Props) {
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto rounded-md border border-dashed">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b text-xs text-muted-foreground">
-            <th className="text-left py-2 pr-3 font-medium">Thời gian</th>
-            <th className="text-left py-2 pr-3 font-medium">Số</th>
-            <th className="text-left py-2 pr-3 font-medium">Hướng</th>
-            <th className="text-left py-2 pr-3 font-medium">Thời lượng</th>
-            <th className="text-left py-2 pr-3 font-medium">Agent</th>
-            <th className="text-left py-2 font-medium">Trạng thái</th>
+          <tr className="border-b border-dashed bg-muted/30">
+            <th className="text-left py-2 pr-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Thời gian</th>
+            <th className="text-left py-2 pr-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Số</th>
+            <th className="text-left py-2 pr-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Hướng</th>
+            <th className="text-left py-2 pr-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Thời lượng</th>
+            <th className="text-left py-2 pr-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Agent</th>
+            <th className="text-left py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Trạng thái</th>
           </tr>
         </thead>
         <tbody>

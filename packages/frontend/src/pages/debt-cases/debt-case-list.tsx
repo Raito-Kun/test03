@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { PageWrapper } from '@/components/page-wrapper';
+import { SectionHeader } from '@/components/ops/section-header';
+import { DottedCard } from '@/components/ops/dotted-card';
 import { DataTable, type Column } from '@/components/data-table/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
@@ -37,19 +38,19 @@ interface DebtCase {
 }
 
 const TIER_COLORS: Record<DebtTier, string> = {
-  current: 'bg-green-100 text-green-800',
-  dpd_1_30: 'bg-yellow-100 text-yellow-800',
-  dpd_31_60: 'bg-orange-100 text-orange-800',
-  dpd_61_90: 'bg-red-100 text-red-800',
-  dpd_90_plus: 'bg-red-200 text-red-900',
+  current: 'bg-[var(--color-status-ok)]/10 text-[var(--color-status-ok)]',
+  dpd_1_30: 'bg-[var(--color-status-warn)]/10 text-[var(--color-status-warn)]',
+  dpd_31_60: 'bg-[var(--color-status-warn)]/20 text-[var(--color-status-warn)]',
+  dpd_61_90: 'bg-[var(--color-status-err)]/10 text-[var(--color-status-err)]',
+  dpd_90_plus: 'bg-[var(--color-status-err)]/20 text-[var(--color-status-err)]',
 };
 
 const STATUS_COLORS: Record<DebtStatus, string> = {
-  active: 'bg-blue-100 text-blue-700',
-  in_progress: 'bg-yellow-100 text-yellow-700',
-  promise_to_pay: 'bg-purple-100 text-purple-700',
-  paid: 'bg-green-100 text-green-700',
-  written_off: 'bg-gray-100 text-gray-700',
+  active: 'bg-[var(--color-status-ok)]/10 text-[var(--color-status-ok)]',
+  in_progress: 'bg-[var(--color-status-warn)]/10 text-[var(--color-status-warn)]',
+  promise_to_pay: 'bg-violet-100 text-violet-700',
+  paid: 'bg-[var(--color-status-ok)]/20 text-[var(--color-status-ok)]',
+  written_off: 'bg-muted text-muted-foreground',
 };
 
 export default function DebtCaseListPage() {
@@ -216,7 +217,18 @@ export default function DebtCaseListPage() {
   ) : null;
 
   return (
-    <PageWrapper title={VI.debt.title} actions={<>{allocateButton}{refreshButton}<ExportButton entity="debt-cases" filters={{ search: appliedSearch || '', tier: tierFilter, status: statusFilter }} /></>}>
+    <div className="space-y-6">
+      <SectionHeader
+        label={VI.debt.title}
+        hint={`${data?.total ?? 0} bản ghi`}
+        actions={
+          <div className="flex items-center gap-2">
+            {allocateButton}{refreshButton}
+            <ExportButton entity="debt-cases" filters={{ search: appliedSearch || '', tier: tierFilter, status: statusFilter }} />
+          </div>
+        }
+      />
+      <DottedCard>
       <DataTable<DebtCase>
         columns={columns}
         data={data?.items ?? []}
@@ -234,6 +246,8 @@ export default function DebtCaseListPage() {
         toolbar={toolbar}
       />
 
+      </DottedCard>
+
       <DataAllocationDialog
         open={allocateOpen}
         onClose={() => setAllocateOpen(false)}
@@ -244,6 +258,6 @@ export default function DebtCaseListPage() {
           queryClient.invalidateQueries({ queryKey: ['debt-cases'] });
         }}
       />
-    </PageWrapper>
+    </div>
   );
 }

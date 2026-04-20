@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { PageWrapper } from '@/components/page-wrapper';
+import { SectionHeader } from '@/components/ops/section-header';
+import { DottedCard } from '@/components/ops/dotted-card';
 import { DataTable, type Column } from '@/components/data-table/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
@@ -49,12 +50,12 @@ interface Lead {
 }
 
 const STATUS_COLORS: Record<LeadStatus, string> = {
-  new: 'bg-blue-100 text-blue-800',
-  contacted: 'bg-yellow-100 text-yellow-800',
-  qualified: 'bg-green-100 text-green-800',
-  proposal: 'bg-purple-100 text-purple-800',
-  won: 'bg-emerald-100 text-emerald-800',
-  lost: 'bg-red-100 text-red-800',
+  new: 'bg-[var(--color-status-ok)]/10 text-[var(--color-status-ok)]',
+  contacted: 'bg-[var(--color-status-warn)]/10 text-[var(--color-status-warn)]',
+  qualified: 'bg-[var(--color-status-ok)]/20 text-[var(--color-status-ok)]',
+  proposal: 'bg-violet-100 text-violet-800',
+  won: 'bg-[var(--color-status-ok)]/30 text-[var(--color-status-ok)]',
+  lost: 'bg-[var(--color-status-err)]/10 text-[var(--color-status-err)]',
 };
 
 export default function LeadList() {
@@ -262,12 +263,21 @@ export default function LeadList() {
   ) : null;
 
   return (
-    <PageWrapper
-      title={VI.lead.title}
-      createLabel={VI.actions.create}
-      onCreate={() => setShowForm(true)}
-      actions={<>{allocateButton}{refreshButton}{importAction}<ExportButton entity="leads" filters={{ search: appliedSearch, status: statusFilter }} /></>}
-    >
+    <div className="space-y-6">
+      <SectionHeader
+        label={VI.lead.title}
+        hint={`${data?.total ?? 0} bản ghi`}
+        actions={
+          <div className="flex items-center gap-2">
+            {allocateButton}{refreshButton}{importAction}
+            <ExportButton entity="leads" filters={{ search: appliedSearch, status: statusFilter }} />
+            <Button onClick={() => setShowForm(true)}>
+              <span className="mr-1">+</span>{VI.actions.create}
+            </Button>
+          </div>
+        }
+      />
+      <DottedCard>
       <DataTable<Lead>
         columns={columns}
         data={data?.items ?? []}
@@ -284,6 +294,8 @@ export default function LeadList() {
         onRowClick={(row) => navigate(`/leads/${row.id}`)}
         toolbar={toolbar}
       />
+      </DottedCard>
+
       {showForm && (
         <LeadForm
           open={showForm}
@@ -302,6 +314,6 @@ export default function LeadList() {
           queryClient.invalidateQueries({ queryKey: ['leads'] });
         }}
       />
-    </PageWrapper>
+    </div>
   );
 }

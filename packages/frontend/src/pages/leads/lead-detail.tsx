@@ -7,7 +7,8 @@ import { ArrowLeft, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ClickToCallButton } from '@/components/click-to-call-button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DottedCard } from '@/components/ops/dotted-card';
+import { SectionHeader } from '@/components/ops/section-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { VI } from '@/lib/vi-text';
 import { fmtPhone } from '@/lib/format';
@@ -36,12 +37,12 @@ interface Lead {
 }
 
 const STATUS_COLORS: Record<LeadStatus, string> = {
-  new: 'bg-blue-100 text-blue-800',
-  contacted: 'bg-yellow-100 text-yellow-800',
-  qualified: 'bg-green-100 text-green-800',
-  proposal: 'bg-purple-100 text-purple-800',
-  won: 'bg-emerald-100 text-emerald-800',
-  lost: 'bg-red-100 text-red-800',
+  new: 'bg-[var(--color-status-ok)]/10 text-[var(--color-status-ok)]',
+  contacted: 'bg-[var(--color-status-warn)]/10 text-[var(--color-status-warn)]',
+  qualified: 'bg-[var(--color-status-ok)]/20 text-[var(--color-status-ok)]',
+  proposal: 'bg-violet-100 text-violet-800',
+  won: 'bg-[var(--color-status-ok)]/30 text-[var(--color-status-ok)]',
+  lost: 'bg-[var(--color-status-err)]/10 text-[var(--color-status-err)]',
 };
 
 export default function LeadDetailPage() {
@@ -70,54 +71,54 @@ export default function LeadDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/leads')}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold">{lead.contact?.fullName || 'Lead'}</h1>
-          <Badge className={STATUS_COLORS[lead.status]}>{VI.lead.statuses[lead.status]}</Badge>
-        </div>
-        {lead.contact?.phone && (
-          <ClickToCallButton phone={lead.contact.phone} contactName={lead.contact.fullName} />
-        )}
-        <Button variant="outline" onClick={() => setEditOpen(true)}>
-          <Edit2 className="mr-2 h-4 w-4" /> {VI.actions.edit}
-        </Button>
-      </div>
+      <SectionHeader
+        label={lead.contact?.fullName || 'Lead'}
+        hint={<Badge className={STATUS_COLORS[lead.status]}>{VI.lead.statuses[lead.status]}</Badge>}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/leads')}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            {lead.contact?.phone && (
+              <ClickToCallButton phone={lead.contact.phone} contactName={lead.contact.fullName} />
+            )}
+            <Button variant="outline" onClick={() => setEditOpen(true)}>
+              <Edit2 className="mr-2 h-4 w-4" /> {VI.actions.edit}
+            </Button>
+          </div>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle>Thông tin Lead</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4">
+        <DottedCard header="Thông tin Lead">
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-xs text-muted-foreground">{VI.lead.score}</p>
+              <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.lead.score}</p>
               {(() => {
                 const score = lead.leadScore ?? lead.score;
                 if (score == null) return <p className="font-medium">—</p>;
-                const color = score >= 70 ? 'bg-green-100 text-green-800' : score >= 40 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800';
+                const color = score >= 70 ? 'bg-[var(--color-status-ok)]/20 text-[var(--color-status-ok)]' : score >= 40 ? 'bg-[var(--color-status-warn)]/20 text-[var(--color-status-warn)]' : 'bg-[var(--color-status-err)]/10 text-[var(--color-status-err)]';
                 return <Badge className={color}>{score}/100</Badge>;
               })()}
             </div>
-            <div><p className="text-xs text-muted-foreground">{VI.lead.campaign}</p><p className="font-medium">{lead.campaign?.name ?? '—'}</p></div>
-            <div><p className="text-xs text-muted-foreground">Nguồn</p><p className="font-medium">{lead.source ? (LEAD_SOURCE_LABELS[lead.source] ?? lead.source) : '—'}</p></div>
-            <div><p className="text-xs text-muted-foreground">{VI.lead.followUp}</p><p className="font-medium">{lead.followUpDate ? format(new Date(lead.followUpDate), 'dd/MM/yyyy') : '—'}</p></div>
-            <div><p className="text-xs text-muted-foreground">{VI.contact.assignedTo}</p><p className="font-medium">{lead.assignedTo?.fullName ?? '—'}</p></div>
-            <div><p className="text-xs text-muted-foreground">{VI.contact.createdAt}</p><p className="font-medium">{format(new Date(lead.createdAt), 'dd/MM/yyyy HH:mm')}</p></div>
+            <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.lead.campaign}</p><p className="font-medium">{lead.campaign?.name ?? '—'}</p></div>
+            <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Nguồn</p><p className="font-medium">{lead.source ? (LEAD_SOURCE_LABELS[lead.source] ?? lead.source) : '—'}</p></div>
+            <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.lead.followUp}</p><p className="font-medium">{lead.followUpDate ? format(new Date(lead.followUpDate), 'dd/MM/yyyy') : '—'}</p></div>
+            <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.contact.assignedTo}</p><p className="font-medium">{lead.assignedTo?.fullName ?? '—'}</p></div>
+            <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.contact.createdAt}</p><p className="font-medium">{format(new Date(lead.createdAt), 'dd/MM/yyyy HH:mm')}</p></div>
             {lead.notes && (
-              <div className="col-span-2"><p className="text-xs text-muted-foreground">{VI.lead.notes}</p><p>{lead.notes}</p></div>
+              <div className="col-span-2"><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.lead.notes}</p><p>{lead.notes}</p></div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </DottedCard>
 
         {lead.contact && (
-          <Card className="cursor-pointer hover:bg-accent/50" onClick={() => navigate(`/contacts/${lead.contact!.id}`)}>
-            <CardHeader><CardTitle>{VI.contact.tabs.info}</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <div><p className="text-xs text-muted-foreground">{VI.contact.fullName}</p><p className="font-medium">{lead.contact.fullName}</p></div>
-              <div><p className="text-xs text-muted-foreground">{VI.contact.phone}</p><p className="font-medium">{fmtPhone(lead.contact.phone)}</p></div>
-            </CardContent>
-          </Card>
+          <DottedCard header={VI.contact.tabs.info} className="cursor-pointer hover:bg-accent/50" onClick={() => navigate(`/contacts/${lead.contact!.id}`)}>
+            <div className="grid grid-cols-2 gap-4">
+              <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.contact.fullName}</p><p className="font-medium">{lead.contact.fullName}</p></div>
+              <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.contact.phone}</p><p className="font-medium">{fmtPhone(lead.contact.phone)}</p></div>
+            </div>
+          </DottedCard>
         )}
       </div>
 

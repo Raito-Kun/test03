@@ -1,10 +1,19 @@
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Phone, PhoneCall, Headphones, RefreshCw } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { RefreshCw, PhoneCall, Headphones } from 'lucide-react';
 import { toast } from 'sonner';
-import { PageWrapper } from '@/components/page-wrapper';
+import { SectionHeader } from '@/components/ops/section-header';
+import { DottedCard } from '@/components/ops/dotted-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import api from '@/services/api-client';
+import { cn } from '@/lib/utils';
+import { StatsBar } from '@/components/monitoring/stats-bar';
+import { PillFilters, StatusFilter } from '@/components/monitoring/pill-filters';
+import { TeamSection } from '@/components/monitoring/team-section';
+import { AgentCardData } from '@/components/monitoring/agent-card';
+import { formatSec } from '@/components/monitoring/status-meta';
 
 interface AgentMonitor {
   id: string;
@@ -12,7 +21,9 @@ interface AgentMonitor {
   extension: string;
   registered: boolean;
   status: string;
+  teamId: string | null;
   teamName: string | null;
+  teamLeader: string | null;
 }
 
 interface ActiveCall {
@@ -25,28 +36,17 @@ interface ActiveCall {
   direction: string;
 }
 
-function formatSec(s: number): string {
-  const m = Math.floor(s / 60);
-  const sec = s % 60;
-  return `${m}:${sec.toString().padStart(2, '0')}`;
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  online: 'bg-green-500',
-  on_call: 'bg-red-500',
-  break: 'bg-yellow-500',
-  offline: 'bg-gray-400',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  online: 'Sẵn sàng',
-  on_call: 'Đang gọi',
-  break: 'Tạm nghỉ',
-  offline: 'Ngoại tuyến',
+type EnrichedAgent = AgentCardData & {
+  teamId: string | null;
+  teamName: string | null;
+  teamLeader: string | null;
 };
 
 export default function LiveDashboardPage() {
-  const { data: agents, refetch: refetchAgents } = useQuery({
+  const [filter, setFilter] = useState<StatusFilter>('all');
+  const [lastUpdated, setLastUpdated] = useState(Date.now());
+
+  const { data: agents, refetch: refetchAgents, isFetching } = useQuery({
     queryKey: ['monitoring-agents'],
     queryFn: async () => {
       const { data: resp } = await api.get('/monitoring/agents');
@@ -64,6 +64,10 @@ export default function LiveDashboardPage() {
     refetchInterval: 3000,
   });
 
+  useEffect(() => {
+    if (!isFetching) setLastUpdated(Date.now());
+  }, [agents, calls, isFetching]);
+
   const whisperMutation = useMutation({
     mutationFn: async (callUuid: string) => {
       await api.post('/monitoring/whisper', { callUuid });
@@ -72,78 +76,140 @@ export default function LiveDashboardPage() {
     onError: (err: Error) => toast.error(`Lỗi: ${err.message}`),
   });
 
-  const online = agents?.filter((a) => a.registered).length || 0;
-  const total = agents?.length || 0;
-  const activeCalls = calls?.length || 0;
+  // Merge agent status with active-call data — agent is on_call iff an active call matches their ext.
+  const { enriched, counts } = useMemo(() => {
+    const callByExt = new Map((calls || []).map((c) => [c.agentExtension, c]));
+    const out: EnrichedAgent[] = [];
+    const c: Record<StatusFilter, number> = { all: 0, online: 0, on_call: 0, break: 0, offline: 0 };
+    for (const a of agents || []) {
+      const active = callByExt.get(a.extension);
+      const status = active ? 'on_call' : a.status;
+      out.push({
+        id: a.id,
+        fullName: a.fullName,
+        extension: a.extension,
+        status,
+        callDurationSec: active?.duration,
+        teamId: a.teamId,
+        teamName: a.teamName,
+        teamLeader: a.teamLeader,
+      });
+      c.all++;
+      if (status === 'online') c.online++;
+      else if (status === 'on_call') c.on_call++;
+      else if (status === 'break') c.break++;
+      else c.offline++;
+    }
+    return { enriched: out, counts: c };
+  }, [agents, calls]);
 
-  const refreshButton = (
-    <Button variant="outline" size="icon" onClick={() => { refetchAgents(); refetchCalls(); }}>
-      <RefreshCw className="h-4 w-4" />
-    </Button>
+  const filtered = filter === 'all' ? enriched : enriched.filter((a) => a.status === filter);
+
+  const { teamGroups, unassigned } = useMemo(() => {
+    const map = new Map<string, { name: string; leader: string | null; agents: EnrichedAgent[] }>();
+    const un: EnrichedAgent[] = [];
+    for (const a of filtered) {
+      if (!a.teamId) { un.push(a); continue; }
+      const key = a.teamId;
+      if (!map.has(key)) map.set(key, { name: a.teamName || 'Team', leader: a.teamLeader, agents: [] });
+      map.get(key)!.agents.push(a);
+    }
+    const teamGroups = [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+    return { teamGroups, unassigned: un };
+  }, [filtered]);
+
+  const handleWhisper = (extension: string) => {
+    const call = (calls || []).find((c) => c.agentExtension === extension);
+    if (call) whisperMutation.mutate(call.uuid);
+  };
+
+  const updatedStr = new Date(lastUpdated).toLocaleTimeString('vi-VN', { hour12: false });
+
+  const actions = (
+    <div className="flex items-center gap-3">
+      <span className="text-xs text-slate-500">
+        Cập nhật lần cuối: <span className="font-mono">{updatedStr}</span>
+      </span>
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={() => { refetchAgents(); refetchCalls(); }}
+        title="Làm mới"
+      >
+        <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
+      </Button>
+    </div>
   );
 
   return (
-    <PageWrapper title="Giám sát trực tiếp" actions={refreshButton}>
-      {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="border rounded-lg p-4">
-          <p className="text-sm text-muted-foreground">Nhân viên online</p>
-          <p className="text-2xl font-bold">{online} <span className="text-sm font-normal text-muted-foreground">/ {total}</span></p>
-        </div>
-        <div className="border rounded-lg p-4">
-          <p className="text-sm text-muted-foreground">Cuộc gọi đang diễn ra</p>
-          <p className="text-2xl font-bold">{activeCalls}</p>
-        </div>
-        <div className="border rounded-lg p-4">
-          <p className="text-sm text-muted-foreground">Tỷ lệ online</p>
-          <p className="text-2xl font-bold">{total > 0 ? Math.round((online / total) * 100) : 0}%</p>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <SectionHeader label="Giám sát trực tiếp" actions={actions} />
 
-      {/* Agent grid */}
-      <h3 className="font-medium mb-3">Trạng thái nhân viên</h3>
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
-        {agents?.map((a) => (
-          <div key={a.id} className="border rounded-lg p-3 text-center">
-            <div className={`w-3 h-3 rounded-full mx-auto mb-2 ${STATUS_COLORS[a.status] || STATUS_COLORS.offline}`} />
-            <p className="text-sm font-medium truncate">{a.fullName}</p>
-            <p className="text-xs text-muted-foreground">{a.extension}</p>
-            <Badge variant="secondary" className="text-xs mt-1">
-              {STATUS_LABELS[a.status] || a.status}
-            </Badge>
-            {a.teamName && <p className="text-xs text-muted-foreground mt-1">{a.teamName}</p>}
-          </div>
-        ))}
-      </div>
+      <motion.div
+        key={lastUpdated}
+        initial={{ scaleX: 0, opacity: 0.8 }}
+        animate={{ scaleX: 1, opacity: 0 }}
+        transition={{ duration: 1.2 }}
+        className="h-0.5 w-full origin-left"
+        style={{ background: 'linear-gradient(to right, var(--color-status-ok), var(--color-status-ok))' }}
+      />
 
-      {/* Active calls table */}
-      <h3 className="font-medium mb-3">Cuộc gọi đang diễn ra</h3>
-      {activeCalls === 0 ? (
-        <p className="text-muted-foreground text-sm">Không có cuộc gọi nào</p>
-      ) : (
-        <div className="border rounded-lg overflow-hidden">
+      <StatsBar
+        ready={counts.online}
+        onCall={counts.on_call}
+        onBreak={counts.break}
+        offline={counts.offline}
+        total={counts.all}
+      />
+
+      <PillFilters value={filter} onChange={setFilter} counts={counts} />
+
+      {teamGroups.map((t, i) => (
+        <TeamSection
+          key={`${t.name}-${i}`}
+          name={t.name}
+          leader={t.leader}
+          agents={t.agents}
+          onWhisper={handleWhisper}
+          canWhisper
+        />
+      ))}
+
+      {unassigned.length > 0 && (
+        <TeamSection
+          name="Chưa phân team"
+          leader={null}
+          agents={unassigned}
+          onWhisper={handleWhisper}
+          canWhisper
+          muted
+          defaultOpen={false}
+        />
+      )}
+
+      <DottedCard header="Cuộc gọi đang diễn ra">
+        {(calls?.length || 0) === 0 ? (
+          <p className="text-sm italic text-muted-foreground">Không có cuộc gọi nào</p>
+        ) : (
           <table className="w-full text-sm">
-            <thead className="bg-muted/50">
+            <thead>
               <tr>
-                <th className="text-left p-3">Nhân viên</th>
-                <th className="text-left p-3">Số gọi</th>
-                <th className="text-left p-3">Số nhận</th>
-                <th className="text-left p-3">Hướng</th>
-                <th className="text-left p-3">Thời lượng</th>
-                <th className="text-left p-3">Thao tác</th>
+                {['Nhân viên', 'Số gọi', 'Số nhận', 'Hướng', 'Thời lượng', 'Thao tác'].map((h) => (
+                  <th key={h} className="p-3 text-left font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {calls?.map((c) => (
-                <tr key={c.uuid} className="border-t">
+                <tr key={c.uuid} className="border-t border-dashed">
                   <td className="p-3">
                     <div className="flex items-center gap-2">
-                      <PhoneCall className="h-4 w-4 text-red-500 animate-pulse" />
+                      <PhoneCall className="h-4 w-4 animate-pulse" style={{ color: 'var(--color-status-err)' }} />
                       {c.agentName || c.agentExtension}
                     </div>
                   </td>
-                  <td className="p-3">{c.callerNumber}</td>
-                  <td className="p-3">{c.destNumber}</td>
+                  <td className="p-3 font-mono text-xs">{c.callerNumber}</td>
+                  <td className="p-3 font-mono text-xs">{c.destNumber}</td>
                   <td className="p-3">
                     <Badge variant={c.direction === 'inbound' ? 'default' : 'secondary'}>
                       {c.direction === 'inbound' ? 'Gọi vào' : 'Gọi ra'}
@@ -158,7 +224,7 @@ export default function LiveDashboardPage() {
                       disabled={whisperMutation.isPending}
                       title="Nghe thầm"
                     >
-                      <Headphones className="h-4 w-4 mr-1" />
+                      <Headphones className="mr-1 h-4 w-4" />
                       Whisper
                     </Button>
                   </td>
@@ -166,8 +232,8 @@ export default function LiveDashboardPage() {
               ))}
             </tbody>
           </table>
-        </div>
-      )}
-    </PageWrapper>
+        )}
+      </DottedCard>
+    </div>
   );
 }

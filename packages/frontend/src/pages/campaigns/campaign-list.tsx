@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import type React from 'react';
+import { SectionHeader } from '@/components/ops/section-header';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { RefreshCw, Users } from 'lucide-react';
-import { PageWrapper } from '@/components/page-wrapper';
 import { DataTable, type Column } from '@/components/data-table/data-table';
+import CampaignCreateDialog from './campaign-create-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -33,10 +35,17 @@ interface Campaign {
 }
 
 const STATUS_COLORS: Record<CampaignStatus, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  active: 'bg-green-100 text-green-700',
-  paused: 'bg-yellow-100 text-yellow-700',
-  completed: 'bg-blue-100 text-blue-700',
+  draft: 'bg-muted text-muted-foreground',
+  active: '',
+  paused: '',
+  completed: '',
+};
+
+const STATUS_STYLE: Record<CampaignStatus, React.CSSProperties> = {
+  draft: {},
+  active: { color: 'var(--color-status-ok)' },
+  paused: { color: 'var(--color-status-warn)' },
+  completed: { color: 'var(--color-status-err)' },
 };
 
 export default function CampaignListPage() {
@@ -111,7 +120,11 @@ export default function CampaignListPage() {
     },
     {
       key: 'status', label: VI.campaign.status,
-      render: (row) => <Badge className={STATUS_COLORS[row.status]}>{VI.campaign.statuses[row.status]}</Badge>,
+      render: (row) => (
+        <span className={`font-mono text-[11px] uppercase tracking-wider ${STATUS_COLORS[row.status]}`} style={STATUS_STYLE[row.status]}>
+          {VI.campaign.statuses[row.status]}
+        </span>
+      ),
     },
     {
       key: 'startDate', label: VI.campaign.startDate,
@@ -129,7 +142,7 @@ export default function CampaignListPage() {
         const contacted = row.contactedLeads ?? 0;
         if (total === 0) return <span className="text-muted-foreground text-xs">—</span>;
         const pct = Math.round((contacted / total) * 100);
-        const color = pct >= 80 ? 'bg-green-500' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500';
+        const color = pct >= 80 ? 'bg-[var(--color-status-ok)]' : pct >= 40 ? 'bg-[var(--color-status-warn)]' : 'bg-[var(--color-status-err)]';
         return (
           <div className="w-32">
             <div className="flex justify-between text-xs mb-1">
@@ -204,15 +217,20 @@ export default function CampaignListPage() {
   ) : null;
 
   return (
-    <PageWrapper title={VI.campaign.title} actions={
-      <>
-        {allocateButton}
-        <Button variant="outline" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ['campaigns'] })} title={VI.actions.refresh}>
-          <RefreshCw className="h-4 w-4" />
-        </Button>
-        <ExportButton entity="campaigns" filters={{ search: appliedSearch, status: statusFilter, type: typeFilter }} />
-      </>
-    }>
+    <div className="space-y-6">
+      <SectionHeader
+        label={VI.campaign.title}
+        actions={
+          <>
+            {allocateButton}
+            <Button variant="outline" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ['campaigns'] })} title={VI.actions.refresh}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <ExportButton entity="campaigns" filters={{ search: appliedSearch, status: statusFilter, type: typeFilter }} />
+            <CampaignCreateDialog />
+          </>
+        }
+      />
       <DataTable<Campaign>
         columns={columns}
         data={data?.items ?? []}
@@ -229,6 +247,6 @@ export default function CampaignListPage() {
         onRowClick={(row) => navigate(`/campaigns/${row.id}`)}
         toolbar={toolbar}
       />
-    </PageWrapper>
+    </div>
   );
 }

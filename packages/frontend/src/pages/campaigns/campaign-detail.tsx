@@ -1,32 +1,42 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { format } from 'date-fns';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { VI } from '@/lib/vi-text';
 import api from '@/services/api-client';
-import type { CampaignStatus, CampaignType } from '@shared/constants/enums';
+import { CampaignInfoForm } from './campaign-info-form';
+import { CampaignContactsTab } from './campaign-contacts-tab';
+import { CampaignAgentsTab } from './campaign-agents-tab';
+import { DottedCard } from '@/components/ops/dotted-card';
+import type React from 'react';
+import type { CampaignStatus } from '@shared/constants/enums';
 
 interface CampaignDetail {
   id: string;
   name: string;
-  type: CampaignType;
+  type: string;
   status: CampaignStatus;
-  script: string | null;
-  startDate: string | null;
-  endDate: string | null;
+  category?: string | null;
+  queue?: string | null;
+  dialMode?: string | null;
+  callbackUrl?: string | null;
+  workSchedule?: string | null;
+  workStartTime?: string | null;
+  workEndTime?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  script?: string | null;
   createdAt: string;
-  updatedAt: string;
+  agents?: { assignedAt: string; user: { id: string; fullName: string; email: string; role: string; sipExtension?: string | null } }[];
 }
 
-const STATUS_COLORS: Record<CampaignStatus, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  active: 'bg-green-100 text-green-700',
-  paused: 'bg-yellow-100 text-yellow-700',
-  completed: 'bg-blue-100 text-blue-700',
+const STATUS_STYLE: Record<CampaignStatus, React.CSSProperties> = {
+  draft: { color: 'var(--color-status-warn)' },
+  active: { color: 'var(--color-status-ok)' },
+  paused: { color: 'var(--color-status-warn)' },
+  completed: { color: 'var(--color-status-err)' },
 };
 
 export default function CampaignDetailPage() {
@@ -40,7 +50,7 @@ export default function CampaignDetailPage() {
   });
 
   if (isLoading) {
-    return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-64 w-full" /></div>;
+    return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-[70vh] w-full" /></div>;
   }
 
   if (!campaign) {
@@ -48,38 +58,45 @@ export default function CampaignDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate('/campaigns')}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold">{campaign.name}</h1>
-          <div className="flex gap-2 mt-1">
-            <Badge variant="outline">{VI.campaign.types[campaign.type]}</Badge>
-            <Badge className={STATUS_COLORS[campaign.status]}>{VI.campaign.statuses[campaign.status]}</Badge>
-          </div>
+        <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Danh sách chiến dịch</span>
+        <div className="flex items-center gap-3 ml-auto">
+          <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+            {VI.campaign.types[campaign.type as keyof typeof VI.campaign.types] ?? campaign.type}
+          </span>
+          <span className="font-mono text-[11px] uppercase tracking-wider" style={STATUS_STYLE[campaign.status]}>
+            {VI.campaign.statuses[campaign.status]}
+          </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle>Thông tin chiến dịch</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4">
-            <div><p className="text-xs text-muted-foreground">{VI.campaign.startDate}</p><p className="font-medium">{campaign.startDate ? format(new Date(campaign.startDate), 'dd/MM/yyyy') : '—'}</p></div>
-            <div><p className="text-xs text-muted-foreground">{VI.campaign.endDate}</p><p className="font-medium">{campaign.endDate ? format(new Date(campaign.endDate), 'dd/MM/yyyy') : '—'}</p></div>
-            <div><p className="text-xs text-muted-foreground">{VI.contact.createdAt}</p><p className="font-medium">{format(new Date(campaign.createdAt), 'dd/MM/yyyy HH:mm')}</p></div>
-          </CardContent>
-        </Card>
+      {/* Split view: left form + right tabs */}
+      <div className="flex gap-6 items-start">
+        {/* Left panel */}
+        <DottedCard header="Thông tin chiến dịch" className="w-2/5 shrink-0 overflow-y-auto max-h-[80vh]">
+          <CampaignInfoForm campaign={campaign} />
+        </DottedCard>
 
-        {campaign.script && (
-          <Card>
-            <CardHeader><CardTitle>{VI.campaign.script}</CardTitle></CardHeader>
-            <CardContent>
-              <div className="whitespace-pre-wrap rounded-md bg-muted p-4 text-sm">{campaign.script}</div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Right panel - Tabs */}
+        <div className="flex-1 min-w-0">
+          <Tabs defaultValue="contacts">
+            <TabsList>
+              <TabsTrigger value="contacts">{VI.campaign.contactList}</TabsTrigger>
+              <TabsTrigger value="agents">{VI.campaign.agentList}</TabsTrigger>
+            </TabsList>
+            <TabsContent value="contacts" className="mt-3">
+              <CampaignContactsTab campaignId={campaign.id} />
+            </TabsContent>
+            <TabsContent value="agents" className="mt-3">
+              <CampaignAgentsTab campaignId={campaign.id} agents={campaign.agents ?? []} />
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
     </div>
   );

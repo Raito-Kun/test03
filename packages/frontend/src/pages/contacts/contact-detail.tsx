@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ClickToCallButton } from '@/components/click-to-call-button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { DottedCard } from '@/components/ops/dotted-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AudioPlayer } from '@/components/audio-player';
 import { VI } from '@/lib/vi-text';
@@ -126,9 +127,9 @@ export default function ContactDetailPage() {
   return (
     <div className="flex h-full gap-0">
       {/* Left Panel */}
-      <div className="w-60 shrink-0 border-r bg-white p-4 flex flex-col items-center overflow-y-auto">
+      <div className="w-60 shrink-0 border-r border-dashed bg-background p-4 flex flex-col items-center overflow-y-auto">
         {/* Avatar */}
-        <div className="h-20 w-20 rounded-full bg-gradient-to-br from-[#0080ff] to-[#2ecc40] flex items-center justify-center text-white text-2xl font-bold mb-3 shrink-0">
+        <div className="h-20 w-20 rounded-full bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center text-white text-2xl font-bold mb-3 shrink-0">
           {initials}
         </div>
 
@@ -151,10 +152,10 @@ export default function ContactDetailPage() {
               key={item.key}
               onClick={() => setActivePanel(item.key)}
               className={cn(
-                'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors',
+                'w-full text-left px-3 py-2 rounded-lg font-mono text-[11px] uppercase tracking-wider transition-colors',
                 activePanel === item.key
-                  ? 'bg-[rgba(0,128,255,0.1)] text-[#0080ff] font-medium'
-                  : 'text-muted-foreground hover:bg-slate-50'
+                  ? 'bg-[var(--color-primary,hsl(var(--primary)))]/10 text-[hsl(var(--primary))] font-medium'
+                  : 'text-muted-foreground hover:bg-muted/50'
               )}
             >
               {item.label}
@@ -163,21 +164,21 @@ export default function ContactDetailPage() {
         </div>
 
         {/* Contact details summary */}
-        <div className="w-full mt-5 space-y-2 text-sm border-t pt-4">
+        <div className="w-full mt-5 space-y-2 text-sm border-t border-dashed pt-4">
           <div className="flex flex-col gap-0.5">
-            <span className="text-xs text-muted-foreground">{VI.contact.email}</span>
+            <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{VI.contact.email}</span>
             <span className="font-medium truncate">{contact.email || '—'}</span>
           </div>
           <div className="flex flex-col gap-0.5">
-            <span className="text-xs text-muted-foreground">{VI.contact.source}</span>
+            <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{VI.contact.source}</span>
             <span className="font-medium">{contact.source || '—'}</span>
           </div>
           <div className="flex flex-col gap-0.5">
-            <span className="text-xs text-muted-foreground">{VI.contact.assignedTo}</span>
+            <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{VI.contact.assignedTo}</span>
             <span className="font-medium">{contact.assignedTo?.fullName || '—'}</span>
           </div>
           <div className="flex flex-col gap-0.5">
-            <span className="text-xs text-muted-foreground">{VI.contact.createdAt}</span>
+            <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{VI.contact.createdAt}</span>
             <span className="font-medium">{format(new Date(contact.createdAt), 'dd/MM/yyyy')}</span>
           </div>
           {contact.tags && contact.tags.length > 0 && (
@@ -204,30 +205,30 @@ export default function ContactDetailPage() {
             />
 
             {/* Info card */}
-            <Card>
-              <CardContent className="grid grid-cols-2 gap-4 pt-6 md:grid-cols-4">
-                <div><p className="text-xs text-muted-foreground">{VI.contact.email}</p><p className="font-medium">{contact.email || '—'}</p></div>
-                <div><p className="text-xs text-muted-foreground">{VI.contact.source}</p><p className="font-medium">{contact.source || '—'}</p></div>
-                <div><p className="text-xs text-muted-foreground">{VI.contact.assignedTo}</p><p className="font-medium">{contact.assignedTo?.fullName || '—'}</p></div>
-                <div><p className="text-xs text-muted-foreground">{VI.contact.createdAt}</p><p className="font-medium">{format(new Date(contact.createdAt), 'dd/MM/yyyy HH:mm')}</p></div>
+            <DottedCard header="Thông tin liên hệ">
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.contact.email}</p><p className="font-medium">{contact.email || '—'}</p></div>
+                <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.contact.source}</p><p className="font-medium">{contact.source || '—'}</p></div>
+                <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.contact.assignedTo}</p><p className="font-medium">{contact.assignedTo?.fullName || '—'}</p></div>
+                <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.contact.createdAt}</p><p className="font-medium">{format(new Date(contact.createdAt), 'dd/MM/yyyy HH:mm')}</p></div>
                 {contact.tags && contact.tags.length > 0 && (
                   <div className="col-span-full">
-                    <p className="text-xs text-muted-foreground mb-1">{VI.contact.tags}</p>
+                    <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground mb-1">{VI.contact.tags}</p>
                     <div className="flex gap-1">{contact.tags.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}</div>
                   </div>
                 )}
                 {contact.notes && (
                   <div className="col-span-full">
-                    <p className="text-xs text-muted-foreground">{VI.lead.notes}</p>
+                    <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.lead.notes}</p>
                     <p>{contact.notes}</p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </DottedCard>
 
             {/* Timeline */}
             <div>
-              <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">{VI.contact.tabs.timeline}</h3>
+              <h3 className="font-mono text-[11px] uppercase tracking-wider mb-3 text-muted-foreground">{VI.contact.tabs.timeline}</h3>
               {(!timeline || timeline.length === 0) && <p className="text-sm text-muted-foreground">{VI.actions.noData}</p>}
               <div className="space-y-2">
                 {timeline?.map((entry) => (
@@ -245,7 +246,7 @@ export default function ContactDetailPage() {
 
         {activePanel === 'calls' && (
           <div className="space-y-2">
-            <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">{VI.contact.tabs.calls}</h3>
+            <h3 className="font-mono text-[11px] uppercase tracking-wider mb-3 text-muted-foreground">{VI.contact.tabs.calls}</h3>
             {(!calls || calls.length === 0) && <p className="text-sm text-muted-foreground">{VI.actions.noData}</p>}
             {calls?.map((c) => (
               <Card key={c.id} className="cursor-pointer hover:bg-accent/50" onClick={() => navigate(`/call-logs/${c.id}`)}>
@@ -273,7 +274,7 @@ export default function ContactDetailPage() {
 
         {activePanel === 'tickets' && (
           <div className="space-y-2">
-            <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">{VI.contact.tabs.tickets}</h3>
+            <h3 className="font-mono text-[11px] uppercase tracking-wider mb-3 text-muted-foreground">{VI.contact.tabs.tickets}</h3>
             {(!tickets || tickets.length === 0) && <p className="text-sm text-muted-foreground">{VI.actions.noData}</p>}
             {tickets?.map((t) => (
               <Card key={t.id} className="cursor-pointer hover:bg-accent/50" onClick={() => navigate(`/tickets/${t.id}`)}>

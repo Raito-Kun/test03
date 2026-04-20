@@ -5,7 +5,8 @@ import { MoreHorizontal, Trash2, Phone, Edit2, RefreshCw, Users } from 'lucide-r
 import { ExportButton } from '@/components/export-button';
 import { ContactMergeButton } from './contact-merge-dialog';
 import { toast } from 'sonner';
-import { PageWrapper } from '@/components/page-wrapper';
+import { SectionHeader } from '@/components/ops/section-header';
+import { DottedCard } from '@/components/ops/dotted-card';
 import { DataTable, Column } from '@/components/data-table/data-table';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import {
@@ -219,12 +220,22 @@ export default function ContactListPage() {
   ) : null;
 
   return (
-    <PageWrapper
-      title={VI.contact.title}
-      createLabel={VI.actions.create}
-      onCreate={() => setFormOpen(true)}
-      actions={<>{bulkDeleteButton}{allocateButton}{refreshButton}{importAction}<ContactMergeButton /><ExportButton entity="contacts" filters={{ search: pagination.search }} /></>}
-    >
+    <div className="space-y-6">
+      <SectionHeader
+        label={VI.contact.title}
+        hint={`${data?.meta.total ?? 0} bản ghi`}
+        actions={
+          <div className="flex items-center gap-2">
+            {bulkDeleteButton}{allocateButton}{refreshButton}{importAction}
+            <ContactMergeButton />
+            <ExportButton entity="contacts" filters={{ search: pagination.search }} />
+            <Button onClick={() => setFormOpen(true)}>
+              <span className="mr-1">+</span>{VI.actions.create}
+            </Button>
+          </div>
+        }
+      />
+      <DottedCard>
       <DataTable
         columns={columns}
         data={data?.data ?? []}
@@ -285,6 +296,8 @@ export default function ContactListPage() {
         )}
       />
 
+      </DottedCard>
+
       <ContactForm open={formOpen} onClose={() => setFormOpen(false)} />
 
       <ContactDetailDialog
@@ -313,10 +326,6 @@ export default function ContactListPage() {
         onClose={() => setAllocateOpen(false)}
         entityType="contact"
         selectedIds={selectedIds}
-        // Count of visible-on-this-page rows that already have an assignee.
-        // Gives the dialog enough info to warn the user and switch its
-        // confirm copy to "ghi đè". Selections from other pages aren't
-        // counted here — the warning banner notes that caveat.
         alreadyAssignedCount={
           currentPageRows.filter((r) => selectedIds.includes(r.id) && r.assignedTo).length
         }
@@ -325,6 +334,6 @@ export default function ContactListPage() {
           queryClient.invalidateQueries({ queryKey: ['contacts'] });
         }}
       />
-    </PageWrapper>
+    </div>
   );
 }

@@ -1,9 +1,9 @@
-/* call-log-list v10 */
+/* call-log-list v11 — ops restyle */
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Mic, RefreshCw, Download, CheckSquare } from 'lucide-react';
-import { PageWrapper } from '@/components/page-wrapper';
+import { SectionHeader } from '@/components/ops/section-header';
 import { DataTable, type Column } from '@/components/data-table/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -80,13 +80,14 @@ export default function CallLogListPage() {
   const [agentFilter, setAgentFilter] = useState('');
   const [resultFilter, setResultFilter] = useState('');
   const [sipCodeFilter, setSipCodeFilter] = useState('');
+  const [callTypeFilter, setCallTypeFilter] = useState('');
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDownloading, setBulkDownloading] = useState(false);
   const { page, setPage, limit, setLimit, sortKey, sortOrder, handleSort, queryParams } = usePagination();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['call-logs', queryParams, directionFilter, dateFrom, dateTo, appliedSearch, agentFilter, resultFilter, sipCodeFilter],
+    queryKey: ['call-logs', queryParams, directionFilter, dateFrom, dateTo, appliedSearch, agentFilter, resultFilter, sipCodeFilter, callTypeFilter],
     queryFn: async () => {
       const params: Record<string, string | number> = { ...queryParams, search: appliedSearch };
       if (directionFilter) params.direction = directionFilter;
@@ -95,6 +96,7 @@ export default function CallLogListPage() {
       if (agentFilter) params.userId = agentFilter;
       if (resultFilter) params.hangupCause = resultFilter;
       if (sipCodeFilter) params.sipCode = sipCodeFilter;
+      if (callTypeFilter) params.callType = callTypeFilter;
       const { data: resp } = await api.get('/call-logs', { params });
       return { items: resp.data as CallLog[], total: resp.meta?.total ?? 0 };
     },
@@ -223,10 +225,11 @@ export default function CallLogListPage() {
       key: 'disposition', label: 'Phân loại',
       render: (row) => {
         if (row.dispositionCode?.label) return row.dispositionCode.label;
-        const source = row.notes || row.disposition;
-        if (!source) return '—';
-        const CALL_SOURCE_VI: Record<string, string> = { c2c: 'C2C', autocall: 'Auto Call', manual: 'Thủ công', inbound: 'Gọi vào' };
-        return CALL_SOURCE_VI[source] ?? source;
+        const source = (row.notes || row.disposition || '').trim();
+        // Anything that's not c2c / autocall is treated as a manual call
+        const key = source === 'c2c' || source === 'autocall' ? source : 'manual';
+        const CALL_SOURCE_VI: Record<string, string> = { c2c: 'C2C', autocall: 'Auto Call', manual: 'Thủ công' };
+        return CALL_SOURCE_VI[key];
       },
     },
     {
@@ -246,9 +249,12 @@ export default function CallLogListPage() {
     setAgentFilter('');
     setResultFilter('');
     setSipCodeFilter('');
+    setCallTypeFilter('');
   }
 
-  const hasFilters = directionFilter || dateFrom || dateTo || agentFilter || resultFilter || sipCodeFilter;
+  const hasFilters = directionFilter || dateFrom || dateTo || agentFilter || resultFilter || sipCodeFilter || callTypeFilter;
+
+  const CALL_TYPE_VI: Record<string, string> = { c2c: 'C2C', autocall: 'Auto Call', manual: 'Thủ công' };
 
   const toolbar = (
     <div className="flex items-end gap-2 flex-wrap">
@@ -277,6 +283,19 @@ export default function CallLogListPage() {
           <SelectItem value="USER_BUSY">Máy bận</SelectItem>
           <SelectItem value="ORIGINATOR_CANCEL">Hủy</SelectItem>
           <SelectItem value="CALL_REJECTED">Từ chối</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select value={callTypeFilter || undefined} onValueChange={(v) => setCallTypeFilter(v === '_all' ? '' : v || '')}>
+        <SelectTrigger className="w-40">
+          {callTypeFilter
+            ? <span>{CALL_TYPE_VI[callTypeFilter] ?? callTypeFilter}</span>
+            : <span className="text-muted-foreground">Tất cả phân loại</span>}
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="_all">Tất cả phân loại</SelectItem>
+          <SelectItem value="c2c">C2C</SelectItem>
+          <SelectItem value="autocall">Auto Call</SelectItem>
+          <SelectItem value="manual">Thủ công</SelectItem>
         </SelectContent>
       </Select>
       <div className="space-y-1">
@@ -309,21 +328,25 @@ export default function CallLogListPage() {
   );
 
   return (
-    <PageWrapper title={VI.callLog.title} actions={
-      <>
-        {selectedIds.size > 0 && (
-          <Button variant="outline" size="sm" onClick={handleBulkDownload} disabled={bulkDownloading}>
-            {bulkDownloading ? (
-              <><CheckSquare className="h-4 w-4 mr-1" />Đang tải...</>
-            ) : (
-              <><Download className="h-4 w-4 mr-1" />Tải {selectedIds.size} ghi âm</>
+    <div className="space-y-6">
+      <SectionHeader
+        label={VI.callLog.title}
+        actions={
+          <>
+            {selectedIds.size > 0 && (
+              <Button variant="outline" size="sm" onClick={handleBulkDownload} disabled={bulkDownloading}>
+                {bulkDownloading ? (
+                  <><CheckSquare className="h-4 w-4 mr-1" />Đang tải...</>
+                ) : (
+                  <><Download className="h-4 w-4 mr-1" />Tải {selectedIds.size} ghi âm</>
+                )}
+              </Button>
             )}
-          </Button>
-        )}
-        {refreshButton}
-        <ExportButton entity="call-logs" filters={{ search: appliedSearch, direction: directionFilter, hangupCause: resultFilter, sipCode: sipCodeFilter, dateFrom, dateTo }} />
-      </>
-    }>
+            {refreshButton}
+            <ExportButton entity="call-logs" filters={{ search: appliedSearch, direction: directionFilter, hangupCause: resultFilter, sipCode: sipCodeFilter, dateFrom, dateTo }} />
+          </>
+        }
+      />
       <DataTable<CallLog>
         columns={columns}
         data={data?.items ?? []}
@@ -348,6 +371,6 @@ export default function CallLogListPage() {
           )}
         </DialogContent>
       </Dialog>
-    </PageWrapper>
+    </div>
   );
 }

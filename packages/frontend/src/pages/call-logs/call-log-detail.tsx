@@ -6,7 +6,7 @@ import { ArrowLeft, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DottedCard } from '@/components/ops/dotted-card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -152,67 +152,60 @@ export function CallLogDetailContent({ id, onClose }: CallLogDetailContentProps)
       {/* 2-column layout: left = details, right = disposition + recording + QA */}
       <div className="grid grid-cols-1 gap-5 md:grid-cols-[1fr_1fr]">
         {/* LEFT: Chi tiết cuộc gọi */}
-        <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-base">Chi tiết cuộc gọi</CardTitle></CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-              <div><p className="text-xs text-muted-foreground mb-0.5">Số gọi (Extension)</p><p className="text-sm font-medium">{fmtPhone(call.direction === 'inbound' ? call.destinationNumber : call.callerNumber)}</p></div>
-              <div><p className="text-xs text-muted-foreground mb-0.5">Số nhận (Khách hàng)</p><p className="text-sm font-medium">{fmtPhone(call.direction === 'inbound' ? call.callerNumber : call.destinationNumber)}</p></div>
-              <div><p className="text-xs text-muted-foreground mb-0.5">{VI.callLog.duration}</p><p className="text-sm font-medium">{formatDuration(call.duration)}</p></div>
-              {call.billsec != null && (
-                <div><p className="text-xs text-muted-foreground mb-0.5">Thời gian nói</p><p className="text-sm font-medium">{formatDuration(call.billsec)}</p></div>
-              )}
-              <div><p className="text-xs text-muted-foreground mb-0.5">{VI.callLog.agent}</p><p className="text-sm font-medium">{call.agent?.fullName ?? '—'}</p></div>
-              <div><p className="text-xs text-muted-foreground mb-0.5">{VI.callLog.startTime}</p><p className="text-sm font-medium">{format(new Date(call.startTime), 'dd/MM/yyyy HH:mm:ss')}</p></div>
-              {call.endTime && (
-                <div><p className="text-xs text-muted-foreground mb-0.5">Kết thúc</p><p className="text-sm font-medium">{format(new Date(call.endTime), 'dd/MM/yyyy HH:mm:ss')}</p></div>
-              )}
-              {call.sipCode && (
-                <div><p className="text-xs text-muted-foreground mb-0.5">SIP Code</p><p className="text-sm font-medium">{call.sipCode}{call.sipReason ? ` — ${call.sipReason}` : ''}</p></div>
-              )}
-              {call.contact && (
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">{VI.contact.fullName}</p>
-                  <p className="text-sm font-medium cursor-pointer text-primary hover:underline" onClick={() => navigate(`/contacts/${call.contact!.id}`)}>
-                    {call.contact.fullName}
-                  </p>
-                </div>
-              )}
-              {call.campaign && (
-                <div><p className="text-xs text-muted-foreground mb-0.5">{VI.lead.campaign}</p><p className="text-sm font-medium">{call.campaign.name}</p></div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <DottedCard header="Chi tiết cuộc gọi">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+            <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground mb-0.5">Số gọi (Extension)</p><p className="text-sm font-medium">{fmtPhone(call.direction === 'inbound' ? call.destinationNumber : call.callerNumber)}</p></div>
+            <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground mb-0.5">Số nhận (Khách hàng)</p><p className="text-sm font-medium">{fmtPhone(call.direction === 'inbound' ? call.callerNumber : call.destinationNumber)}</p></div>
+            <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground mb-0.5">{VI.callLog.duration}</p><p className="text-sm font-medium font-mono">{formatDuration(call.duration)}</p></div>
+            {call.billsec != null && (
+              <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground mb-0.5">Thời gian nói</p><p className="text-sm font-medium font-mono">{formatDuration(call.billsec)}</p></div>
+            )}
+            <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground mb-0.5">{VI.callLog.agent}</p><p className="text-sm font-medium">{call.agent?.fullName ?? '—'}</p></div>
+            <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground mb-0.5">{VI.callLog.startTime}</p><p className="text-sm font-medium font-mono">{format(new Date(call.startTime), 'dd/MM/yyyy HH:mm:ss')}</p></div>
+            {call.endTime && (
+              <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground mb-0.5">Kết thúc</p><p className="text-sm font-medium font-mono">{format(new Date(call.endTime), 'dd/MM/yyyy HH:mm:ss')}</p></div>
+            )}
+            {call.sipCode && (
+              <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground mb-0.5">SIP Code</p><p className="text-sm font-medium font-mono">{call.sipCode}{call.sipReason ? ` — ${call.sipReason}` : ''}</p></div>
+            )}
+            {call.contact && (
+              <div>
+                <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground mb-0.5">{VI.contact.fullName}</p>
+                <p className="text-sm font-medium cursor-pointer text-primary hover:underline" onClick={() => navigate(`/contacts/${call.contact!.id}`)}>
+                  {call.contact.fullName}
+                </p>
+              </div>
+            )}
+            {call.campaign && (
+              <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground mb-0.5">{VI.lead.campaign}</p><p className="text-sm font-medium">{call.campaign.name}</p></div>
+            )}
+          </div>
+        </DottedCard>
 
         {/* RIGHT: Kết quả + Ghi âm + QA */}
         <div className="space-y-4">
           {/* Disposition */}
-          <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-base">{VI.callLog.disposition}</CardTitle></CardHeader>
-            <CardContent>
-              {dispositionLabel ? (
-                <Badge variant="outline" className="text-sm px-3 py-1">{dispositionLabel}</Badge>
-              ) : (
-                <Select onValueChange={(v: string | null) => { if (v) dispositionMutation.mutate(v); }}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder={VI.callBar.selectDisposition} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {dispositions?.map((d) => (
-                      <SelectItem key={d.id} value={d.code}>{d.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </CardContent>
-          </Card>
+          <DottedCard header={VI.callLog.disposition}>
+            {dispositionLabel ? (
+              <Badge variant="outline" className="text-sm px-3 py-1">{dispositionLabel}</Badge>
+            ) : (
+              <Select onValueChange={(v: string | null) => { if (v) dispositionMutation.mutate(v); }}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={VI.callBar.selectDisposition} />
+                </SelectTrigger>
+                <SelectContent>
+                  {dispositions?.map((d) => (
+                    <SelectItem key={d.id} value={d.code}>{d.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </DottedCard>
 
           {/* Recording */}
           {recordingUrl && (
-            <Card>
-              <CardHeader className="pb-3"><CardTitle className="text-base">{VI.callLog.recording}</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
+            <DottedCard header={VI.callLog.recording}>
+              <div className="space-y-2">
                 <AudioPlayer src={recordingUrl} />
                 <a href={recordingUrl} download>
                   <Button variant="outline" size="sm">
@@ -220,41 +213,38 @@ export function CallLogDetailContent({ id, onClose }: CallLogDetailContentProps)
                     Tải về
                   </Button>
                 </a>
-              </CardContent>
-            </Card>
+              </div>
+            </DottedCard>
           )}
 
           {/* QA Annotation */}
-          <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-base">{VI.callLog.qa}</CardTitle></CardHeader>
-            <CardContent>
-              {call.qaAnnotation ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <Badge variant="outline" className="text-base px-3 py-1">{call.qaAnnotation.score}/100</Badge>
-                    <span className="text-xs text-muted-foreground">bởi {call.qaAnnotation.reviewedBy.fullName}</span>
-                  </div>
-                  {call.qaAnnotation.notes && <p className="text-sm text-muted-foreground">{call.qaAnnotation.notes}</p>}
+          <DottedCard header={VI.callLog.qa}>
+            {call.qaAnnotation ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline" className="text-base px-3 py-1">{call.qaAnnotation.score}/100</Badge>
+                  <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">bởi {call.qaAnnotation.reviewedBy.fullName}</span>
                 </div>
-              ) : isQa ? (
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Điểm (0-100)</Label>
-                    <Input type="number" min={0} max={100} value={qaScore} onChange={(e) => setQaScore(e.target.value)} className="h-9" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">{VI.lead.notes}</Label>
-                    <Textarea rows={2} value={qaNotes} onChange={(e) => setQaNotes(e.target.value)} />
-                  </div>
-                  <Button size="sm" onClick={() => qaMutation.mutate()} disabled={qaMutation.isPending || !qaScore}>
-                    {VI.actions.save}
-                  </Button>
+                {call.qaAnnotation.notes && <p className="text-sm text-muted-foreground">{call.qaAnnotation.notes}</p>}
+              </div>
+            ) : isQa ? (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Điểm (0-100)</Label>
+                  <Input type="number" min={0} max={100} value={qaScore} onChange={(e) => setQaScore(e.target.value)} className="h-9" />
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Chưa có đánh giá</p>
-              )}
-            </CardContent>
-          </Card>
+                <div className="space-y-1">
+                  <Label className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.lead.notes}</Label>
+                  <Textarea rows={2} value={qaNotes} onChange={(e) => setQaNotes(e.target.value)} />
+                </div>
+                <Button size="sm" onClick={() => qaMutation.mutate()} disabled={qaMutation.isPending || !qaScore}>
+                  {VI.actions.save}
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Chưa có đánh giá</p>
+            )}
+          </DottedCard>
         </div>
       </div>
     </div>

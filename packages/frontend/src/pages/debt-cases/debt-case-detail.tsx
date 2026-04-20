@@ -8,7 +8,8 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { ClickToCallButton } from '@/components/click-to-call-button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DottedCard } from '@/components/ops/dotted-card';
+import { SectionHeader } from '@/components/ops/section-header';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -79,44 +80,46 @@ export default function DebtCaseDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/debt-cases')}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold">{debt.contact?.fullName || VI.debt.title}</h1>
-          <div className="flex gap-2 mt-1">
-            <Badge>{VI.debt.tiers[debt.tier]}</Badge>
+      <SectionHeader
+        label={debt.contact?.fullName || VI.debt.title}
+        hint={
+          <div className="flex gap-2">
+            <Badge className="bg-[var(--color-status-err)]/10 text-[var(--color-status-err)]">{VI.debt.tiers[debt.tier]}</Badge>
             <Badge variant="outline">{VI.debt.statuses[debt.status]}</Badge>
           </div>
-        </div>
-        {debt.contact?.phone && (
-          <ClickToCallButton phone={debt.contact.phone} contactName={debt.contact.fullName} />
-        )}
-        <Button onClick={() => setPtpOpen(true)}>{VI.debt.ptpTitle}</Button>
-      </div>
+        }
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/debt-cases')}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            {debt.contact?.phone && (
+              <ClickToCallButton phone={debt.contact.phone} contactName={debt.contact.fullName} />
+            )}
+            <Button onClick={() => setPtpOpen(true)}>{VI.debt.ptpTitle}</Button>
+          </div>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle>Thông tin công nợ</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4">
-            <div><p className="text-xs text-muted-foreground">{VI.debt.amount}</p><p className="text-lg font-bold text-red-600">{formatMoney(debt.totalAmount)}</p></div>
-            <div><p className="text-xs text-muted-foreground">{VI.debt.paidAmount}</p><p className="text-lg font-bold text-green-600">{formatMoney(debt.paidAmount)}</p></div>
-            <div><p className="text-xs text-muted-foreground">Còn lại</p><p className="text-lg font-bold">{formatMoney(debt.totalAmount - debt.paidAmount)}</p></div>
-            <div><p className="text-xs text-muted-foreground">{VI.debt.dpd}</p><p className="text-lg font-bold">{debt.dpd} ngày</p></div>
-            <div><p className="text-xs text-muted-foreground">{VI.contact.assignedTo}</p><p className="font-medium">{debt.assignedTo?.fullName ?? '—'}</p></div>
-            <div><p className="text-xs text-muted-foreground">{VI.contact.createdAt}</p><p className="font-medium">{format(new Date(debt.createdAt), 'dd/MM/yyyy HH:mm')}</p></div>
-          </CardContent>
-        </Card>
+        <DottedCard header="Thông tin công nợ">
+          <div className="grid grid-cols-2 gap-4">
+            <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.debt.amount}</p><p className="text-lg font-bold text-[var(--color-status-err)]">{formatMoney(debt.totalAmount)}</p></div>
+            <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.debt.paidAmount}</p><p className="text-lg font-bold text-[var(--color-status-ok)]">{formatMoney(debt.paidAmount)}</p></div>
+            <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Còn lại</p><p className="text-lg font-bold">{formatMoney(debt.totalAmount - debt.paidAmount)}</p></div>
+            <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.debt.dpd}</p><p className="text-lg font-bold">{debt.dpd} ngày</p></div>
+            <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.contact.assignedTo}</p><p className="font-medium">{debt.assignedTo?.fullName ?? '—'}</p></div>
+            <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.contact.createdAt}</p><p className="font-medium">{format(new Date(debt.createdAt), 'dd/MM/yyyy HH:mm')}</p></div>
+          </div>
+        </DottedCard>
 
         {debt.contact && (
-          <Card className="cursor-pointer hover:bg-accent/50" onClick={() => navigate(`/contacts/${debt.contact!.id}`)}>
-            <CardHeader><CardTitle>Liên hệ</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <div><p className="text-xs text-muted-foreground">{VI.contact.fullName}</p><p className="font-medium">{debt.contact.fullName}</p></div>
-              <div><p className="text-xs text-muted-foreground">{VI.contact.phone}</p><p className="font-medium">{fmtPhone(debt.contact.phone)}</p></div>
-            </CardContent>
-          </Card>
+          <DottedCard header="Liên hệ" className="cursor-pointer hover:bg-accent/50" onClick={() => navigate(`/contacts/${debt.contact!.id}`)}>
+            <div className="grid grid-cols-2 gap-4">
+              <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.contact.fullName}</p><p className="font-medium">{debt.contact.fullName}</p></div>
+              <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.contact.phone}</p><p className="font-medium">{fmtPhone(debt.contact.phone)}</p></div>
+            </div>
+          </DottedCard>
         )}
       </div>
 
