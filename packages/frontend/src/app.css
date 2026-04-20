@@ -72,59 +72,59 @@
 }
 
 :root {
-    /* Ops Console palette — cream body, indigo sidebar, violet accents */
+    /* Ops Console palette — cream body, muted lavender sidebar, soft violet accents (Issabel-inspired) */
     --background: #faf9f5;
-    --foreground: #1e1838;
+    --foreground: #2e2850;
     --card: #ffffff;
-    --card-foreground: #1e1838;
+    --card-foreground: #2e2850;
     --popover: #ffffff;
-    --popover-foreground: #1e1838;
-    --primary: #a78bfa;
+    --popover-foreground: #2e2850;
+    --primary: #b8a5f5;
     --primary-foreground: #ffffff;
-    --secondary: #ede9fe;
-    --secondary-foreground: #1e1838;
+    --secondary: #f1ecfd;
+    --secondary-foreground: #2e2850;
     --muted: #f5f4ee;
-    --muted-foreground: #6b6480;
-    --accent: #ede9fe;
-    --accent-foreground: #1e1838;
+    --muted-foreground: #7a7396;
+    --accent: #f1ecfd;
+    --accent-foreground: #2e2850;
     --destructive: #ef4444;
-    --border: #d6d3c7;
-    --input: #d6d3c7;
-    --ring: #a78bfa;
+    --border: #dedbd0;
+    --input: #dedbd0;
+    --ring: #b8a5f5;
 
     /* Legacy pls-* aliases — keep existing components from breaking */
-    --pls-blue: #a78bfa;
+    --pls-blue: #b8a5f5;
     --pls-green: #10b981;
     --pls-yellow: #f59e0b;
     --pls-red: #ef4444;
-    --pls-sidebar-bg: #1e1838;
+    --pls-sidebar-bg: #5a4b8a;
 
     /* Charts remapped to violet/status palette */
-    --chart-1: #a78bfa;
+    --chart-1: #b8a5f5;
     --chart-2: #10b981;
     --chart-3: #f59e0b;
     --chart-4: #ef4444;
-    --chart-5: #c4b5fd;
+    --chart-5: #d4c8ff;
     --radius: 0.5rem;
 
-    /* Sidebar — dark indigo with violet accent */
-    --sidebar: #1e1838;
-    --sidebar-foreground: rgba(255,255,255,0.82);
-    --sidebar-primary: #c4b5fd;
-    --sidebar-primary-foreground: #1e1838;
-    --sidebar-accent: rgba(196,181,253,0.15);
+    /* Sidebar — lighter purple, Issabel-style */
+    --sidebar: #5a4b8a;
+    --sidebar-foreground: rgba(255,255,255,0.92);
+    --sidebar-primary: #e0d6ff;
+    --sidebar-primary-foreground: #2e2850;
+    --sidebar-accent: rgba(224,214,255,0.18);
     --sidebar-accent-foreground: #ffffff;
-    --sidebar-border: rgba(255,255,255,0.08);
-    --sidebar-ring: #c4b5fd;
+    --sidebar-border: rgba(255,255,255,0.1);
+    --sidebar-ring: #e0d6ff;
 
     /* Ops Console additions */
     --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
-    --color-dotted: #d6d3c7;
+    --color-dotted: #dedbd0;
     --color-status-ok: #10b981;
     --color-status-warn: #f59e0b;
     --color-status-err: #ef4444;
-    --color-indigo-deep: #1e1838;
-    --color-violet-soft: #c4b5fd;
+    --color-indigo-deep: #5a4b8a;
+    --color-violet-soft: #d4c8ff;
 }
 
 .dark {
