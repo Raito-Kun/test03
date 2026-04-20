@@ -43,22 +43,22 @@ export function KpiCell({
 }: KpiCellProps) {
   return (
     <DottedCard compact className={cn("flex flex-col gap-2", className)}>
-      <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
         <span className={cn("w-1.5 h-1.5 rounded-full bg-current", TONE_TEXT[tone])} />
         <span>{label}</span>
       </div>
       <div className="flex items-baseline gap-1.5">
-        <span className="font-mono text-3xl font-semibold text-foreground leading-none">
+        <span className="font-mono text-3xl font-semibold text-foreground leading-none tabular-nums">
           {value}
         </span>
         {unit && (
-          <span className="font-mono text-[11px] uppercase text-muted-foreground">
+          <span className="text-xs uppercase text-muted-foreground">
             {unit}
           </span>
         )}
       </div>
       {delta && (
-        <span className={cn("font-mono text-[10px] uppercase", TONE_TEXT[deltaTone])}>
+        <span className={cn("text-[11px] font-medium", TONE_TEXT[deltaTone])}>
           {delta}
         </span>
       )}

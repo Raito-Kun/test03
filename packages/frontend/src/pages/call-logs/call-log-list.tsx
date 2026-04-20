@@ -69,6 +69,12 @@ function getCustomerNumber(row: CallLog): string {
   return row.direction === 'inbound' ? row.callerNumber : (row.destinationNumber || '');
 }
 
+interface AgentOption {
+  id: string;
+  fullName: string;
+  sipExtension?: string | null;
+}
+
 export default function CallLogListPage() {
   const queryClient = useQueryClient();
   const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
@@ -78,6 +84,13 @@ export default function CallLogListPage() {
   const [appliedSearch, setAppliedSearch] = useState('');
   // Enhanced filters
   const [agentFilter, setAgentFilter] = useState('');
+
+  // Agent dropdown source — cluster-scoped on backend
+  const { data: agents = [] } = useQuery<AgentOption[]>({
+    queryKey: ['call-log-agents'],
+    queryFn: () => api.get('/users', { params: { limit: 200 } }).then((r) => r.data.data as AgentOption[]),
+    staleTime: 5 * 60_000,
+  });
   const [resultFilter, setResultFilter] = useState('');
   const [sipCodeFilter, setSipCodeFilter] = useState('');
   const [callTypeFilter, setCallTypeFilter] = useState('');
@@ -296,6 +309,21 @@ export default function CallLogListPage() {
           <SelectItem value="c2c">C2C</SelectItem>
           <SelectItem value="autocall">Auto Call</SelectItem>
           <SelectItem value="manual">Thủ công</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select value={agentFilter || undefined} onValueChange={(v) => setAgentFilter(v === '_all' ? '' : v || '')}>
+        <SelectTrigger className="w-48">
+          {agentFilter
+            ? <span>{agents.find((a) => a.id === agentFilter)?.fullName ?? '—'}</span>
+            : <span className="text-muted-foreground">Tất cả nhân viên</span>}
+        </SelectTrigger>
+        <SelectContent className="max-h-80">
+          <SelectItem value="_all">Tất cả nhân viên</SelectItem>
+          {agents.map((a) => (
+            <SelectItem key={a.id} value={a.id}>
+              {a.fullName}{a.sipExtension ? ` · ext.${a.sipExtension}` : ''}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
       <div className="space-y-1">

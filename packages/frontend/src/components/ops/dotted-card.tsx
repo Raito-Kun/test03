@@ -29,9 +29,9 @@ export function DottedCard({
       {(header || actions) && (
         <div className="flex items-center justify-between mb-3 gap-3">
           {typeof header === "string" ? (
-            <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {header}
-            </span>
+            </h3>
           ) : (
             header
           )}

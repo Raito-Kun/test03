@@ -18,11 +18,11 @@ export function SectionHeader({
   return (
     <div className={cn("flex items-center justify-between gap-3", className)}>
       <div className="flex items-center gap-2 min-w-0">
-        <span className="font-mono text-[11px] uppercase tracking-wider text-foreground/80">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground/85">
           {label}
-        </span>
+        </h2>
         {hint && (
-          <span className="font-mono text-[10px] text-muted-foreground truncate">
+          <span className="text-xs text-muted-foreground truncate">
             {hint}
           </span>
         )}
