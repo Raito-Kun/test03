@@ -75,6 +75,7 @@ export function CallLogDetailContent({ id, onClose }: CallLogDetailContentProps)
 
   const [qaScore, setQaScore] = useState('');
   const [qaNotes, setQaNotes] = useState('');
+  const [ticketDialogOpen, setTicketDialogOpen] = useState(false);
 
   const { data: call, isLoading } = useQuery({
     queryKey: ['call-log', id],
@@ -131,9 +132,7 @@ export function CallLogDetailContent({ id, onClose }: CallLogDetailContentProps)
     : (HANGUP_CAUSE_VI[call.hangupCause || ''] ?? call.hangupCause);
 
   // Ticket creation gated: only answered calls (SIP 200) + agent-style roles.
-  const userRole = useAuthStore((s) => s.user?.role) ?? '';
-  const canCreateTicket = sipNum === 200 && /agent/i.test(String(userRole));
-  const [ticketDialogOpen, setTicketDialogOpen] = useState(false);
+  const canCreateTicket = sipNum === 200 && /agent/i.test(String(user?.role ?? ''));
 
   return (
     <div className="space-y-5">
