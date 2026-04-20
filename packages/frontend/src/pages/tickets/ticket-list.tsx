@@ -21,17 +21,17 @@ type TicketStatus = typeof TICKET_STATUSES[number];
 type TicketPriority = typeof TICKET_PRIORITIES[number];
 
 const PRIORITY_COLORS: Record<TicketPriority, string> = {
-  low: 'bg-gray-100 text-gray-700',
-  medium: 'bg-blue-100 text-blue-700',
-  high: 'bg-orange-100 text-orange-700',
-  urgent: 'bg-red-100 text-red-700',
+  low: 'bg-muted text-muted-foreground',
+  medium: 'bg-primary/10 text-primary',
+  high: 'bg-[var(--color-status-warn)]/10 text-[var(--color-status-warn)]',
+  urgent: 'bg-[var(--color-status-err)]/10 text-[var(--color-status-err)]',
 };
 
 const STATUS_COLORS: Record<TicketStatus, string> = {
-  open: 'bg-blue-100 text-blue-700',
-  in_progress: 'bg-yellow-100 text-yellow-700',
-  resolved: 'bg-green-100 text-green-700',
-  closed: 'bg-gray-100 text-gray-700',
+  open: 'bg-primary/10 text-primary',
+  in_progress: 'bg-[var(--color-status-warn)]/10 text-[var(--color-status-warn)]',
+  resolved: 'bg-[var(--color-status-ok)]/10 text-[var(--color-status-ok)]',
+  closed: 'bg-muted text-muted-foreground',
 };
 
 interface Ticket {

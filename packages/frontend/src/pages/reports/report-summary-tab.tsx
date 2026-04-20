@@ -2,13 +2,13 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ReportExportButton } from './report-export-button';
 import { formatDuration } from '@/lib/format';
 import api from '@/services/api-client';
 import type { FilterState } from './report-filters';
+import { DottedCard } from '@/components/ops/dotted-card';
 
 interface AgentRow {
   agentId: string;
@@ -114,8 +114,8 @@ export function ReportSummaryTab({ filters, searched, queryKey }: Props) {
       </div>
 
       <TabsContent value="agent">
-        <Card><CardContent className="p-0">
-          {loadingAgent ? <Skeleton className="h-48 w-full rounded-t-none" /> : (
+        <DottedCard className="p-0 overflow-hidden">
+          {loadingAgent ? <Skeleton className="h-48 w-full" /> : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -136,9 +136,9 @@ export function ReportSummaryTab({ filters, searched, queryKey }: Props) {
                     <TableCell className="font-medium">{r.agentName}</TableCell>
                     <TableCell>{r.teamName}</TableCell>
                     <TableCell className="text-right">{r.totalCalls}</TableCell>
-                    <TableCell className="text-right text-green-600">{r.answered}</TableCell>
-                    <TableCell className="text-right text-red-500">{r.missed}</TableCell>
-                    <TableCell className="text-right text-amber-500">{r.cancelled}</TableCell>
+                    <TableCell className="text-right text-[var(--color-status-ok)]">{r.answered}</TableCell>
+                    <TableCell className="text-right text-[var(--color-status-err)]">{r.missed}</TableCell>
+                    <TableCell className="text-right text-[var(--color-status-warn)]">{r.cancelled}</TableCell>
                     <TableCell className="text-right">{formatDuration(r.avgDuration)}</TableCell>
                     <TableCell className="text-right">{formatDuration(r.avgBillsec)}</TableCell>
                     <TableCell className="text-right">{pct(r.answerRate)}</TableCell>
@@ -150,12 +150,12 @@ export function ReportSummaryTab({ filters, searched, queryKey }: Props) {
               </TableBody>
             </Table>
           )}
-        </CardContent></Card>
+        </DottedCard>
       </TabsContent>
 
       <TabsContent value="team">
-        <Card><CardContent className="p-0">
-          {loadingTeam ? <Skeleton className="h-48 w-full rounded-t-none" /> : (
+        <DottedCard className="p-0 overflow-hidden">
+          {loadingTeam ? <Skeleton className="h-48 w-full" /> : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -173,8 +173,8 @@ export function ReportSummaryTab({ filters, searched, queryKey }: Props) {
                     <TableCell className="font-medium">{r.teamName}</TableCell>
                     <TableCell className="text-right">{r.agentCount}</TableCell>
                     <TableCell className="text-right">{r.totalCalls}</TableCell>
-                    <TableCell className="text-right text-green-600">{r.answered}</TableCell>
-                    <TableCell className="text-right text-red-500">{r.missed}</TableCell>
+                    <TableCell className="text-right text-[var(--color-status-ok)]">{r.answered}</TableCell>
+                    <TableCell className="text-right text-[var(--color-status-err)]">{r.missed}</TableCell>
                     <TableCell className="text-right">{pct(r.answerRate)}</TableCell>
                   </TableRow>
                 ))}
@@ -184,7 +184,7 @@ export function ReportSummaryTab({ filters, searched, queryKey }: Props) {
               </TableBody>
             </Table>
           )}
-        </CardContent></Card>
+        </DottedCard>
       </TabsContent>
     </Tabs>
   );

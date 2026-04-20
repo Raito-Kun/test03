@@ -5,6 +5,7 @@ import { ReportFilters, type FilterState } from './report-filters';
 import { ReportSummaryTab } from './report-summary-tab';
 import { ReportDetailTab } from './report-detail-tab';
 import { ReportChartsTab } from './report-charts-tab';
+import { SectionHeader } from '@/components/ops/section-header';
 
 function firstOfMonth(): string {
   const d = new Date();
@@ -40,9 +41,7 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Báo cáo</h1>
-      </div>
+      <SectionHeader label="Báo cáo" />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>

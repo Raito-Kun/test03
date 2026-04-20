@@ -6,12 +6,12 @@ import { ArrowLeft, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { VI } from '@/lib/vi-text';
 import api from '@/services/api-client';
 import { TICKET_STATUSES, type TicketStatus, type TicketPriority } from '@shared/constants/enums';
+import { DottedCard } from '@/components/ops/dotted-card';
 
 interface TicketDetail {
   id: string;
@@ -36,17 +36,17 @@ interface Macro {
 }
 
 const PRIORITY_COLORS: Record<TicketPriority, string> = {
-  low: 'bg-gray-100 text-gray-700',
-  medium: 'bg-blue-100 text-blue-700',
-  high: 'bg-orange-100 text-orange-700',
-  urgent: 'bg-red-100 text-red-700',
+  low: 'bg-muted text-muted-foreground',
+  medium: 'bg-primary/10 text-primary',
+  high: 'bg-[var(--color-status-warn)]/10 text-[var(--color-status-warn)]',
+  urgent: 'bg-[var(--color-status-err)]/10 text-[var(--color-status-err)]',
 };
 
 const STATUS_COLORS: Record<TicketStatus, string> = {
-  open: 'bg-blue-100 text-blue-700',
-  in_progress: 'bg-yellow-100 text-yellow-700',
-  resolved: 'bg-green-100 text-green-700',
-  closed: 'bg-gray-100 text-gray-700',
+  open: 'bg-primary/10 text-primary',
+  in_progress: 'bg-[var(--color-status-warn)]/10 text-[var(--color-status-warn)]',
+  resolved: 'bg-[var(--color-status-ok)]/10 text-[var(--color-status-ok)]',
+  closed: 'bg-muted text-muted-foreground',
 };
 
 export default function TicketDetailPage() {
@@ -120,75 +120,82 @@ export default function TicketDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle>{VI.ticket.content}</CardTitle></CardHeader>
-          <CardContent>
-            <div className="whitespace-pre-wrap rounded-md bg-muted p-4 text-sm">{ticket.content}</div>
-          </CardContent>
-        </Card>
+        <DottedCard header={VI.ticket.content}>
+          <div className="whitespace-pre-wrap rounded-sm bg-muted p-4 text-sm">{ticket.content}</div>
+        </DottedCard>
 
-        <Card>
-          <CardHeader><CardTitle>Thông tin</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4">
-            <div><p className="text-xs text-muted-foreground">{VI.ticket.category}</p><p className="font-medium">{ticket.category}</p></div>
-            <div><p className="text-xs text-muted-foreground">{VI.contact.assignedTo}</p><p className="font-medium">{ticket.assignedTo?.fullName ?? '—'}</p></div>
-            <div><p className="text-xs text-muted-foreground">Người tạo</p><p className="font-medium">{ticket.createdBy?.fullName ?? '—'}</p></div>
-            <div><p className="text-xs text-muted-foreground">{VI.contact.createdAt}</p><p className="font-medium">{format(new Date(ticket.createdAt), 'dd/MM/yyyy HH:mm')}</p></div>
+        <DottedCard header="Thông tin">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.ticket.category}</p>
+              <p className="font-medium">{ticket.category}</p>
+            </div>
+            <div>
+              <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.contact.assignedTo}</p>
+              <p className="font-medium">{ticket.assignedTo?.fullName ?? '—'}</p>
+            </div>
+            <div>
+              <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Người tạo</p>
+              <p className="font-medium">{ticket.createdBy?.fullName ?? '—'}</p>
+            </div>
+            <div>
+              <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.contact.createdAt}</p>
+              <p className="font-medium">{format(new Date(ticket.createdAt), 'dd/MM/yyyy HH:mm')}</p>
+            </div>
             {ticket.firstResponseAt && (
-              <div><p className="text-xs text-muted-foreground">Phản hồi đầu</p><p className="font-medium">{format(new Date(ticket.firstResponseAt), 'dd/MM HH:mm')}</p></div>
+              <div>
+                <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Phản hồi đầu</p>
+                <p className="font-medium">{format(new Date(ticket.firstResponseAt), 'dd/MM HH:mm')}</p>
+              </div>
             )}
             {ticket.resolvedAt && (
-              <div><p className="text-xs text-muted-foreground">Giải quyết</p><p className="font-medium">{format(new Date(ticket.resolvedAt), 'dd/MM HH:mm')}</p></div>
+              <div>
+                <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Giải quyết</p>
+                <p className="font-medium">{format(new Date(ticket.resolvedAt), 'dd/MM HH:mm')}</p>
+              </div>
             )}
             {ticket.contact && (
               <div className="col-span-2">
-                <p className="text-xs text-muted-foreground">{VI.contact.fullName}</p>
+                <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.contact.fullName}</p>
                 <p className="font-medium cursor-pointer text-primary hover:underline" onClick={() => navigate(`/contacts/${ticket.contact!.id}`)}>
                   {ticket.contact.fullName} — {ticket.contact.phone}
                 </p>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </DottedCard>
       </div>
 
       {/* Macro apply section */}
       {macros && macros.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Zap className="h-4 w-4" /> Mẫu trả lời nhanh
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3">
-              <Select value={selectedMacro} onValueChange={(v) => setSelectedMacro(v || '')}>
-                <SelectTrigger className="w-64">
-                  {selectedMacro
-                    ? <span>{macros.find((m) => m.id === selectedMacro)?.name}</span>
-                    : <span className="text-muted-foreground">Chọn mẫu...</span>}
-                </SelectTrigger>
-                <SelectContent>
-                  {macros.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                size="sm"
-                disabled={!selectedMacro || macroMutation.isPending}
-                onClick={() => selectedMacro && macroMutation.mutate(selectedMacro)}
-              >
-                Áp dụng
-              </Button>
+        <DottedCard header={<span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground"><Zap className="h-3.5 w-3.5" /> Mẫu trả lời nhanh</span>}>
+          <div className="flex items-center gap-3">
+            <Select value={selectedMacro} onValueChange={(v) => setSelectedMacro(v || '')}>
+              <SelectTrigger className="w-64">
+                {selectedMacro
+                  ? <span>{macros.find((m) => m.id === selectedMacro)?.name}</span>
+                  : <span className="text-muted-foreground">Chọn mẫu...</span>}
+              </SelectTrigger>
+              <SelectContent>
+                {macros.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              disabled={!selectedMacro || macroMutation.isPending}
+              onClick={() => selectedMacro && macroMutation.mutate(selectedMacro)}
+            >
+              Áp dụng
+            </Button>
+          </div>
+          {selectedMacro && (
+            <div className="mt-3 rounded-sm bg-muted p-3 text-sm text-muted-foreground whitespace-pre-wrap">
+              {macros.find((m) => m.id === selectedMacro)?.content}
             </div>
-            {selectedMacro && (
-              <div className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground whitespace-pre-wrap">
-                {macros.find((m) => m.id === selectedMacro)?.content}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          )}
+        </DottedCard>
       )}
     </div>
   );

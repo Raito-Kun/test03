@@ -13,6 +13,10 @@ import api from '@/services/api-client';
 import PermissionMatrixTable from '@/components/permission-matrix-table';
 import type { PermissionRow, EditableRole } from '@/components/permission-matrix-table';
 import RoleTabPanel from '@/components/role-tab-panel';
+import { ClusterSelect } from '@/components/cluster-select';
+import { SectionHeader } from '@/components/ops/section-header';
+
+interface ClusterOption { id: string; name: string; isActive: boolean }
 
 const GROUP_LABEL_MAP: Record<string, string> = {
   switchboard: 'Tổng đài',
@@ -31,7 +35,7 @@ const GROUP_LABEL_MAP: Record<string, string> = {
   tickets: 'Phiếu ghi',
   debts: 'Công nợ',
   leads: 'Leads',
-  contacts: 'Danh bạ',
+  contacts: 'Danh sách khách hàng',
 };
 
 const GROUP_ICONS: Record<string, React.ElementType> = {
@@ -61,19 +65,48 @@ function GroupIcon({ group }: { group: string }) {
 
 export default function PermissionManager() {
   const hasPermission = useAuthStore((s) => s.hasPermission);
+  const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
+
+  const isSuperAdmin = (user?.role as string) === 'super_admin';
 
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
   const [localGrants, setLocalGrants] = useState<Record<string, Record<string, boolean>>>({});
   const [isDirty, setIsDirty] = useState(false);
+  const [selectedClusterId, setSelectedClusterId] = useState<string>('');
+
+  // Load clusters for super_admin to pick which tenant to edit.
+  const { data: clusters } = useQuery<ClusterOption[]>({
+    queryKey: ['clusters-for-perm-matrix'],
+    queryFn: async () => {
+      const { data } = await api.get('/clusters');
+      return (data.data ?? []) as ClusterOption[];
+    },
+    enabled: isSuperAdmin,
+  });
+
+  // Default cluster: super_admin → first cluster; others → their own.
+  useEffect(() => {
+    if (selectedClusterId) return;
+    if (isSuperAdmin && clusters && clusters.length > 0) {
+      setSelectedClusterId(clusters.find((c) => c.isActive)?.id ?? clusters[0].id);
+    }
+  }, [isSuperAdmin, clusters, selectedClusterId]);
+
+  // Effective cluster for API calls: super_admin passes their pick,
+  // non-super always targets their own (server ignores query for them).
+  const effectiveClusterId = isSuperAdmin ? selectedClusterId : '';
 
   const { data: permissions, isLoading } = useQuery<PermissionRow[]>({
-    queryKey: ['permissions'],
+    queryKey: ['permissions', effectiveClusterId],
     queryFn: async () => {
-      const { data } = await api.get('/permissions');
+      const url = effectiveClusterId
+        ? `/permissions?clusterId=${encodeURIComponent(effectiveClusterId)}`
+        : '/permissions';
+      const { data } = await api.get(url);
       return (data.data ?? []) as PermissionRow[];
     },
-    enabled: hasPermission('manage_permissions'),
+    enabled: hasPermission('manage_permissions') && (!isSuperAdmin || !!effectiveClusterId),
   });
 
   // Set the first group as active once data loads
@@ -85,8 +118,9 @@ export default function PermissionManager() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const qs = effectiveClusterId ? `?clusterId=${encodeURIComponent(effectiveClusterId)}` : '';
       const ops = Object.entries(localGrants).map(([role, grants]) =>
-        api.put(`/permissions/role/${role}`, { grants })
+        api.put(`/permissions/role/${role}${qs}`, { grants })
       );
       await Promise.all(ops);
     },
@@ -131,8 +165,17 @@ export default function PermissionManager() {
   return (
     <div className="flex flex-col gap-0 relative">
       <div className="flex items-center gap-2 mb-4">
-        <ShieldCheck className="h-5 w-5 text-blue-500" />
-        <h1 className="text-xl font-semibold">Quản lý phân quyền</h1>
+        <SectionHeader
+          label="Quản lý phân quyền"
+          actions={isSuperAdmin && clusters && clusters.length > 0 ? (
+            <ClusterSelect
+              clusters={clusters}
+              value={selectedClusterId}
+              onChange={setSelectedClusterId}
+            />
+          ) : undefined}
+          className="flex-1"
+        />
       </div>
 
       <Tabs defaultValue="matrix" className="flex flex-col gap-4">
@@ -146,9 +189,9 @@ export default function PermissionManager() {
           <div className="flex gap-4">
             {/* Left sidebar */}
             <div className="w-[220px] shrink-0">
-              <ScrollArea className="h-[calc(100vh-220px)] rounded-lg border bg-card">
+              <ScrollArea className="h-[calc(100vh-220px)] rounded-sm border-dotted-2 bg-card">
                 <div className="p-2 space-y-0.5">
-                  <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <p className="px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
                     Nhóm quyền
                   </p>
                   {allGroups.map((group) => {
@@ -183,7 +226,7 @@ export default function PermissionManager() {
             </div>
 
             {/* Right panel */}
-            <div className="flex-1 min-w-0 rounded-lg border bg-card overflow-hidden">
+            <div className="flex-1 min-w-0 rounded-sm border-dotted-2 bg-card overflow-hidden">
               <div className="p-3 border-b flex items-center gap-2">
                 {currentGroup && <GroupIcon group={currentGroup} />}
                 <span className="font-medium text-sm">{currentGroup ? (GROUP_LABEL_MAP[currentGroup] ?? currentGroup) : 'Tất cả quyền'}</span>

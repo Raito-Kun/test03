@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { X, Loader2, PhoneCall } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import api from '@/services/api-client';
+import { DottedCard } from '@/components/ops/dotted-card';
+import { SectionHeader } from '@/components/ops/section-header';
 
 interface ExtensionInfo {
   extension: string;
@@ -23,8 +24,8 @@ interface UserOption {
 }
 
 function StatusBadge({ status }: { status: ExtensionInfo['status'] }) {
-  if (status === 'Registered') return <Badge className="bg-green-100 text-green-800 border-green-200">Đã đăng ký</Badge>;
-  if (status === 'Unregistered') return <Badge className="bg-red-100 text-red-800 border-red-200">Chưa đăng ký</Badge>;
+  if (status === 'Registered') return <Badge className="bg-[var(--color-status-ok)]/10 text-[var(--color-status-ok)] border-[var(--color-status-ok)]/30">Đã đăng ký</Badge>;
+  if (status === 'Unregistered') return <Badge className="bg-[var(--color-status-err)]/10 text-[var(--color-status-err)] border-[var(--color-status-err)]/30">Chưa đăng ký</Badge>;
   return <Badge variant="secondary">Không rõ</Badge>;
 }
 
@@ -69,29 +70,22 @@ export default function ExtensionConfig() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <PhoneCall className="h-6 w-6" />
-        <h1 className="text-2xl font-bold">Cấu hình máy nhánh</h1>
-      </div>
+      <SectionHeader label="Cấu hình máy nhánh" />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Danh sách máy nhánh</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-muted-foreground">
-                  <th className="pb-3 text-left font-medium">Máy nhánh</th>
-                  <th className="pb-3 text-left font-medium">Nhân viên</th>
-                  <th className="pb-3 text-left font-medium">Email</th>
-                  <th className="pb-3 text-left font-medium">Miền</th>
-                  <th className="pb-3 text-left font-medium">Trạng thái</th>
-                  <th className="pb-3 text-left font-medium">Gán agent</th>
-                  <th className="pb-3" />
-                </tr>
-              </thead>
+      <DottedCard header="Danh sách máy nhánh">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-muted-foreground">
+                <th className="pb-3 text-left font-mono text-[11px] uppercase tracking-wider">Máy nhánh</th>
+                <th className="pb-3 text-left font-mono text-[11px] uppercase tracking-wider">Nhân viên</th>
+                <th className="pb-3 text-left font-mono text-[11px] uppercase tracking-wider">Email</th>
+                <th className="pb-3 text-left font-mono text-[11px] uppercase tracking-wider">Miền</th>
+                <th className="pb-3 text-left font-mono text-[11px] uppercase tracking-wider">Trạng thái</th>
+                <th className="pb-3 text-left font-mono text-[11px] uppercase tracking-wider">Gán agent</th>
+                <th className="pb-3" />
+              </tr>
+            </thead>
               <tbody className="divide-y">
                 {extensions.map((ext) => (
                   <tr key={ext.extension} className="hover:bg-muted/30">
@@ -109,7 +103,9 @@ export default function ExtensionConfig() {
                         disabled={assignMutation.isPending}
                       >
                         <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Chọn agent..." />
+                          <SelectValue>
+                            {ext.userId ? (ext.userFullName || ext.userEmail || 'Đã gán') : 'Chọn agent...'}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">— Không gán —</SelectItem>
@@ -140,8 +136,7 @@ export default function ExtensionConfig() {
               </tbody>
             </table>
           </div>
-        </CardContent>
-      </Card>
+        </DottedCard>
     </div>
   );
 }

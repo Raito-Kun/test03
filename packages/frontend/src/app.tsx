@@ -16,7 +16,7 @@ import { Loader2 } from 'lucide-react';
 
 // Lazy-load pages for code splitting
 const LoginPage = lazy(() => import('@/pages/login'));
-const Dashboard = lazy(() => import('@/pages/dashboard'));
+const Dashboard = lazy(() => import('@/pages/dashboard/index'));
 const ContactList = lazy(() => import('@/pages/contacts/contact-list'));
 const ContactDetail = lazy(() => import('@/pages/contacts/contact-detail'));
 const LeadList = lazy(() => import('@/pages/leads/lead-list'));

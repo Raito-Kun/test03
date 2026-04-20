@@ -4,10 +4,10 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import api from '@/services/api-client';
 import type { FilterState } from './report-filters';
+import { DottedCard } from '@/components/ops/dotted-card';
 
 interface CallsByDayItem { date: string; total: number; answered: number; missed: number }
 interface AgentCompItem { agentName: string; answered: number; missed: number }
@@ -67,93 +67,73 @@ export function ReportChartsTab({ filters, searched, queryKey }: Props) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* Chart 1: Calls by day */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Tổng cuộc gọi theo ngày</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-            <BarChart data={data?.callsByDay ?? []} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="total" name="Tổng" fill={C.indigo} />
-              <Bar dataKey="answered" name="Đã nghe" fill={C.green} />
-              <Bar dataKey="missed" name="Nhỡ" fill={C.red} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      <DottedCard header="Tổng cuộc gọi theo ngày">
+        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+          <BarChart data={data?.callsByDay ?? []} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="total" name="Tổng" fill={C.indigo} />
+            <Bar dataKey="answered" name="Đã nghe" fill={C.green} />
+            <Bar dataKey="missed" name="Nhỡ" fill={C.red} />
+          </BarChart>
+        </ResponsiveContainer>
+      </DottedCard>
 
       {/* Chart 2: Agent comparison */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">So sánh nhân viên</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-            <BarChart data={data?.agentComparison ?? []} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="agentName" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="answered" name="Đã nghe" fill={C.green} />
-              <Bar dataKey="missed" name="Nhỡ" fill={C.red} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      <DottedCard header="So sánh nhân viên">
+        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+          <BarChart data={data?.agentComparison ?? []} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="agentName" tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="answered" name="Đã nghe" fill={C.green} />
+            <Bar dataKey="missed" name="Nhỡ" fill={C.red} />
+          </BarChart>
+        </ResponsiveContainer>
+      </DottedCard>
 
       {/* Chart 3: Weekly trend */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Xu hướng cuộc gọi theo tuần</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-            <LineChart data={data?.weeklyTrend ?? []} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="week" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="total" name="Tổng" stroke={C.indigo} strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="answered" name="Đã nghe" stroke={C.green} strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      <DottedCard header="Xu hướng cuộc gọi theo tuần">
+        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+          <LineChart data={data?.weeklyTrend ?? []} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="week" tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} />
+            <Tooltip />
+            <Legend />
+            <Line type="monotone" dataKey="total" name="Tổng" stroke={C.indigo} strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="answered" name="Đã nghe" stroke={C.green} strokeWidth={2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </DottedCard>
 
       {/* Chart 4: Result distribution pie */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Tỷ lệ kết quả cuộc gọi</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-            <PieChart>
-              <Pie
-                data={data?.resultDistribution ?? []}
-                dataKey="count"
-                nameKey="hangupCause"
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
-              >
-                {(data?.resultDistribution ?? []).map((_, i) => (
-                  <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      <DottedCard header="Tỷ lệ kết quả cuộc gọi">
+        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+          <PieChart>
+            <Pie
+              data={data?.resultDistribution ?? []}
+              dataKey="count"
+              nameKey="hangupCause"
+              cx="50%"
+              cy="50%"
+              outerRadius={100}
+              label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
+            >
+              {(data?.resultDistribution ?? []).map((_, i) => (
+                <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip />
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
+      </DottedCard>
     </div>
   );
 }

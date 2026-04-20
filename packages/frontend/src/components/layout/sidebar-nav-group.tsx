@@ -29,10 +29,10 @@ function NavItemLink({ to, label, icon: Icon, collapsed }: NavItem & { collapsed
       className={({ isActive }) =>
         cn(
           'group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
-          'hover:bg-[rgba(255,255,255,0.08)] hover:text-white',
+          'hover:bg-[rgba(255,255,255,0.1)] hover:text-white',
           isActive
-            ? 'bg-[rgba(0,128,255,0.2)] text-white shadow-sm'
-            : 'text-[rgba(255,255,255,0.75)]',
+            ? 'bg-[rgba(41,182,246,0.15)] text-white shadow-sm'
+            : 'text-[rgba(255,255,255,0.8)]',
           collapsed && 'justify-center px-2',
         )
       }
@@ -42,11 +42,11 @@ function NavItemLink({ to, label, icon: Icon, collapsed }: NavItem & { collapsed
           {isActive && (
             <motion.div
               layoutId="sidebar-active"
-              className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-[#0080ff]"
+              className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-[#29b6f6]"
               transition={{ type: 'spring', stiffness: 350, damping: 30 }}
             />
           )}
-          <Icon className={cn('h-4 w-4 shrink-0 transition-colors', isActive && 'text-[#0080ff]')} />
+          <Icon className={cn('h-4 w-4 shrink-0 transition-colors', isActive && 'text-[#29b6f6]')} />
           {!collapsed && <span>{label}</span>}
         </>
       )}
@@ -92,8 +92,8 @@ export function SidebarNavGroup({
         onClick={() => onToggle(groupKey)}
         className={cn(
           'w-full flex items-center justify-between px-3 py-1.5 rounded-md',
-          'text-xs font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.35)]',
-          'hover:text-[rgba(255,255,255,0.75)] transition-colors cursor-pointer',
+          'text-xs font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)]',
+          'hover:text-[rgba(255,255,255,0.8)] transition-colors cursor-pointer',
           !isFirst && 'mt-2',
         )}
       >

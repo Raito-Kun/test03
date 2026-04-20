@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import api from '@/services/api-client';
 import ClusterDetailForm, { ClusterFormData } from './cluster-detail-form';
+import { DottedCard } from '@/components/ops/dotted-card';
+import { SectionHeader } from '@/components/ops/section-header';
 
 interface ClusterSummary {
   id: string;
@@ -34,6 +36,14 @@ const EMPTY_CLUSTER: ClusterFormData = {
   smtpUser: '',
   smtpPassword: '',
   smtpFrom: '',
+  sshUser: 'root',
+  sshPassword: '',
+  fusionpbxPgHost: '',
+  fusionpbxPgPort: 5432,
+  fusionpbxPgUser: '',
+  fusionpbxPgPassword: '',
+  fusionpbxPgDatabase: 'fusionpbx',
+  outboundDialplanNames: [],
   isActive: false,
 };
 
@@ -50,23 +60,31 @@ function ClusterCard({
     <button
       onClick={onClick}
       className={cn(
-        'w-full text-left rounded-lg border p-3 transition-all hover:border-primary/50 hover:shadow-sm',
-        selected ? 'border-primary bg-primary/5 shadow-sm' : 'border-border bg-card',
+        'w-full text-left transition-all hover:border-primary/60',
+        selected ? 'ring-1 ring-primary' : '',
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="font-semibold text-sm truncate">{cluster.name}</p>
-          <p className="text-xs text-muted-foreground mt-0.5 truncate">{cluster.eslHost}</p>
-          <p className="text-xs text-muted-foreground truncate">{cluster.sipDomain}</p>
+      <DottedCard compact className={cn(selected ? 'bg-primary/5' : '')}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="font-semibold text-sm truncate">{cluster.name}</p>
+            <p className="font-mono text-[10px] text-muted-foreground mt-0.5 truncate">{cluster.eslHost}</p>
+            <p className="font-mono text-[10px] text-muted-foreground truncate">{cluster.sipDomain}</p>
+          </div>
+          <div className="flex flex-col gap-1 shrink-0 items-end">
+            {cluster.isActive ? (
+              <Badge className="bg-[var(--color-status-ok)]/10 text-[var(--color-status-ok)] border-[var(--color-status-ok)]/30 text-[10px]">
+                <CheckCircle2 className="h-3 w-3 mr-1" />
+                Active
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground text-[10px]">
+                Inactive
+              </Badge>
+            )}
+          </div>
         </div>
-        {cluster.isActive && (
-          <Badge className="bg-green-100 text-green-700 border-green-200 shrink-0 text-[10px]">
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            Active
-          </Badge>
-        )}
-      </div>
+      </DottedCard>
     </button>
   );
 }
@@ -113,10 +131,7 @@ export default function ClusterManagement() {
   return (
     <div className="flex flex-col h-full space-y-4">
       {/* Header */}
-      <div className="flex items-center gap-2">
-        <Server className="h-6 w-6" />
-        <h1 className="text-2xl font-bold">Khai báo cụm PBX</h1>
-      </div>
+      <SectionHeader label="Khai báo cụm PBX" />
 
       {/* Split view */}
       <div className="flex gap-4 flex-1 min-h-0">
@@ -150,7 +165,7 @@ export default function ClusterManagement() {
         </div>
 
         {/* Right: detail form */}
-        <div className="flex-1 border rounded-lg p-4 overflow-hidden flex flex-col">
+        <div className="flex-1 border-dotted-2 rounded-sm p-4 overflow-hidden flex flex-col">
           {!showDetail ? (
             <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
               Chọn một cụm để xem chi tiết hoặc tạo cụm mới
