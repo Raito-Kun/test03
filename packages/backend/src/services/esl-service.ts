@@ -55,26 +55,39 @@ export async function originate(
     );
   }
 
-  // Check extension is registered in FusionPBX (if ESL available)
-  const regs = await getSofiaRegistrations();
-  if (regs.size > 0 && !regs.has(agentExtension)) {
-    // ESL is reachable and extension is NOT registered
+  // ESL must be connected before we attempt to originate
+  if (!eslDaemon.getConnection()) {
     throw Object.assign(
-      new Error(`Extension ${agentExtension} chưa đăng nhập. Vui lòng mở Eyebeam và đăng nhập.`),
+      new Error('Tổng đài không phản hồi (ESL không kết nối). Vui lòng liên hệ quản trị viên.'),
+      { code: 'ESL_UNAVAILABLE' },
+    );
+  }
+
+  // Extension must be registered on FusionPBX
+  const regs = await getSofiaRegistrations();
+  if (!regs.has(agentExtension) || regs.get(agentExtension) !== 'Registered') {
+    throw Object.assign(
+      new Error(`Extension ${agentExtension} chưa đăng ký trên tổng đài. Vui lòng mở softphone và đăng nhập.`),
       { code: 'EXT_NOT_REGISTERED' },
     );
   }
-  // If regs.size === 0 → ESL unreachable, allow call anyway
 
   const ext = sanitizeEslInput(agentExtension);
   const dest = sanitizeEslInput(destinationNumber);
   const cid = sanitizeEslInput(callerId);
 
-  const domain = process.env.FUSIONPBX_DOMAIN || 'crm';
+  // Prefer active cluster's SIP domain over the env fallback
+  const activeCluster = await prisma.pbxCluster.findFirst({ where: { isActive: true }, select: { sipDomain: true } });
+  const domain = activeCluster?.sipDomain || process.env.FUSIONPBX_DOMAIN || 'crm';
 
-  // Bridge via loopback → FusionPBX outbound dialplan for domain 'crm'
-  // export crm_call_source so it propagates through loopback/bridge legs
-  const cmd = `originate {ignore_early_media=true,origination_caller_id_number=${cid},origination_caller_id_name=CRM,originate_timeout=30,crm_call_source=c2c,export_vars=crm_call_source}user/${ext}@${domain} &bridge(loopback/${dest}/${domain})`;
+  // Bridge via loopback → FusionPBX outbound dialplan.
+  // FreeSWITCH parses commas inside {} so export_vars must list a single name.
+  // Set crm_user_id / crm_call_source on BOTH the originate leg and the bridge leg
+  // so the CDR webhook sees them regardless of which leg it processes.
+  // record_session=true tells the FusionPBX outbound dialplan to record this call
+  // (the blueva dialplan tests `${record_session} =~ /^true$/` then triggers record_session).
+  const ctx = `crm_user_id=${userId},crm_call_source=c2c,record_session=true`;
+  const cmd = `originate {ignore_early_media=true,origination_caller_id_number=${cid},origination_caller_id_name=CRM,originate_timeout=30,${ctx}}user/${ext}@${domain} &bridge({${ctx}}loopback/${dest}/${domain})`;
   logger.info('C2C originate', { cmd, agentExt: ext, destination: dest, domain });
   await sendBgapi(cmd);
 }
@@ -91,12 +104,39 @@ function sendApi(command: string): Promise<string> {
   });
 }
 
-export async function getSofiaRegistrations(): Promise<Map<string, string>> {
+export interface RegistrationStatus {
+  extension: string | null;
+  registered: boolean;
+  eslAvailable: boolean;
+}
+
+/** Lookup registration state for a single extension. Distinguishes ESL-down from ext-not-registered. */
+export async function getRegistrationStatus(extension: string | null | undefined): Promise<RegistrationStatus> {
+  if (!extension) return { extension: null, registered: false, eslAvailable: false };
+  if (!eslDaemon.getConnection()) return { extension, registered: false, eslAvailable: false };
   try {
-    const body = await sendApi('sofia status profile internal reg');
-    const regs = new Map<string, string>();
-    // Output is key-value pairs per registration block separated by blank lines
-    // Format: "User:\t1005@crm" and "Status:\tRegistered(UDP)(unknown)"
+    const regs = await getSofiaRegistrations();
+    return { extension, registered: regs.get(extension) === 'Registered', eslAvailable: true };
+  } catch {
+    return { extension, registered: false, eslAvailable: false };
+  }
+}
+
+export async function getSofiaRegistrations(): Promise<Map<string, string>> {
+  // Softphones may register to either profile (NAT softphones → external,
+  // LAN softphones → internal). Query both, union results; a "Registered"
+  // status on EITHER profile wins.
+  const profiles = ['internal', 'external'] as const;
+  const regs = new Map<string, string>();
+
+  for (const profile of profiles) {
+    let body: string;
+    try {
+      body = await sendApi(`sofia status profile ${profile} reg`);
+    } catch {
+      continue; // ESL down or profile missing → skip this profile
+    }
+    // Output: "User:\t101@blueva" then later "Status:\tRegistered(UDP)(unknown)"
     let currentExt = '';
     for (const line of body.split('\n')) {
       const trimmed = line.trim();
@@ -107,14 +147,15 @@ export async function getSofiaRegistrations(): Promise<Map<string, string>> {
       const statusMatch = trimmed.match(/^Status:\s+(.+)/);
       if (statusMatch && currentExt) {
         const isRegistered = statusMatch[1].toLowerCase().startsWith('registered');
-        regs.set(currentExt, isRegistered ? 'Registered' : 'Unregistered');
+        // Don't demote "Registered" on one profile with "Unregistered" on another
+        if (!(regs.get(currentExt) === 'Registered' && !isRegistered)) {
+          regs.set(currentExt, isRegistered ? 'Registered' : 'Unregistered');
+        }
         currentExt = '';
       }
     }
-    return regs;
-  } catch {
-    return new Map(); // ESL unreachable → return empty (calls still allowed)
   }
+  return regs;
 }
 
 /** Hangup a call by UUID */
