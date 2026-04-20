@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { XMLParser } from 'fast-xml-parser';
 import prisma from '../lib/prisma';
 import { normalizePhone } from '../lib/phone-utils';
+import { getClusterIdByPbxIpAndDomain } from '../lib/active-cluster';
+import { mergeBillsec, mergeDuration } from '../lib/cdr-merge';
 import logger from '../lib/logger';
 
 const ALLOWED_IPS = (process.env.WEBHOOK_ALLOWED_IPS || '127.0.0.1').split(',').map((s) => s.trim());
@@ -109,6 +111,21 @@ export async function handleCdr(req: Request, res: Response, next: NextFunction)
     };
 
     const callUuid = String(variables['uuid'] || variables['call_uuid'] || '');
+    const cdrDomain = safeStr(variables['domain_name'] || '');
+
+    // Drop CDRs whose SIP domain isn't registered as a cluster on this PBX.
+    // A single PBX can host multiple FusionPBX domains (e.g. 10.10.101.206
+    // runs both `blueva` and `hoangthienfinance.vn`); without this filter,
+    // the other tenant's calls would leak into this tenant's call log.
+    const clusterId = await getClusterIdByPbxIpAndDomain(req.ip, cdrDomain);
+    if (!clusterId) {
+      await prisma.webhookLog.update({
+        where: { id: webhookLog.id },
+        data: { status: 'processed', errorMessage: `Skipped CDR — domain "${cdrDomain}" not registered for PBX ${req.ip}` },
+      });
+      res.json({ success: true, data: null });
+      return;
+    }
 
     // Extract destination from bridge data or caller_destination
     const bridgeData = safeStr(variables['current_application_data'] || '');
@@ -125,6 +142,8 @@ export async function handleCdr(req: Request, res: Response, next: NextFunction)
     // Use call_direction (set by FusionPBX) over channel direction
     const direction = String(variables['call_direction'] || variables['direction'] || 'outbound');
 
+    const channelName = safeStr(variables['channel_name'] || '');
+
     // Timing: prefer variables, fallback to callflow (B-legs/self-call legs store timing in callflow)
     const cfTimes = (callflow || {}) as Record<string, unknown>;
     const startEpoch = variables['start_epoch'] ? Number(variables['start_epoch']) : (cfTimes['start_epoch'] ? Number(cfTimes['start_epoch']) : null);
@@ -132,6 +151,9 @@ export async function handleCdr(req: Request, res: Response, next: NextFunction)
     const endEpoch = variables['end_epoch'] ? Number(variables['end_epoch']) : (cfTimes['end_epoch'] ? Number(cfTimes['end_epoch']) : null);
     const duration = Number(variables['duration'] || cfTimes['duration'] || cdr['duration'] || 0);
     const billsec = Number(variables['billsec'] || cfTimes['billsec'] || cdr['billsec'] || 0);
+    const startTime = startEpoch ? new Date(startEpoch * 1000) : new Date();
+    const answerTime = answerEpoch ? new Date(answerEpoch * 1000) : null;
+    const endTime = endEpoch ? new Date(endEpoch * 1000) : null;
     const hangupCause = safeStr(variables['hangup_cause'] || variables['last_bridge_hangup_cause'] || '');
     let sipCode = safeStr(variables['sip_term_status'] || variables['last_bridge_proto_specific_hangup_cause'] || '').replace(/^sip:/, '');
     const sipReason = safeStr(variables['sip_hangup_disposition'] || variables['sip_invite_failure_phrase'] || '');
@@ -152,17 +174,22 @@ export async function handleCdr(req: Request, res: Response, next: NextFunction)
     const recordingPath = recordDir && recordName
       ? `${recordDir}/${recordName}`
       : safeStr(variables['recording_path'] || '') || null;
+    // record_ms = 0 → FreeSWITCH started recording but captured no audio (e.g. very short call)
+    const recordMs = Number(variables['record_ms'] || 0);
 
     const domain = process.env.FUSIONPBX_DOMAIN || 'crm';
 
-    // Normalize destination BEFORE junk check: strip domain, add leading 0 for VN numbers
-    const rawDest = destNum === domain ? '' : destNum;
+    // Normalize destination BEFORE junk check: strip domain, add leading 0 for VN numbers.
+    // MicroSIP clients registering on the public external sofia profile produce a leg
+    // where callee_id_number/destination_number equals the SIP domain (e.g. "blueva").
+    // That leg carries no real customer number — treat it as orphan so it merges into
+    // the sibling leg that has the actual dialed phone.
+    const rawDest = (destNum === domain || (cdrDomain && destNum === cdrDomain)) ? '' : destNum;
     const finalDest = rawDest && /^\d{9}$/.test(rawDest) ? `0${rawDest}` : rawDest;
 
     // Dedup: 1 physical call = 1 row in call_logs.
     // FusionPBX sends 2-3 CDR legs per call (originate, loopback, external trunk).
     const isExtension = (n: string) => /^\d{1,4}$/.test(n);
-    const channelName = safeStr(variables['channel_name'] || '');
     const isInternalLeg = isExtension(callerNum) && isExtension(finalDest) && callerNum !== finalDest;
     // sofia/internal/* = agent SIP phone leg — billsec includes routing/IVR time, always inflated. Skip entirely.
     const isAgentSipLeg = channelName.startsWith('sofia/internal/');
@@ -229,11 +256,54 @@ export async function handleCdr(req: Request, res: Response, next: NextFunction)
       res.json({ success: true, data: null });
       return;
     }
-    // Agent SIP phone leg (sofia/internal/*) → skip — billsec is inflated (includes routing time)
-    if (isAgentSipLeg) {
+    // Agent SIP phone leg (sofia/internal/<ext>@...).
+    // This leg carries the authoritative total call timeline:
+    //   - duration = ring + talk (matches softphone display)
+    //   - endTime  = real moment the call hung up
+    //   - recording_path (the agent leg is the only leg that sets it)
+    // For C2C flows, real talk time = agent.end_epoch − loopback-B.answer_epoch,
+    // which we compute from the canonical row's answerTime when available.
+    // We must handle both arrival orderings between this leg and the loopback-B leg.
+    if (isAgentSipLeg && canonicalUuid) {
+      const hasRecording = recordingPath && recordingPath !== 'null' && recordMs > 0;
+      const existingCanonical = await prisma.callLog.findUnique({
+        where: { callUuid: canonicalUuid },
+        select: { duration: true, billsec: true, answerTime: true, endTime: true },
+      });
+      const mergedDuration = mergeDuration(duration, existingCanonical?.duration);
+      const mergedEndTime = endTime || existingCanonical?.endTime || null;
+      const mergedBillsec = mergeBillsec(
+        billsec,
+        existingCanonical?.billsec || 0,
+        existingCanonical?.answerTime,
+        mergedEndTime,
+      );
+      await prisma.callLog.upsert({
+        where: { callUuid: canonicalUuid },
+        create: {
+          callUuid: canonicalUuid,
+          direction: 'outbound',
+          callerNumber: '',
+          destinationNumber: '',
+          startTime: startTime,
+          ...(mergedEndTime ? { endTime: mergedEndTime } : {}),
+          duration: mergedDuration,
+          billsec: mergedBillsec,
+          ...(hasRecording ? { recordingPath: String(recordingPath), recordingStatus: 'available' as const } : {}),
+        },
+        update: {
+          ...(mergedEndTime ? { endTime: mergedEndTime } : {}),
+          duration: mergedDuration,
+          billsec: mergedBillsec,
+          ...(hasRecording ? { recordingPath: String(recordingPath), recordingStatus: 'available' as const } : {}),
+        },
+      });
       await prisma.webhookLog.update({
         where: { id: webhookLog.id },
-        data: { status: 'processed', errorMessage: 'Skipped agent SIP leg (inflated timing)' },
+        data: {
+          status: 'processed',
+          errorMessage: `Agent SIP leg merged: duration=${mergedDuration}s, billsec=${mergedBillsec}s${hasRecording ? ', recording' : ''}`,
+        },
       });
       res.json({ success: true, data: null });
       return;
@@ -262,15 +332,31 @@ export async function handleCdr(req: Request, res: Response, next: NextFunction)
       contactId = contact?.id || null;
     }
 
-    // Map agent extension → userId so dashboard/scope filtering works
+    // clusterId already resolved above by (pbx_ip + cdrDomain) — reuse it.
+
+    // Resolve the CRM user this call should be attributed to.
+    // 1) Trust crm_user_id from the originate channel variables (set by ESL c2c) — it's authoritative.
+    // 2) Otherwise look up by SIP extension on this cluster, preferring an agent over admin/super_admin
+    //    when multiple users share the same extension.
+    const crmUserId = safeStr(variables['crm_user_id'] || '');
+    const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
     const agentExt = direction === 'outbound' ? callerNum : (direction === 'inbound' ? finalDest : '');
     let agentUserId: string | null = null;
-    if (agentExt && agentExt.length <= 6) {
-      const agent = await prisma.user.findFirst({
-        where: { sipExtension: agentExt, status: 'active' },
-        select: { id: true },
+    if (crmUserId && isUuid(crmUserId)) {
+      const u = await prisma.user.findUnique({ where: { id: crmUserId }, select: { id: true } });
+      agentUserId = u?.id || null;
+    }
+    if (!agentUserId && agentExt && agentExt.length <= 6) {
+      // Role priority — operators (lower-privileged) own the call before admins.
+      const ROLE_PRIORITY = ['agent', 'leader', 'qa', 'manager', 'admin', 'super_admin'];
+      const candidates = await prisma.user.findMany({
+        where: { sipExtension: agentExt, status: 'active', ...(clusterId && { clusterId }) },
+        select: { id: true, role: true },
       });
-      agentUserId = agent?.id || null;
+      const best = candidates.sort(
+        (a, b) => ROLE_PRIORITY.indexOf(a.role) - ROLE_PRIORITY.indexOf(b.role),
+      )[0];
+      agentUserId = best?.id || null;
     }
 
     // Only mark recording as available if call had actual talk time (billsec > 0)
@@ -283,19 +369,23 @@ export async function handleCdr(req: Request, res: Response, next: NextFunction)
     // Fetch existing record to keep MAX of billsec/duration across legs
     const existingRecord = await prisma.callLog.findUnique({
       where: { callUuid: canonicalUuid },
-      select: { duration: true, billsec: true, hangupCause: true, sipCode: true },
+      select: { duration: true, billsec: true, hangupCause: true, sipCode: true, answerTime: true, endTime: true },
     });
-    const bestDuration = Math.max(duration, existingRecord?.duration || 0);
-    const bestBillsec = Math.max(billsec, existingRecord?.billsec || 0);
-
-    const startTime = startEpoch ? new Date(startEpoch * 1000) : new Date();
-    const answerTime = answerEpoch ? new Date(answerEpoch * 1000) : null;
-    const endTime = endEpoch ? new Date(endEpoch * 1000) : null;
+    const bestDuration = mergeDuration(duration, existingRecord?.duration);
+    const effectiveAnswer = answerTime || existingRecord?.answerTime || null;
+    const effectiveEnd = endTime || existingRecord?.endTime || null;
+    const bestBillsec = mergeBillsec(
+      billsec,
+      existingRecord?.billsec || 0,
+      effectiveAnswer,
+      effectiveEnd,
+    );
     await prisma.callLog.upsert({
       where: { callUuid: canonicalUuid },
       create: {
         callUuid: canonicalUuid,
         contactId,
+        clusterId,
         userId: agentUserId,
         direction: direction === 'inbound' ? 'inbound' : 'outbound',
         callerNumber: callerNum,
