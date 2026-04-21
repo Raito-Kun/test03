@@ -58,9 +58,9 @@ ON CONFLICT (key) DO NOTHING;
 
 -- Grant recording.delete to super_admin and admin in every cluster
 INSERT INTO role_permissions (cluster_id, role, permission_id, granted)
-SELECT c.id, r.role, p.id, true
+SELECT c.id, r.role::"Role", p.id, true
 FROM pbx_clusters c
-CROSS JOIN (VALUES ('super_admin'::text), ('admin')) AS r(role)
+CROSS JOIN (VALUES ('super_admin'), ('admin')) AS r(role)
 CROSS JOIN permissions p
 WHERE p.key = 'recording.delete'
 ON CONFLICT (cluster_id, role, permission_id) DO UPDATE SET granted = true;
