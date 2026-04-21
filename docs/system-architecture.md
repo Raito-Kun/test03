@@ -40,7 +40,7 @@ packages/frontend/src/
 └── main.tsx          # Entry point
 ```
 
-**Page Structure** (14+ pages):
+**Page Structure** (14+ pages, 2026-04-21):
 - Auth: login, register, forgot-password
 - Dashboard: overview with KPIs
 - Contacts: list, detail, create/edit
@@ -48,9 +48,11 @@ packages/frontend/src/
 - DebtCases: list, detail
 - CallLogs: list, detail
 - Campaigns: list, detail
-- Tickets: list, detail, create/edit
+- Tickets: kanban board with 4-column drag-drop (open, in_progress, resolved, closed); detail dialog with waveform + click-to-call; resolved status requires resultCode; delete admin/super_admin only
 - Reports: 3-tab analytics (summary, detail, charts) with shared filters
 - Settings: user and team config
+
+**Sidebar Navigation** (Phase 17+): 5 groups (Giám sát, CRM, Chiến dịch, Tổng đài, Hỗ trợ) with Vietnamese labels. Details in codebase-summary.md
 
 **Reports Page Components** (Phase 16+):
 - `reports-page.tsx` — Main page with tab routing, shared filter state management, session memory
@@ -205,35 +207,37 @@ export async function listContacts(pagination, filters, dataScope) {
 | **agent_telesale** | Sales operations | Own assigned records |
 | **agent_collection** | Collection operations | Own assigned records |
 
-### Permission System (Phase 10+)
+### Permission System (Phase 10+, v1.3.10 deduped)
 
-**Permission Table**: Dynamic RBAC permissions stored in database
+**Permission Table**: Dynamic RBAC permissions stored in database with parent-child hierarchy
 - **ID**: UUID primary key
-- **Key**: Unique permission identifier (e.g., "manage_users", "view_reports")
-- **Label**: User-friendly label (Vietnamese/English)
-- **Group**: UI grouping category (e.g., "users", "reports", "calls")
+- **Key**: Unique permission identifier using `resource.action` format (e.g., "switchboard.make_call", "crm.contacts.delete")
+- **Label**: User-friendly Vietnamese label
+- **Group**: UI grouping category (7 groups: switchboard, crm, campaign, report, ticket, qa, system)
+- **ParentId**: Optional FK for parent permission (enables cascading enable/disable in matrix UI)
 
 **RolePermission Table**: Many-to-many mapping roles to permissions
-- **Role**: Enum value (admin, manager, leader, agent_telesale, agent_collection, qa)
+- **Role**: Enum value (super_admin, admin, manager, leader, qa, agent_telesale, agent_collection)
 - **PermissionId**: Foreign key to Permission table
 - **Granted**: Boolean flag for permission grant/revoke
 
-**13 Standard Permissions**:
-1. `view_reports` - Access report dashboards
-2. `make_calls` - Initiate VoIP calls
-3. `export_excel` - Export data to Excel
-4. `view_recordings` - Access call recordings
-5. `manage_campaigns` - Create/edit campaigns
-6. `manage_users` - User account management
-7. `manage_permissions` - Permission matrix management
-8. `manage_extensions` - Extension mapping and reassignment
-9. `view_dashboard` - Dashboard access
-10. `manage_tickets` - Ticket lifecycle management
-11. `manage_debt_cases` - Debt case operations
-12. `manage_leads` - Lead pipeline management
-13. `manage_contacts` - Contact management
+**40+ Permissions Organized in 7 Groups** (v1.3.10):
+1. **Switchboard** (Tổng đài): switchboard.manage, .make_call, .receive_call, .transfer_call, .hold_call, .listen_recording, .download_recording; recording.delete (new)
+2. **CRM**: crm.manage, .contacts.view, .contacts.create, .contacts.edit, .contacts.delete, .contacts.import, .contacts.export, .leads.view, .leads.create, .leads.edit, .leads.delete, .leads.import, .debt.view, .debt.edit, .data_allocation
+3. **Campaign** (Chiến dịch): campaign.manage, .create, .edit, .delete, .assign, .import
+4. **Report** (Báo cáo): report.manage, .view_own, .view_team, .view_all, .export
+5. **Ticket** (Phiếu ghi): ticket.manage, .create, .edit, .delete (middleware-enforced), .assign
+6. **QA**: qa.manage, .score, .review, .annotate
+7. **System** (Hệ thống): system.manage, .users, .roles, .permissions, .settings, .audit_log
+
+**Enforcement**:
+- `ticket.delete` — middleware applied to DELETE /api/tickets/:id (default: super_admin, admin)
+- `crm.contacts.delete` — middleware applied to DELETE /contacts/:id + POST /contacts/bulk-delete
+- `recording.delete` — middleware applied to new DELETE /api/call-logs/:id/recording (default: super_admin, admin)
 
 **super_admin Behavior**: Automatically has all permissions (hardcoded bypass in middleware)
+
+**Single Source of Truth**: `packages/backend/prisma/seed.ts` lines 130-193
 
 ### Error Format
 
@@ -344,86 +348,146 @@ Frontend (Socket.IO) ↔ Backend (Node.js) ↔ ESL Daemon ↔ FreeSWITCH (PBX) +
 - Report metrics: first response time, resolution time, breach %
 
 #### Contact Merge & Lead Import Services (Phase 15+)
-- `POST /api/v1/contacts/merge` → Merge duplicate contacts
-- Field conflict resolution: priority ranking
+- `POST /api/v1/contacts/merge` → Merge duplicate contacts (field conflict resolution)
 - `POST /api/v1/leads/import-csv` → Bulk import leads from CSV
 
 #### Permission Hierarchy Data Model (Phase 17+)
-
-```
-PermissionGroup
-  id          UUID
-  key         String (unique)
-  label       String
-  parentId    UUID? (self-referential FK → PermissionGroup.id)
-  order       Int
-
-Permission
-  id          UUID
-  key         String (unique)
-  label       String
-  groupId     UUID (FK → PermissionGroup.id)
-
-RolePermission
-  role        Role (enum)
-  permissionId UUID (FK → Permission.id)
-  granted     Boolean
-```
-
-Parent-child toggle rules enforced at UI and API level:
-- Parent toggled OFF → all children in same role column set to false
-- Parent toggled ON → all children in same role column set to true
-- Children can be individually toggled when parent is ON
+- PermissionGroup: id, key, label, parentId (self-ref), order
+- Permission: id, key, label, groupId (FK)
+- RolePermission: role, permissionId (FK), granted
+- Parent-child toggle rules: parent OFF → all children OFF; parent ON → all children ON
 - super_admin: all permissions hardcoded ON, switches disabled
 
-#### Data Scope Middleware Flow (Phase 17+)
+#### Extension Sync Flow (Phase 18+)
+
+Cluster configuration includes SSH credentials (sshUser, sshPassword) for reaching the FusionPBX host. Sync is triggered via `POST /api/v1/clusters/:id/sync-extensions`.
 
 ```
-Request arrives with req.user (userId, role, teamId)
+Admin triggers "Sync Extensions" in Cluster Management UI
     ↓
-applyDataScope() middleware executes
+POST /api/v1/clusters/:id/sync-extensions
     ↓
-switch (req.user.role):
-  agent_telesale | agent_collection
-    → req.dataScope = { type: 'own', userId }
-  leader
-    → req.dataScope = { type: 'team', teamId }
-  manager | admin | qa | super_admin
-    → req.dataScope = { type: 'all' }
+extension-sync-service.syncExtensions(clusterId, sshHost, sshPassword, sipDomain)
     ↓
-buildScopeWhere(dataScope, assignedField):
-  'own'  → { [assignedField]: userId }
-  'team' → { assignedUser: { teamId } }
-  'all'  → {}
+SSH Client (ssh2) connects to PBX host
     ↓
-Prisma query uses WHERE clause
+Executes: sudo -u postgres psql -d fusionpbx -c "SELECT extension, password, ... FROM v_extensions"
+    ↓
+Parses rows → ExtensionRow[] { extension, password, callerName, accountcode }
+    ↓
+Upserts rows into ClusterExtension table (unique: clusterId + extension)
+    ↓
+Returns { synced: N } to UI with success toast
 ```
+
+**Cluster Routes** (`/api/v1/clusters`):
+- `GET /` → List all clusters
+- `GET /active` → Get active cluster config (used by ESL daemon on startup)
+- `POST /` → Create cluster (auto-activates if first cluster)
+- `POST /ssh-discover` → Network scan to discover PBX hosts
+- `POST /test-connection-direct` → Test ESL without saved cluster
+- `GET /:id` → Get cluster detail (secrets masked)
+- `PUT /:id` → Update cluster settings
+- `DELETE /:id` → Delete cluster
+- `POST /:id/switch` → Set as active cluster and reload ESL daemon
+- `POST /:id/test-connection` → Test ESL connection to saved cluster
+- `POST /:id/sync-extensions` → SSH into PBX, fetch extensions, upsert to DB
+- `GET /:id/extensions` → List synced extensions for cluster
+
+#### Multi-Tenant Data Isolation (Phase 18+)
+
+Every major entity table carries an optional `cluster_id` foreign key referencing `PbxCluster`. Records are scoped to the active cluster at time of creation, ensuring data isolation in multi-cluster deployments.
+
+**Tables with cluster_id**:
+- Contact, Lead, DebtCase, CallLog, Campaign, Ticket, User
+
+**Isolation Rules**:
+- When active cluster changes (switch), service layer filters by new clusterId
+- Within a cluster, DataScope middleware still applies role-based filtering
+- Super admin can query across clusters (no cluster filter applied)
+- ClusterExtension table is cluster-specific by design (onDelete: Cascade)
+
+#### Feature Toggle System (Phase 19+)
+
+Dynamic feature control at cluster and domain level with middleware enforcement.
+
+**Database Model** (`ClusterFeatureFlag`):
+```
+cluster_id        UUID (FK → PbxCluster)
+domain_name       String (optional, '' for cluster-level)
+feature_key       String (enum of 20+ feature keys)
+is_enabled        Boolean
+updated_by        UUID (FK → User)
+updated_at        DateTime
+Unique: (cluster_id, domain_name, feature_key)
+```
+
+**Feature Keys** (20+ total):
+- CRM: `contacts`, `leads`, `debt`, `campaigns`
+- VoIP: `tickets`, `voip_c2c`, `recording`, `cdr_webhook`
+- Monitoring: `live_monitoring`, `call_history`
+- Reports: `reports_summary`, `reports_detail`, `reports_chart`, `reports_export`
+- AI: `ai_assistant`, `ai_qa`
+- Admin: `team_management`, `permission_matrix`, `pbx_cluster_mgmt`
+
+**API Endpoints** (Feature Flag Controller):
+- `GET /api/v1/feature-flags?clusterId=` — List all flags for cluster (super_admin only)
+- `PUT /api/v1/feature-flags` — Bulk update flags (super_admin only)
+- `GET /api/v1/feature-flags/effective` — Get effective flags for current user's cluster (all auth users)
+
+**Middleware Integration** (`checkFeatureEnabled(featureKey)`):
+- Applied to routes: contacts, leads, debt-cases, campaigns, tickets, calls, call-logs, monitoring, reports, ai, teams, permissions, export
+- Returns 403 with message when feature disabled
+- Skips check for super_admin users
+
+**Hierarchy**:
+- Cluster-level flag (domainName="") acts as master override
+- If cluster disables a feature, all domains in cluster cannot use it
+- Domain-level flags (domainName specified) allow per-domain customization
+- Lookup order: check domain-specific flag first, fallback to cluster-level
+
+**Frontend Integration** (`useFeatureFlags` hook):
+- Fetches effective flags on app initialization
+- `FeatureGuard` component wraps routes, shows friendly message if disabled
+- Sidebar hides menu items for disabled features
+- `useFeatureFlags()` hook provides flag state in components
+
+#### Auto-Create Accounts on Cluster Creation (Phase 18+)
+
+When a new `PbxCluster` is saved and synced for the first time, the system auto-creates CRM user accounts for any extensions found in FusionPBX that do not already have a matching account.
+
+**Flow**:
+```
+POST /:id/sync-extensions completes → N extensions synced
+    ↓
+For each ExtensionRow where accountcode matches no existing User.extension:
+  Create User { username: extension, role: agent_telesale, clusterId }
+    ↓
+Returns { synced: N, accountsCreated: M }
+```
+
+#### Account Management Module (Phase 18+)
+
+Settings page includes an Account Management tab for admins to view, create, and assign extensions to CRM users.
+
+**Frontend**: `packages/frontend/src/pages/settings/cluster-management.tsx` — cluster list + detail form with extension list tab
+**Backend endpoints** (cluster-scoped):
+- `GET /api/v1/clusters/:id/extensions` → List ClusterExtension rows with assigned User info
+- `POST /api/v1/clusters/:id/sync-extensions` → Sync extensions from FusionPBX via SSH
+
+#### Data Scope Middleware Flow (Phase 17+)
+- Agents (agent_telesale, agent_collection) → req.dataScope = { type: 'own', userId }
+- Leaders → req.dataScope = { type: 'team', teamId }
+- Manager/admin/qa/super_admin → req.dataScope = { type: 'all' }
+- buildScopeWhere(): 'own' → filter by userId, 'team' → filter by teamId, 'all' → no filter
+- Prisma applies WHERE clause based on scope
 
 #### Data Allocation Flow (Phase 17+)
-
-```
-Leader/Manager selects records on list page (checkbox)
-    ↓
-Clicks "Phân bổ" button
-    ↓
-DataAllocationDialog opens:
-  - Fetches team members from GET /api/v1/users?teamId=...
-  - Agent dropdown populated
-    ↓
-User selects agent → clicks Confirm
-    ↓
-POST /api/v1/{entity}/allocate
-  Body: { ids: UUID[], agentId: UUID }
-    ↓
-Backend:
-  1. Validates leader/manager has permission over records (dataScope check)
-  2. Updates assignedTo = agentId for all records in ids[]
-  3. Returns { updated: N }
-    ↓
-Frontend: success toast, table refreshes, selection cleared
-    ↓
-Allocated agent now sees records (dataScope filter includes their userId)
-```
+- Leader/Manager selects records, clicks "Phân bổ" button
+- DataAllocationDialog fetches team members and shows agent dropdown
+- POST /api/v1/{entity}/allocate with { ids[], agentId }
+- Backend validates permission, updates assignedTo for all records
+- Frontend refreshes table, allocated agent now sees records
 - `POST /api/v1/contacts/import-csv` → Bulk import contacts from CSV
 - Validation and deduplication during import
 
@@ -651,70 +715,13 @@ Core entities:
 
 **Note**: Phase 16 Reports page uses existing CallLog table. No new schema migrations required.
 
-## Data Flow Diagrams
+## Key Data Flow Patterns
 
-### Contact Creation Flow
+**Contact Creation**: JWT auth → RBAC check → dataScope build → Zod validation → create with audit log
 
-```
-POST /api/v1/contacts
-    ↓
-[Auth Middleware] ✓ Verify JWT
-    ↓
-[RBAC Middleware] ✓ Check role in [admin, manager, leader, agent_telesale, agent_collection]
-    ↓
-[Data Scope Middleware] → Build scopeWhere (agents see own only)
-    ↓
-[Contact Controller] → Parse & validate request body with Zod
-    ↓
-[Contact Service]
-    - buildScopeWhere(dataScope, 'assignedTo')
-    - prisma.contact.create()
-    ↓
-[Audit Log] → Log creation by userId
-    ↓
-Response: { success: true, data: { id, fullName, phone, ... } }
-```
+**Call Initiation**: JWT auth → validate input → create Call record → ESL originate → Socket.IO emit
 
-### Call Initiation Flow
-
-```
-POST /api/v1/calls/initiate
-    ↓
-[Auth Middleware] ✓ Verify JWT
-    ↓
-[Call Controller] → Validate phone number, contact ID
-    ↓
-[Call Service]
-    - Create Call record (status: initiating)
-    - ESL: originate call to FreeSWITCH
-    ↓
-[ESL Daemon] ↔ FreeSWITCH
-    - CHANNEL_CREATE event
-    - CHANNEL_ANSWER event
-    ↓
-[Socket.IO Emit] → call:initiated to connected agents
-    ↓
-Response: { success: true, data: { callId, status: 'initiating' } }
-```
-
-### CDR Webhook Flow
-
-```
-POST /api/v1/webhooks/cdr (from FreeSWITCH)
-    ↓
-[Webhook Controller] → Parse XML body
-    ↓
-[Call Log Service]
-    - Extract: duration, disposition, recording_url
-    - Create CallLog record
-    - Update Call status to 'completed'
-    ↓
-[Audit Log] → Record CDR receipt
-    ↓
-[Socket.IO Emit] → call:ended to connected agents
-    ↓
-Response: { success: true }
-```
+**CDR Webhook**: Parse XML → extract CDR data → create CallLog → update Call status → Socket.IO emit
 
 ## Deployment Architecture
 
@@ -731,126 +738,38 @@ npm run test         # Run Vitest suite (49 tests)
 
 **Docker Compose Services**: backend (Node 18 Alpine, PM2 fork mode), frontend (nginx), PostgreSQL (13+), Redis, Nginx reverse proxy (SSL/TLS ready, gzip, rate limiting)
 
-#### Docker File Structure
-- **Backend Dockerfile**: Multi-stage, production optimized
-  - Stage 1: Build with dependencies
-  - Stage 2: Runtime with minimal image size
+#### Docker & Orchestration
+- **Backend**: Multi-stage Dockerfile (Node 18 Alpine, PM2 fork mode)
+- **Frontend**: Multi-stage build (Vite → nginx)
+- **docker-compose.prod.yml**: Full stack orchestration with volumes, networking, limits
+- **Nginx**: Reverse proxy with SSL/TLS, gzip, cache headers, rate limiting
+- **PM2**: Fork mode with auto-restart, log rotation, process monitoring
 
-- **Frontend Dockerfile**: Multi-stage build
-  - Stage 1: Vite build process
-  - Stage 2: Nginx serving built assets
-
-- **docker-compose.prod.yml**: Production orchestration with volumes, networking, resource limits
-
-#### PM2 Fork Mode Configuration
-- **Fork mode**: Spawns independent processes (not cluster mode)
-- **Multi-process**: Automatically uses all available CPU cores
-- **Auto-restart**: Restarts crashed processes
-- **Log rotation**: Managed by PM2 with size/date-based rotation
-- **Monitoring**: PM2 CLI for process health, memory, CPU tracking
-- **Config file**: `ecosystem.config.js` in root
-
-#### Nginx Reverse Proxy (nginx.conf)
-```
-Upstream:
-├── api: backend service on :4000
-└── static: frontend service on :3000
-
-Routes:
-├── /api/* → backend (WebSocket upgrade support)
-├── /socket.io/* → backend (Socket.IO)
-├── / → static frontend assets
-```
-
-Features:
-- SSL/TLS termination (ready for certificates)
-- Gzip compression (enabled)
-- Cache headers for static assets (1 year for hashed files)
-- Security headers (X-Frame-Options, X-Content-Type-Options)
-- Rate limiting at gateway (optional)
-
-#### Deployment Checklist
-- [x] Docker images build successfully
-- [x] docker-compose.prod.yml tested locally
-- [x] Nginx configuration validated
-- [x] PM2 fork mode working
-- [x] Environment variables documented
-- [x] PostgreSQL migrations tested
-- [x] Redis connectivity verified
-- [x] SSL/TLS ready (certificates placeholder)
-
-#### Performance (Validated)
-- API response: <200ms (p95)
-- Call initiation: <2s via ESL
-- Dashboard load: <2s
-- Concurrent users: 500+
+#### Deployment Validation
+Docker images, Nginx config, PM2 mode, PostgreSQL migrations, Redis connectivity, and SSL/TLS verified. Performance: API <200ms (p95), call initiation <2s, dashboard <2s, 500+ concurrent users.
 
 ## Security Considerations
 
-### Authentication
-- JWT tokens (HS256 signature)
-- Refresh token rotation (httpOnly cookies)
-- Token expiration: Access (15m), Refresh (7d)
-
-### Authorization
-- Role-based access control (RBAC)
-- Data scoping by team/user (middleware-level)
-- Audit logging (userId, action, resource, timestamp)
-
-### Network
-- Helmet.js (security headers)
-- CORS with configurable origin
-- Rate limiting (global + per-endpoint)
-- Rate limit stored in Redis
-
-### Data Protection
-- Bcryptjs for password hashing
-- HTTPS in production (Helmet enforces secure cookies)
-- Input validation via Zod (type safety + sanitization)
+**Authentication**: JWT (HS256) with refresh tokens (15m access, 7d refresh)
+**Authorization**: RBAC with data scoping by team/user, audit logging
+**Network**: Helmet.js headers, CORS, rate limiting (Redis)
+**Data Protection**: Bcryptjs hashing, HTTPS production, Zod validation
 
 ## Monitoring & Logging
 
-- **Winston Logger**: Structured logging (info, warn, error)
-- **Morgan**: HTTP request logging (short format)
-- **Audit Logs**: User actions tracked in database
-- **Error Tracking**: Unhandled errors logged with full stack (dev only)
+Winston structured logging, Morgan HTTP logging, database audit logs, and error tracking (dev only).
 
 ## Performance Considerations
 
-- **Pagination**: Default 20 items/page with offset-based cursor
-- **Select Optimization**: Controllers specify only required fields
-- **Indexing**: Composite indexes on (teamId, createdAt), (assignedTo, status)
-- **Caching**: Redis for rate limiting; Session caching via Socket.IO
-- **Compression**: gzip enabled for all responses
+Pagination (20/page), optimized SELECT, composite indexes, Redis caching, gzip compression.
 
 ## Testing & Quality Assurance
 
-### Test Coverage
-- **Vitest Framework**: 49 unit + integration tests
-- **Services**: Auth, Contact, Lead, DebtCase, Call, Ticket, Dashboard
-- **Controllers**: HTTP request handling and validation
-- **Middleware**: Auth, RBAC, data scoping, error handling
-- **Endpoints**: 55+ API endpoints with response validation
-
-### Test Categories
-- **Unit Tests**: Service functions, utility functions, validation
-- **Integration Tests**: API endpoint flows, database operations
-- **Data Scoping**: RBAC enforcement and data isolation
-- **Error Handling**: Edge cases and error responses
-
-### MCP Server Integration
-
-**Claude MCP Server** (`packages/mcp-server/`):
-- 8 Claude integration tools for VoIP management
-- Extension querying and management
-- Call log retrieval and analytics
-- Permission and user management
-- Real-time system status monitoring
-- Secure JWT authentication for API calls
+**Vitest Framework**: 49 unit + integration tests covering services, controllers, middleware, endpoints, RBAC/data scoping, and error handling. See codebase-summary.md for detailed test organization and coverage areas.
 
 ---
 
-**Last Updated**: 2026-04-01
-**Version**: 1.2.1-release (Reports Page Redesign Complete)
-**Status**: Phase 16 Complete, Deployed to 10.10.101.207
-**Previous Version**: 1.2.0-release (Phase 15 Gap Analysis)
+**Last Updated**: 2026-04-17
+**Version**: 1.3.5-release (Call History Timing & Recording Fix)
+**Status**: Phase 20 Complete, Deployed to 10.10.101.207
+**Previous Version**: 1.3.3-release (Feature Toggle System)

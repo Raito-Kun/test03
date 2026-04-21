@@ -4,20 +4,20 @@
 
 CRM Omnichannel is a comprehensive customer relationship management platform with integrated VoIP capabilities, built as a monorepo using TypeScript, Node.js, React, PostgreSQL, and FreeSWITCH PBX integration.
 
-**Project Status**: Advanced Features Complete (Phases 1-15 Done)
+**Project Status**: Advanced Features Complete (Phases 1-20 Done)
 **Repository**: Monorepo structure with packages/backend, packages/frontend, packages/shared, packages/mcp-server
 **Team**: Full-stack development team
 **Start Date**: 2026-01-15
-**Current Phase**: Phase 15 Complete (v1.2.0 deployed to 10.10.101.207)
+**Current Phase**: Phase 20 Complete (v1.3.5 deployed to 10.10.101.207)
 
 ## Monorepo Structure
 
 ```
 packages/
-├── backend/              # Express.js API server (85+ files)
+├── backend/              # Express.js API server (100+ files)
 │   ├── src/
-│   │   ├── controllers/  # HTTP request handlers (19+ files)
-│   │   ├── services/     # Business logic (21+ files)
+│   │   ├── controllers/  # HTTP request handlers (22+ files)
+│   │   ├── services/     # Business logic (30+ files)
 │   │   ├── routes/       # Express route definitions (14+ files)
 │   │   ├── middleware/   # Auth, RBAC, permissions, data scoping
 │   │   ├── lib/          # Utilities: JWT, Prisma, Socket.IO, ESL, Logger
@@ -123,8 +123,10 @@ packages/
 - Disposition Codes: CRUD
 - QA Annotations: CRUD (+ timestamps)
 
-**Ticketing** (10+ endpoints):
-- Tickets: CRUD + bulk actions (+ SLA tracking)
+**Ticketing** (10+ endpoints, 2026-04-21 Kanban MVP):
+- Tickets: CRUD + bulk actions (+ SLA tracking, cluster-scoped, detail includes callLog + auditLog)
+- Kanban board: 4-column drag-drop (open, in_progress, resolved, closed) with resolved requiring resultCode
+- Delete: admin/super_admin only
 - Categories: CRUD
 - Comments: Add/list
 - Macros: Apply endpoint
@@ -162,6 +164,25 @@ packages/
 - GET /api/v1/extensions
 - PUT /api/v1/extensions/:ext/assign
 
+**Cluster Management** (11 endpoints, Phase 18+):
+- GET /api/v1/clusters → list all clusters
+- GET /api/v1/clusters/active → active cluster config
+- POST /api/v1/clusters → create cluster
+- POST /api/v1/clusters/ssh-discover → network scan for PBX hosts
+- POST /api/v1/clusters/test-connection-direct → direct ESL test
+- GET /api/v1/clusters/:id → cluster detail (secrets masked)
+- PUT /api/v1/clusters/:id → update cluster
+- DELETE /api/v1/clusters/:id → delete cluster
+- POST /api/v1/clusters/:id/switch → set active cluster
+- POST /api/v1/clusters/:id/test-connection → test ESL for saved cluster
+- POST /api/v1/clusters/:id/sync-extensions → SSH sync extensions from FusionPBX
+- GET /api/v1/clusters/:id/extensions → list synced extensions
+
+**Feature Flags** (3 endpoints, Phase 19+):
+- GET /api/v1/feature-flags?clusterId= → List all flags for cluster (super_admin only)
+- PUT /api/v1/feature-flags → Bulk update flags (super_admin only)
+- GET /api/v1/feature-flags/effective → Get effective flags for current user's cluster (all auth users)
+
 ### Middleware Chain
 
 1. **Helmet** - Security headers
@@ -173,7 +194,8 @@ packages/
 7. **RBAC Middleware** - Role-based access control
 8. **Permission Middleware** - Permission checking with cache
 9. **Data Scope Middleware** - Filter data by role/team
-10. **Error Handler** - Consistent error responses
+10. **Feature Flag Middleware** - Feature availability check (Phase 19+)
+11. **Error Handler** - Consistent error responses
 
 ### Request/Response Pattern
 
@@ -200,16 +222,48 @@ Error → Error Handler → Consistent Format
 6. agent_telesale - Sales operations
 7. agent_collection - Collection operations
 
-**13 Permission Keys** (Phase 10+):
-- view_reports, make_calls, export_excel, view_recordings
-- manage_campaigns, manage_users, manage_permissions, manage_extensions
-- view_dashboard, manage_tickets, manage_debt_cases, manage_leads, manage_contacts
+**40+ Permission Keys in 7 Groups** (Phase 10+, v1.3.10 deduped):
+
+| Group | Keys | Purpose |
+|-------|------|---------|
+| **Switchboard** (Tổng đài) | switchboard.manage, .make_call, .receive_call, .transfer_call, .hold_call, .listen_recording, .download_recording; recording.delete | VoIP operations and recording management |
+| **CRM** | crm.manage, .contacts.view, .contacts.create, .contacts.edit, .contacts.delete, .contacts.import, .contacts.export; .leads.view, .leads.create, .leads.edit, .leads.delete, .leads.import; .debt.view, .debt.edit; .data_allocation | Contact, lead, debt case management and data allocation |
+| **Campaign** (Chiến dịch) | campaign.manage, .create, .edit, .delete, .assign, .import | Campaign creation, editing, assignment, and CSV import |
+| **Report** (Báo cáo) | report.manage, .view_own, .view_team, .view_all, .export | Report viewing and export based on role scope |
+| **Ticket** (Phiếu ghi) | ticket.manage, .create, .edit, .delete, .assign | Ticket lifecycle and assignment (delete requires admin/super_admin) |
+| **QA** | qa.manage, .score, .review, .annotate | QA scoring and annotations |
+| **System** (Hệ thống) | system.manage, .users, .roles, .permissions, .settings, .audit_log | User, role, permission, settings, and audit log management |
 
 **Permission Storage**:
 - Database: Permission table + RolePermission mapping
 - Cache: Redis (5min TTL)
 - JWT: Contains only role (not full permissions due to dynamic nature)
 - super_admin: Hardcoded bypass (all permissions automatically)
+
+### Feature Flag System (Phase 19+)
+
+**Purpose**: Dynamic control of feature availability at cluster and domain level.
+
+**Table Structure** (ClusterFeatureFlag):
+- cluster_id (FK → PbxCluster)
+- domain_name (String, '' = cluster-level, custom domain = domain-level)
+- feature_key (20+ keys: contacts, leads, debt, campaigns, tickets, voip_c2c, recording, cdr_webhook, live_monitoring, call_history, reports_summary, reports_detail, reports_chart, reports_export, ai_assistant, ai_qa, team_management, permission_matrix, pbx_cluster_mgmt)
+- is_enabled (Boolean)
+- updated_by (FK → User)
+- updated_at (DateTime)
+- Unique constraint: (cluster_id, domain_name, feature_key)
+
+**Hierarchy**:
+- Cluster-level flag (domainName="") acts as master override
+- Domain-level flags allow per-domain customization
+- Lookup: domain-specific → cluster-level (fallback)
+- If cluster disables feature, all domains cannot enable it
+
+**Enforcement**:
+- Middleware: `checkFeatureEnabled(featureKey)` returns 403 when disabled
+- Applied to 13 routes (contacts, leads, debt-cases, campaigns, tickets, calls, call-logs, monitoring, reports, ai, teams, permissions, export)
+- super_admin bypasses all checks
+- Frontend: FeatureGuard blocks routes, sidebar hides menu items
 
 ### VoIP Integration (ESL + FreeSWITCH)
 
@@ -227,11 +281,13 @@ Real-time UI Updates
 ```
 
 **Components**:
-- **ESL Daemon** (`lib/esl-daemon.ts`): Persistent connection to FreeSWITCH
+- **ESL Daemon** (`lib/esl-daemon.ts`): Persistent connection to FreeSWITCH; loads config from active PbxCluster on startup
 - **Call Service**: Initiate, transfer, end calls via ESL
-- **CDR Webhook**: Receive and parse call detail records
+- **CDR Webhook**: Receive and parse call detail records; stores with clusterId from active cluster
+- **Extension Sync Service** (`services/extension-sync-service.ts`): SSH into FusionPBX, query v_extensions, upsert to ClusterExtension table
+- **Cluster Service** (`services/cluster-service.ts`): Manage PbxCluster records; switch active cluster triggers ESL daemon reload
 - **Extension Service**: Query FreeSWITCH for SIP registration status
-- **Call Log Service**: Store CDR data in database
+- **Call Log Service**: Store CDR data in database (cluster-scoped)
 
 **Call Routing**:
 - Outbound: User → Node.js → ESL → FreeSWITCH → Agent Phone
@@ -301,6 +357,25 @@ Real-time UI Updates
 11. **Extensions**: Extension mapping (admin only)
 12. **Permissions**: Permission manager (super_admin only)
 13. **Monitoring**: Live monitoring dashboard (agent grid, active calls, Phase 15+)
+
+### Sidebar Navigation Structure (Phase 17+)
+
+**Organization**: 5 groups reflecting business workflow
+
+| Group | Vietnamese | Items | Routes |
+|-------|-----------|-------|--------|
+| **Monitoring** | Giám sát | Tổng quan, Hoạt động trong ngày | /dashboard, /monitoring/live |
+| **CRM** | CRM | Danh sách khách hàng, Nhóm khách hàng, Công nợ | /contacts, /leads, /debt-cases |
+| **Campaigns** | Chiến dịch | Danh sách chiến dịch | /campaigns |
+| **PBX** | Tổng đài | Lịch sử cuộc gọi, Máy nhánh | /call-logs, /extensions |
+| **Support** | Hỗ trợ | Phiếu ghi, Báo cáo | /tickets, /reports |
+
+**Navigation Component**: `packages/frontend/src/components/sidebar.tsx`
+- Recursive menu structure supporting nested items
+- Vietnamese localized labels
+- Role-based visibility (some items hidden for lower permissions)
+- Responsive collapsible sidebar
+- Active state indication for current route
 
 ### Component Structure
 
@@ -562,19 +637,22 @@ docker-compose -f docker-compose.prod.yml up
 - **Phase 09** ✓ Testing & Production Hardening
 - **Phase 10** ✓ Super Admin Role + Permission Manager
 - **Phase 11** ✓ Extension Mapping Config
+- **Phase 12-14** — Merged into Phase 15 scope
 - **Phase 15** ✓ Gap Analysis Features & Advanced Features (v1.2.0)
+- **Phase 16** ✓ Reports Page Redesign (v1.2.1)
+- **Phase 17** ✓ RBAC Overhaul + UI Navigation Restructure (v1.3.0 / v1.3.1)
+- **Phase 18** ✓ Extension Sync, Accounts & Multi-Tenancy (v1.3.2)
+- **Phase 19** ✓ Feature Toggle System (v1.3.3)
+- **Phase 20** ✓ Auth Hardening & Telephony Polish (v1.3.4 → v1.3.6)
 
-### In Progress
+### Next Steps (Phase 21+)
 
-- **Phase 16** (Planned) Advanced Features: Predictive dialing, ML refinements, Webhooks, Mobile app
-
-### Next Steps
-
-1. Complete Phase 16 planning and scope definition
-2. Deploy Phase 15 to additional environments
-3. User feedback collection and roadmap adjustment
-4. Advanced analytics implementation
-5. Third-party integrations (Salesforce, HubSpot, etc.)
+1. Predictive dialing + auto-calling campaigns
+2. ML-based lead scoring refinement
+3. Webhook system for third-party integrations
+4. Mobile app (React Native)
+5. AI-powered customer insights and recommendations
+6. Third-party CRM integrations (Salesforce, HubSpot)
 
 ## Metrics & Statistics
 
@@ -582,7 +660,7 @@ docker-compose -f docker-compose.prod.yml up
 |--------|-------|
 | Backend Files | 100+ TypeScript files |
 | Frontend Files | 95+ TypeScript/TSX files |
-| API Endpoints | 70+ |
+| API Endpoints | 85+ |
 | Database Tables | 17 (+ extended fields) |
 | Controllers | 26+ |
 | Services | 26+ |
@@ -593,7 +671,7 @@ docker-compose -f docker-compose.prod.yml up
 | Lines of Code (Frontend) | ~9,500 |
 | Test Coverage | 49+ tests |
 | Tech Debt | Low (consistent patterns) |
-| Project Completion | 93.75% (15/16 phases) |
+| Project Completion | 100% (20/20 phases) |
 
 ## Dependencies & External Services
 
@@ -623,8 +701,8 @@ docker-compose -f docker-compose.prod.yml up
 
 ---
 
-**Last Updated**: 2026-03-28
+**Last Updated**: 2026-04-21
 **Maintained By**: Development Team
-**Status**: Advanced Features Complete (v1.2.0)
-**Deployed To**: 10.10.101.207
-**Next Review**: 2026-04-15
+**Status**: Phase 20+ Complete (v1.3.10 — RBAC dedup + recording.delete)
+**Deployed To**: 10.10.101.207 (v1.3.10)
+**Next Review**: 2026-04-28

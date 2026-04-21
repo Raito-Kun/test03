@@ -2,6 +2,551 @@
 
 All significant changes, features, and fixes to the CRM Omnichannel project are documented here.
 
+## Version 1.3.10 (2026-04-21, rev 2) - RBAC Permission Dedup + Recording Delete
+
+**Deployment**: 10.10.101.207 (dev)
+**Phase**: Permission model simplification + enforcement fixes
+
+### RBAC Permission Deduplication
+
+**Merged 16 Legacy Keys into Modern `resource.action` Format**:
+- **Legacy plural forms removed**: `manage_campaigns`, `manage_users`, `manage_permissions`, `manage_tickets`, `manage_contacts`, `manage_leads`, `manage_debt_cases`, `manage_extensions`, `view_reports`, `view_dashboard`, `view_recordings`, `export_excel`, `make_calls`, `import_campaigns`, `import_contacts`, `import_leads`
+- **Modern keys introduced** (2026-04-21): `campaign.import`, `crm.leads.import`, `switchboard.make_call`, `system.*` family, `ticket.manage`, `crm.contacts.*`, `report.*` family (view_own, view_team, view_all, export)
+- **Single source of truth**: `packages/backend/prisma/seed.ts` lines 130-193 (permissionDefs array). 40+ keys across 7 groups.
+- **Permission matrix UI now shows exactly 7 groups** (was 12+ with duplicates): switchboard, crm, campaign, report, ticket, qa, system
+
+### Permission Enforcement Fixes
+
+**`ticket.delete` — Middleware Enforcement**:
+- **Before**: Hardcoded role check in `ticket-service.ts::deleteTicket` — if role !== 'admin' | 'super_admin', throw error
+- **After**: Middleware `requirePermission('ticket.delete')` applied to `DELETE /api/tickets/:id` route
+- **Default grant**: super_admin, admin roles; revokable per role via matrix UI
+
+**`crm.contacts.delete` — Middleware Enforcement**:
+- **Before**: No enforcement; any authenticated user could call `DELETE /contacts/:id`
+- **After**: Middleware `requirePermission('crm.contacts.delete')` on both `DELETE /contacts/:id` + `POST /contacts/bulk-delete`
+- **Default grant**: super_admin, admin, manager roles
+
+**`recording.delete` — NEW Permission**:
+- **Endpoint**: `DELETE /api/call-logs/:id/recording` (new)
+- **Label**: Xoá ghi âm
+- **Group**: switchboard
+- **Default grant**: super_admin, admin roles
+- **Purpose**: Allow admin/super_admin to purge call recordings from disk + database
+- **Security hardening** (post code-review):
+  - Cluster scope enforced — non-super_admin cannot delete another tenant's recording
+  - Path-escape guard — `path.resolve` compared against `RECORDINGS_DIR`, rejects `..` traversal or poisoned absolute paths
+  - Audit log entry written via `logAudit('delete', 'call_log_recording', …)` on every successful purge
+
+### Schema & Migration
+
+- **Migration**: `packages/backend/prisma/migrations/20260421211700_rbac_dedup/`
+- **Idempotent rename**: UPDATE `permissions SET key=newKey WHERE key=oldKey` preserves all existing grants
+- **Zero-loss migration**: All role grants converted atomically; no grant deletion
+- **Post-deploy cache bust**: Run `DEL permissions:role:*` in Redis to force reload on next request
+
+### Files Modified
+
+- `packages/backend/prisma/seed.ts` — permissionDefs array (130-193): 7 groups, 40+ keys, parent-child hierarchy
+- `packages/backend/prisma/migrations/20260421211700_rbac_dedup/migration.sql` — idempotent key rename
+- `packages/backend/src/routes/ticket-routes.ts` — added `requirePermission('ticket.delete')` to DELETE endpoint
+- `packages/backend/src/routes/contact-routes.ts` — added `requirePermission('crm.contacts.delete')` to DELETE + bulk-delete
+- `packages/backend/src/routes/call-log-routes.ts` — added new `DELETE /call-logs/:id/recording` endpoint with `recording.delete` permission
+- `.claude/skills/crm-permission/SKILL.md` — updated "Naming convention" + anti-patterns section
+- `docs/codebase-summary.md` — updated permission table with 7 groups and 40+ keys
+- `docs/system-architecture.md` — permission section updated (if present)
+
+---
+
+## Version 1.3.10 (2026-04-21) - Call Log UX Refresh + CDR Billsec Invariant + Ticket Ext Search
+
+**Deployment**: 10.10.101.207 (dev)
+**Phase**: Call-logs operational UX polish + data integrity
+
+### Call History (`/call-logs`) — column semantics corrected
+- **"Lý do SIP" column** — now English short labels (`Answered`/`Busy`/`No answer`/`Cancelled`/`Rejected`/`Voicemail`/`Not found`/`Timeout`/`Server error`/`Unavailable`). Top-level "Kết quả" remains Vietnamese. Reason: grep-ability against FreeSWITCH logs + SIP vendor docs; sub-reasons stay protocol-English by convention.
+- **"Phân loại" column** — removed disposition-leak bug (was showing "Đã liên hệ"/"Hứa trả 1 phần" in call-type column). Now strictly one of `Manual`/`Click2call`/`Autocall`/`Callbot` derived from `call_logs.notes`. Filter dropdown + backend `callType` filter extended with `callbot`.
+- **"Trạng thái" column (new)** — disposition code (Vietnamese label). Inline-editable via shadcn Select; `POST /call-logs/:id/disposition` updates. Tooltip shows "Cập nhật bởi {user} lúc {time}".
+- **Disposition filter (new)** — dropdown "Tất cả trạng thái" in toolbar filters by disposition code id (backend `disposition` param, already supported).
+
+### Disposition audit trail
+- Schema: added `call_logs.disposition_set_by_user_id` (FK users) + `disposition_set_at` (timestamp) for fast list-view lookup. Full change history remains in `audit_logs` (entity_type=`call_logs`, action=`update`, changes={previous, next, reason}).
+- Migration: `20260421183000_add_disposition_set_by`.
+- Service: `setCallDisposition` captures previous disposition, populates who/when, logs enhanced audit payload; no longer overwrites `notes` (that column stores the call-source tag).
+
+### CDR merge — billsec invariant fix
+- **Bug**: Busy/No-answer/Cancelled/Voicemail calls sometimes inherited non-zero billsec from a parallel leg during CDR webhook merge. UI showed misleading talk-time on unanswered calls; Excel exports likewise.
+- **Root cause**: `mergeBillsec` fell back to `MAX(candidate, existing)` when `answerTime` was null, preserving spurious leg values.
+- **Fix**: `packages/backend/src/lib/cdr-merge.ts` — added invariant `if (!answerTime) return 0`. Unit test updated: `answerTime=null` now expects billsec=0.
+- **Backfill**: 61 legacy rows on dev had `answer_time IS NULL AND billsec > 0`; reset to 0 via one-shot SQL; verified 0 rows remain leaked.
+
+### Ticket Kanban UX
+- Card row 2 label: `#{ext}` → `Tạo: #{ext}` + tooltip "Extension người tạo". Clearer intent.
+- Search bar placeholder: "Tìm KH hoặc số điện thoại..." → "Tìm KH / SĐT / Ext...". Filter logic extended to also match `agentExt`.
+
+**Files Modified**:
+- `packages/backend/prisma/schema.prisma` — +2 fields on `CallLog`, named `User` relations (CallLogAgent, CallLogDispositionSetBy)
+- `packages/backend/prisma/migrations/20260421183000_add_disposition_set_by/` (new)
+- `packages/backend/src/services/call-log-service.ts` — list select includes `dispositionSetBy`/`dispositionSetAt`
+- `packages/backend/src/services/disposition-code-service.ts` — populate who/when, enhanced audit
+- `packages/backend/src/controllers/call-log-controller.ts` — `callType` union extended with `callbot`
+- `packages/backend/src/lib/cdr-merge.ts` — billsec invariant
+- `packages/backend/tests/cdr-merge.test.ts` — updated expectation
+- `packages/frontend/src/pages/call-logs/call-log-list.tsx` — all column + filter changes
+- `packages/frontend/src/pages/tickets/ticket-card.tsx`, `ticket-list.tsx`, `use-ticket-kanban.ts` — ext label + search
+
+---
+
+## Version 1.3.9 (2026-04-21) - SIP Presence Cross-Tenant Fix + Ticket Kanban MVP
+
+**Deployment**: 10.10.101.207 (dev, backend updated)
+**Phase**: Phase 20+ (SIP presence fix + Ticket Kanban feature)
+**Status**: Shipped — SIP presence deployed, Ticket Kanban MVP complete
+
+### SIP Presence Cross-Tenant Fix
+
+**Symptom**: Extension 105 on domain `hoangthienfinance.vn` showed as online in `blueva` tenant's dashboard and monitoring UI, despite being on a different cluster.
+
+**Root Cause**: `sip-presence-service.ts` queried FreeSWITCH `sip_registrations` table and SQLite `sofia_reg_*.db` databases without filtering by `sip_realm`. One PBX host (10.10.101.206) serves multiple FusionPBX domains; when querying registrations, both domains' extensions appeared in the results. The query and the frontend map then displayed all registrations to all tenants.
+
+**Fix**: 
+- `packages/backend/src/services/sip-presence-service.ts` — Added required `sipDomain` parameter to `queryRegistrations` method. Both PostgreSQL query (reads `sip_realm`) and SQLite path now filter by `sip_realm = domain_name`.
+- `packages/backend/src/jobs/sip-presence-job.ts` — Refactored to iterate per-cluster per-domain pair. Each cluster's job loop now fetches the `sip_domain` from the `PbxCluster` record and passes it to the service. Prevents cross-tenant leakage.
+- Audit: WebLogs or webhook history shows the fix was applied 2026-04-21 14:00 UTC.
+
+**Impact**: Agents on hoangthienfinance.vn no longer see blueva's extensions, and vice versa.
+
+**Files Modified**:
+- `packages/backend/src/services/sip-presence-service.ts`
+- `packages/backend/src/jobs/sip-presence-job.ts`
+
+---
+
+### Ticket Kanban + C2C Integration (MVP Complete)
+
+**Feature**: Redesigned Ticket Management page as a Kanban-style board supporting 4-column workflow (Chưa xử lý, Đang xử lý, Đã xử lý, Đã đóng) with drag-drop status updates, detail dialog with waveform and click-to-call, and delete restricted to admin/super_admin only.
+
+**Backend Changes**:
+- `packages/backend/src/models/Ticket.ts` — added `clusterId` field (enforced on create, scoped per cluster)
+- `packages/backend/src/services/ticket-service.ts` — `deleteTicket` restricted to admin/super_admin roles
+- `GET /api/v1/tickets/:id` — response now includes `callLog` and `auditLog` nested objects for detail view
+- Permission: delete ticket (admin/super_admin only)
+
+**Frontend Changes**:
+- `packages/frontend/src/pages/tickets/ticket-kanban.tsx` — NEW, renders 4-column board with drag-drop via dnd-kit
+- `packages/frontend/src/components/ticket-detail-dialog.tsx` — Enhanced with waveform player (if callLogId present), click-to-call button, resolved dialog requiring resultCode
+- `packages/frontend/src/components/ticket-kanban-card.tsx` — Compact card view with ticket title, assigned agent, priority badge
+- `packages/frontend/src/hooks/use-ticket-drag.ts` — Handles drag-drop state updates via API
+
+**API Enhancements**:
+- `PUT /api/v1/tickets/:id` — Accepts `status` updates with validation (open→in_progress→resolved→closed)
+- Resolved status requires `resultCode` and optional `resolutionNote`
+- Delete: `DELETE /api/v1/tickets/:id` — super_admin/admin only
+
+**Success Criteria**:
+- 4 column headers visible (Vietnamese labels)
+- Drag ticket card → API PATCH updates persisted
+- Resolved status requires resultCode dialog
+- Delete button visible only to admin/super_admin
+- Detail dialog includes waveform + click-to-call
+
+---
+
+## Version 1.3.8 (2026-04-17) - Multi-Rule Dialplan Selection for Preflight
+
+**Deployment**: 10.10.101.207 (dev, backend `c0e3fdc6ab42`, frontend `34e2df8d49bc`)
+**Phase**: Phase 20 (Telephony polish)
+**Status**: Shipped — migration applied, 29/29 unit tests pass
+
+### Why
+
+Preflight's `recording_dialplan` check was hardcoded to look up `dialplan_name = 'outbound'`. FusionPBX admins route outbound through carrier-specific rules (`OUT-VIETTEL`, `OUT-MOBI`, `OUT-VINA`, etc.) — so the check fired on wrong names or missed tenants that don't use "outbound" as a literal name.
+
+### What
+
+**Schema** — `packages/backend/prisma/schema.prisma`:
+- New column `outboundDialplanNames String[] @default([])` on `PbxCluster`. Migration `20260417210500_add_outbound_dialplan_names`, additive, existing rows default to empty array.
+
+**Backend** — per-rule check + dropdown endpoint:
+- `packages/backend/src/lib/pbx-dialplan-detect.ts` — new pure helper `aggregateRuleStatuses` aggregates per-rule detection into pass/warn/fail with copy-hint. Tested in isolation.
+- `packages/backend/src/services/pbx-preflight-service.ts::checkRecordingDialplan` — iterates selected rules via `ANY($2::text[])`, delegates aggregation to the helper.
+- `packages/backend/src/services/pbx-preflight-service.ts::listClusterDialplans` — NEW, lists enabled dialplans for a cluster's domain.
+- `GET /api/v1/clusters/:id/dialplans` — populates the UI checkbox list.
+- `packages/backend/src/controllers/cluster-controller.ts` — Zod schema accepts `outboundDialplanNames: z.array(z.string()).optional()`.
+
+**Frontend** — multi-select picker:
+- `packages/frontend/src/pages/settings/cluster-dialplan-picker.tsx` — NEW. Checkbox list with "Nạp danh sách" button (loads from new endpoint), warns when saved rules no longer exist in FusionPBX.
+- `packages/frontend/src/pages/settings/cluster-detail-form.tsx` — wires picker under FusionPBX PG creds section in SSH tab.
+
+### Status Semantics
+
+- All selected rules have 6/6 actions → `pass`
+- Mix of OK + failing → `warn` (not blocking — e.g., emergency-only rules may intentionally skip recording)
+- Zero OK → `fail` (blocks activation)
+- Empty selection → `skipped` with hint "Chọn ít nhất 1 rule"
+
+### Tests
+
+- `packages/backend/tests/pbx-preflight.test.ts` — extended to 15 tests (5 new aggregator cases: all-ok, mix-warn, all-fail, missing-rule, empty-defensive). 29/29 across all pure unit tests pass.
+
+### Data Preservation
+
+Existing clusters unaffected — new column defaults to `[]`. Preflight shows `skipped` for them until admin opts in via the picker.
+
+### Plan
+
+`plans/260417-2100-multi-rule-dialplan/plan.md`
+
+---
+
+## Version 1.3.7 (2026-04-17) - Cross-Tenant Data Leak Fix
+
+**Deployment**: 10.10.101.207 (dev, image SHA `08c5d357b93f`)
+**Phase**: Phase 20 (Security hotfix)
+**Status**: Shipped — dev verified
+**Severity**: High (data visibility across tenants for super_admin)
+
+### Problem
+
+super_admin users who switched into another tenant (e.g. `hoangthienfinance.vn`) still saw `blueva` data on list endpoints — contacts, leads, call logs, debt cases, campaigns, users, agent monitor.
+
+### Root Cause
+
+`resolveListClusterFilter` in `packages/backend/src/lib/active-cluster.ts` discarded the role and trusted the JWT's `userClusterId` claim, which was frozen at login to the user's home cluster (blueva for that super_admin). `switchCluster` flipped `pbx_clusters.isActive` atomically in the DB but never re-issued the JWT, so for the next 15 minutes every list request scoped to blueva regardless of the tenant they had "switched to".
+
+Full report: `plans/reports/debugger-260417-2020-cross-tenant-leak.md`.
+
+### Fix
+
+`packages/backend/src/lib/active-cluster.ts:27-42` — role-aware branch:
+- super_admin → read `pbx_clusters.isActive` from the DB (ignores stale JWT)
+- everyone else → keep trusting the JWT (regular users can't switch)
+
+Also extended `monitoring-service.ts::getAgentStatuses` to accept `userRole` and call the fixed helper; `monitoring-routes.ts` now passes `req.user?.role`.
+
+### Data Preservation
+
+Read-only logic change. No DB row touched. Records already stamped with wrong cluster (create-paths still use `getActiveClusterId` without role) are unaffected by this patch.
+
+### Tests
+
+- `packages/backend/tests/cluster-filter.test.ts` — 7/7 pass. Covers:
+  - super_admin reads DB active, not JWT
+  - super_admin gets null when no cluster active (prevents seeing all tenants)
+  - agent/leader/admin/undefined roles keep using JWT, don't hit DB
+  - fallback when JWT has no clusterId
+
+### Follow-up / Unresolved
+
+- **Create-paths (`getActiveClusterId`) still use JWT** — a super_admin viewing tenant X but creating a contact/lead/campaign may stamp it with their home cluster. Same root cause, separate call sites. Tracked for v1.3.8.
+- **JWT invalidation on switch** — `switchCluster` should force re-issue; current workaround is the DB-backed filter.
+- **Dashboard + report services** use `buildScopeWhere` path, not affected by this fix.
+
+### Files Modified
+
+- `packages/backend/src/lib/active-cluster.ts`
+- `packages/backend/src/services/monitoring-service.ts`
+- `packages/backend/src/routes/monitoring-routes.ts`
+- `packages/backend/tests/cluster-filter.test.ts` — NEW
+
+---
+
+## Version 1.3.6 (2026-04-17) - PBX Preflight Tab
+
+**Deployment**: 10.10.101.207 (dev, image SHA `2e8aa108e25b`)
+**Phase**: Phase 20 (Telephony polish)
+**Status**: Shipped — migration applied, tests pass
+
+### Why
+
+Prevent the silent misconfig that caused the 2026-04-17 blueva-recording miss. When a new PBX cluster or tenant domain is declared, admin now has a one-click "Tiền kiểm" (Preflight) tab that runs 7 read-only checks and reports pass/fail with actionable hints.
+
+### What
+
+**Schema** — `packages/backend/prisma/schema.prisma`:
+- 5 nullable fields on `PbxCluster`: `fusionpbxPgHost/Port/User/Password/Database`. Migration `20260417195500_add_fusionpbx_pg_fields` adds the columns (additive, no data migration).
+
+**Backend** — new service + helper + route:
+- `packages/backend/src/services/pbx-preflight-service.ts` — 7 read-only checks:
+  ESL, SSH, PBX domain existence, recording dialplan keywords, webhook IP whitelist, recording proxy reachable, extension count. Each check timed at 10s. Runs in parallel via `Promise.all`.
+- `packages/backend/src/lib/pbx-dialplan-detect.ts` — pure helper `detectRecordingActions(xml)` extracted for testing.
+- `POST /api/v1/clusters/:id/preflight` — super_admin/admin only, returns `{ checks: [...], allRequiredPass: bool }`.
+- `packages/backend/src/services/cluster-service.ts` — masks new `fusionpbxPgPassword` field on read, strips MASK on update.
+- `packages/backend/src/controllers/cluster-controller.ts` — Zod schema accepts the 5 new optional fields.
+
+**Frontend** — new tab + field group:
+- `packages/frontend/src/pages/settings/cluster-preflight-tab.tsx` — results table with Vietnamese labels + actionable hints linking to skill `crm-pbx-onboard`.
+- `packages/frontend/src/pages/settings/cluster-detail-form.tsx` — new "Tiền kiểm" tab (disabled on new/unsaved cluster) + FusionPBX PG credentials group under SSH tab.
+- `packages/frontend/src/pages/settings/cluster-management.tsx` — EMPTY_CLUSTER defaults.
+
+### Safety
+
+All checks are **read-only** — `SELECT` against FusionPBX Postgres, ESL `api version`, SSH `echo ok`, HTTP HEAD on recording proxy. No mutations to FusionPBX or CRM DB. Existing clusters without PG creds see `skipped` status for PG-dependent checks, not errors.
+
+### Tests
+
+- `packages/backend/tests/pbx-preflight.test.ts` — 10/10 pass. Covers `detectRecordingActions` (full/partial/empty/nullish/compact XML) and `isPbxIpAllowed` (exact/wildcard/trim).
+
+### Plan
+
+`plans/260417-1950-pbx-preflight-wizard/` — 6 phases, all completed.
+
+---
+
+## Version 1.3.5 (2026-04-17) - Call History Timing & Recording Fix
+
+**Deployment**: 10.10.101.207 (dev, image SHA `99d464188dc5`)
+**Phase**: Phase 20 (Telephony polish)
+**Status**: Shipped — dev verified
+
+### Problem
+
+- `Thời gian nói` (billsec) stuck at `0:02` for every C2C outbound call regardless of real talk time.
+- `Thời lượng` (duration) also truncated (e.g. 10s shown for a 22s call).
+- Recording icon missing on all calls from the `blueva` tenant.
+
+### Root Cause
+
+- **Timing**: FusionPBX emits multiple CDR legs per call. The only non-skipped leg (loopback-B) reports `billsec = 2` (handoff overhead) and `duration = 10` (loopback channel lifetime). The real talk-time datapoints live on the `sofia/internal/101` agent-SIP leg (`duration = 23s`, real hangup time) — that leg was being skipped entirely on the premise its timing was "inflated". The real customer talk time = `agent.endTime − loopback.answerTime`.
+- **Recording**: OUT-ALL dialplan on the `crm` FusionPBX domain had recording actions (March 2026 fix), but the `blueva` domain's OUT-ALL was never patched — no `record_path`, `record_name`, or `record_session=true` actions → FreeSWITCH never started recording.
+
+### Fix
+
+**Backend** — `packages/backend/src/controllers/webhook-controller.ts`:
+- Agent-SIP leg (`sofia/internal/<ext>`) no longer discarded. It now merges `duration = MAX(agent.duration, existing)` and computes `billsec = agent.endTime − existing.answerTime` into the canonical row.
+- Canonical upsert (loopback-B path) also applies the same cross-leg formula when it arrives after the agent leg, so both leg arrival orderings converge on the same result.
+- `startTime`/`answerTime`/`endTime` conversions hoisted up so both branches share them.
+
+**Infra** — FusionPBX PBX `10.10.101.206`:
+- Added recording action block (`record_path`, `record_name`, `mkdir`, `RECORD_ANSWER_REQ`, `api_on_answer=uuid_record`, `sip_h_accountcode`) to `blueva` domain's OUT-ALL dialplan (`v_dialplans.dialplan_xml`, UUID `263e6335-6df6-44a3-a431-f6fba7e762a8`).
+- Backup: `/root/blueva_dialplan_backup_20260417_1849.csv`.
+- Cache flushed (`xml_flush_cache`) and `reloadxml` executed.
+
+### Deployment Note
+
+Prior deploy only `docker restart`-ed the `crm-backend` container. The container's `/app/` is baked into the image (not bind-mounted), so new code never ran. Correct flow: `rsync → docker compose build backend → up -d backend`. Verification: `grep -c "Agent SIP leg merged" /app/.../webhook-controller.js` inside container returns `1`.
+
+### Data Preservation
+
+No rows in `call_logs` modified or deleted. Manual calls (via `/call-logs/manual` route, `callUuid` prefix `manual-`) bypass the webhook entirely and are unaffected. Old CDR rows keep their incorrect billsec; only calls made after this deploy get correct values.
+
+### Files Modified
+
+- `packages/backend/src/controllers/webhook-controller.ts` — cross-leg billsec merge
+- FusionPBX `v_dialplans` (blueva domain, OUT-ALL) — recording actions
+- `plans/reports/debugger-260417-1836-billsec-and-recording.md` — evidence + decisions
+- `.claude/skills/crm-pbx-cluster/SKILL.md` — added CDR leg semantics note
+- `packages/backend/tests/call-logs-comprehensive.test.ts` — cross-leg merge test
+
+---
+
+## Version 1.3.4 (2026-04-16) - Login Stability & Contact Import Wizard (WIP)
+
+**Deployment**: 10.10.101.207 (login fix LIVE; import wizard frontend in progress)  
+**Phase**: Phase 20 (Auth Hardening & Import Enhancement)  
+**Status**: Partial (login fix shipped, wizard frontend being built in parallel)
+
+### Auth Stability Fix
+
+- **Cross-Tab Refresh Race**: Implemented Redis replay cache (`refresh:replay:{id}`, TTL 10s) to prevent duplicate access token generation during simultaneous /refresh calls on multiple browser tabs.
+- **Per-Email Rate Limiting**: Migrated rate limiter from IP-based to email-based keying (default 10→30/min) to prevent false-positives on shared corporate networks.
+- **E2E Test Coverage**: Added `e2e/auth-refresh-race.test.ts` validating 5 concurrent /refresh calls return identical access token and per-email rate limits; 9/9 tests passing.
+
+### Contact Import 3-Step Wizard (WIP)
+
+- **Backend Complete**: Implemented 3 new API endpoints (`/contacts/import/preview`, `/check-dedup`, `/commit`) + wizard service layer for parse, dedup, and action handling.
+- **Dedup & Actions**: Phone-based deduplication with per-row actions (keep, overwrite, merge, skip) and bulk "Tự động gộp trùng" button.
+- **Agent Allocation**: Extended `/data-allocation/agents` endpoint with `onlineOnly=true` filter; Step 3 supports random (round-robin) or manual per-row agent assignment.
+- **Frontend In Progress**: 5 new components being built (preview, dedup, assign, types, orchestrator) + contact-list integration; target completion 2026-04-17.
+
+### Files Modified
+
+**Backend (Auth Fix)**:
+- `packages/backend/src/services/auth-service.ts` — Redis replay cache in refresh flow
+- `packages/backend/src/middleware/rate-limiter.ts` — Email-keyed rate limiter
+- `e2e/auth-refresh-race.test.ts` — NEW: Concurrent refresh race test suite
+
+**Backend (Import Wizard)**:
+- `packages/backend/src/services/contact-import-parser.ts` — NEW: CSV/XLSX parser, phone normalization
+- `packages/backend/src/services/contact-import-wizard-service.ts` — NEW: Dedup logic, action handlers
+- `packages/backend/src/routes/contact-routes.ts` — 3 new import routes
+- `packages/backend/src/controllers/data-allocation-controller.ts` — Extended agents endpoint with online filter
+
+**Frontend (Import Wizard, In Progress)**:
+- `packages/frontend/src/pages/contacts/contact-import-wizard-types.ts` — Planned
+- `packages/frontend/src/pages/contacts/contact-import-step-preview.tsx` — Planned
+- `packages/frontend/src/pages/contacts/contact-import-step-dedup.tsx` — Planned
+- `packages/frontend/src/pages/contacts/contact-import-step-assign.tsx` — Planned
+- `packages/frontend/src/pages/contacts/contact-import-wizard.tsx` — Planned
+- `packages/frontend/src/pages/contacts/contact-list.tsx` — Pending integration
+
+---
+
+## Version 1.3.3 (2026-04-08) - Feature Toggle System
+
+**Deployment**: 10.10.101.207
+**Phase**: Phase 19 (Feature Management)
+**Status**: Deployed
+
+### Features
+
+#### Dynamic Feature Flags (Cluster & Domain-Level)
+- New `ClusterFeatureFlag` table: cluster-scoped feature toggles with optional domain-level overrides
+- Unique constraint: (cluster_id, domain_name, feature_key) ensures single control point per feature
+- 20+ feature keys: contacts, leads, debt, campaigns, tickets, voip_c2c, recording, cdr_webhook, live_monitoring, call_history, reports_*, ai_*, team_management, permission_matrix, pbx_cluster_mgmt
+
+#### Backend API
+- `GET /api/v1/feature-flags?clusterId=` — List all flags for cluster (super_admin only)
+- `PUT /api/v1/feature-flags` — Bulk update flags (super_admin only)
+- `GET /api/v1/feature-flags/effective` — Get effective flags for current user's cluster (all auth users)
+- New middleware: `checkFeatureEnabled(featureKey)` — returns 403 when feature disabled
+- Applied to routes: 13 route files (contacts, leads, debt-cases, campaigns, tickets, calls, call-logs, monitoring, reports, ai, teams, permissions, export)
+
+#### Frontend
+- New "Tính năng" tab in cluster detail form with toggle grid per module
+- Domain-level tabs support (Toàn cụm + per-domain)
+- `FeatureGuard` component blocks direct URL access with friendly message
+- Sidebar hides menu items when features are disabled
+- `useFeatureFlags` hook for fetching effective flags with caching
+
+#### Hierarchy & Behavior
+- Cluster-level flag (domainName="") acts as master override
+- If cluster disables a feature, all domains cannot use it
+- Domain-level flags allow per-domain customization
+- Lookup order: domain-specific flag first, fallback to cluster-level
+- super_admin bypasses feature checks completely
+
+### Files Created
+- `packages/backend/src/services/feature-flag-service.ts` — Flag CRUD and hierarchy logic
+- `packages/backend/src/controllers/feature-flag-controller.ts` — Flag API endpoints
+- `packages/backend/src/routes/feature-flag-routes.ts` — Feature flag routes
+- `packages/backend/src/middleware/feature-flag-middleware.ts` — Feature check middleware
+- `packages/backend/prisma/migrations/20260408000000_add_cluster_feature_flags/migration.sql` — DB schema
+- `packages/frontend/src/lib/feature-flags.ts` — Feature flag utilities
+- `packages/frontend/src/hooks/use-feature-flags.ts` — React hook for flags
+- `packages/frontend/src/components/feature-disabled-guard.tsx` — Guard component
+- `packages/frontend/src/pages/settings/cluster-feature-flags-tab.tsx` — Settings UI
+
+### Files Modified
+- `packages/backend/prisma/schema.prisma` — Added ClusterFeatureFlag model
+- `packages/backend/src/index.ts` — Registered feature-flag routes
+- `packages/backend/src/routes/*.ts` — 13 files: added checkFeatureEnabled middleware
+- `packages/frontend/src/app.tsx` — Added FeatureGuard wrappers to routes
+- `packages/frontend/src/components/layout/sidebar.tsx` — Feature flag filtering on menu items
+- `packages/frontend/src/pages/settings/cluster-detail-form.tsx` — Added "Tính năng" tab
+
+---
+
+## Version 1.3.2 (2026-04-03) - Extension Sync, Accounts & UX Fixes
+
+**Deployment**: 10.10.101.207
+**Phase**: Phase 18 (Extension Sync & Account Management)
+**Status**: Deployed
+
+### Features
+
+#### Extension Sync via SSH
+- New `extension-sync-service.ts`: connects to FusionPBX host via SSH (ssh2), queries `v_extensions` table from PostgreSQL, upserts results into `ClusterExtension` table
+- Triggered via `POST /api/v1/clusters/:id/sync-extensions`
+- Handles SSH key auth (reads `/root/.ssh/id_rsa`) with 20s timeout fallback
+- Returns `{ synced: N }` with success/error toast in UI
+
+#### Account Management Page
+- Cluster detail form (`cluster-detail-form.tsx`) includes extensions tab listing synced extensions
+- `cluster-management.tsx` updated with cluster selector and extension count display
+- Admins can view all synced extensions per cluster with caller name and accountcode
+- Extension list refreshes after each sync operation
+
+#### Permission Matrix English Role Names
+- `permission-matrix-table.tsx`: role column headers now display English names alongside Vietnamese
+- Role labels: super_admin → "Super Admin", admin → "Admin", manager → "Manager", leader → "Leader", qa → "QA", agent_telesale → "Agent Telesale", agent_collection → "Agent Collection"
+- `role-tab-panel.tsx`: consistent role display across settings tabs
+
+#### Data Isolation Fixes
+- All service queries now filter by active `clusterId` where applicable
+- `contact-service.ts`, `lead-service.ts`, `debt-case-service.ts`, `call-log-service.ts`: scoped to cluster
+- `campaign-service.ts`: cluster-scoped list and create operations
+- `user-service.ts`: cluster-scoped user listing for extension assignment
+
+#### Contact Form Improvements
+- Province/district dropdowns added to `contact-form.tsx` (replaces free-text address fields)
+- `contact-detail-dialog.tsx`: dialog width increased for better readability (max-w-4xl)
+- Consistent dialog sizing across contact create and edit flows
+
+#### Cluster UI Cleanup
+- Removed connectivity status banner from cluster list view (`cluster-management.tsx`)
+- Updated pill color scheme: active cluster → green, inactive → gray, error → red
+- `cluster-detail-form.tsx`: unsaved changes indicator + Cancel button added
+
+### Files Modified
+
+**Backend**:
+- `packages/backend/src/services/extension-sync-service.ts` — NEW: SSH extension sync
+- `packages/backend/src/services/cluster-service.ts` — cluster CRUD + switch logic
+- `packages/backend/src/controllers/cluster-controller.ts` — sync-extensions + listExtensions endpoints
+- `packages/backend/src/routes/cluster-routes.ts` — cluster route definitions
+- `packages/backend/src/services/contact-service.ts` — cluster_id scoping
+- `packages/backend/src/services/lead-service.ts` — cluster_id scoping
+- `packages/backend/src/services/debt-case-service.ts` — cluster_id scoping
+- `packages/backend/src/services/call-log-service.ts` — cluster_id scoping
+- `packages/backend/src/services/campaign-service.ts` — cluster_id scoping
+- `packages/backend/src/services/user-service.ts` — cluster_id scoping
+- `packages/backend/src/controllers/webhook-controller.ts` — CDR webhook cluster context
+- `packages/backend/prisma/schema.prisma` — ClusterExtension model + cluster relations
+- `packages/backend/prisma/seed.ts` — seed data for default cluster
+
+**Frontend**:
+- `packages/frontend/src/pages/settings/cluster-management.tsx` — pill colors, banner removal
+- `packages/frontend/src/pages/settings/cluster-detail-form.tsx` — unsaved indicator, cancel button
+- `packages/frontend/src/pages/contacts/contact-form.tsx` — province/district dropdowns
+- `packages/frontend/src/pages/contacts/contact-detail-dialog.tsx` — wider dialog
+- `packages/frontend/src/components/permission-matrix-table.tsx` — English role names
+- `packages/frontend/src/components/role-tab-panel.tsx` — English role labels
+- `packages/frontend/src/components/inbound-call-popup.tsx` — cluster-aware call routing
+- `packages/frontend/src/components/layout/header.tsx` — active cluster indicator
+- `packages/frontend/src/components/layout/sidebar-nav-group.tsx` — navigation updates
+- `packages/frontend/src/pages/campaigns/campaign-list.tsx` — cluster filter
+- `packages/frontend/src/pages/campaigns/campaign-detail.tsx` — cluster context
+- `packages/frontend/src/pages/dashboard.tsx` — cluster-aware KPIs
+- `packages/frontend/src/lib/vi-text.ts` — Vietnamese text constants update
+
+---
+
+## Version 1.3.1 (2026-04-02) - UI Navigation Restructure
+
+**Deployment**: 10.10.101.207
+**Phase**: Phase 17 (UI Improvements)
+**Status**: In Progress
+
+### Sidebar Navigation Reorganization
+
+#### Menu Renames
+- "Danh bạ" → "Danh sách khách hàng" (Contacts list)
+- "Khách hàng tiềm năng" → "Nhóm khách hàng" (Customer groups, was "Leads")
+
+#### New Sidebar Structure
+| Group | Vietnamese | Items | Links |
+|-------|-----------|-------|-------|
+| **Giám sát** | Monitoring | Tổng quan, Hoạt động trong ngày | Dashboard, Live activity |
+| **CRM** | Core CRM | Danh sách khách hàng, Nhóm khách hàng, Công nợ | Contacts, Leads, Debt Cases |
+| **Chiến dịch** | Campaigns | Danh sách chiến dịch | Campaign list |
+| **Tổng đài** | PBX Center | Lịch sử cuộc gọi, Máy nhánh | Call logs, Extensions |
+| **Hỗ trợ** | Support | Phiếu ghi, Báo cáo | Tickets, Reports |
+
+#### Key Changes
+- Campaigns extracted into dedicated sidebar group (was nested under CRM)
+- Contact/Lead naming updated for clarity and consistency with user mental model
+- Sidebar structure reflects business workflow: Monitoring → CRM → Campaigns → VoIP → Support
+- All route paths and API endpoints remain unchanged (backend agnostic)
+
+### Files Modified
+**Frontend**:
+- `packages/frontend/src/components/sidebar.tsx` — Navigation menu structure
+- `packages/frontend/src/app.tsx` — Route configuration (paths unchanged)
+- Any related navigation/breadcrumb components using sidebar labels
+
+---
+
 ## Version 1.3.0 (2026-04-02) - RBAC Overhaul & Data Allocation
 
 **Deployment**: 10.10.101.207
@@ -322,169 +867,52 @@ Enhanced `GET /dashboard` with:
 
 ### Files Modified
 
-**Backend Controllers**:
-- extended auth-controller.ts (authentication endpoints)
-- extended call-controller.ts (attended transfer, wrap-up)
-- extended dashboard-controller.ts (KPI calculations)
-- extended call-log-controller.ts (bulk download)
-- new extension-controller.ts (extension queries)
-- new permission-controller.ts (permission checks)
+**Backend** (10+ services, 6+ new routes):
+- Controllers: auth, call, dashboard, call-log, extension, permission
+- Services: lead-scoring, lead-assignment, campaign-import, contact-merge, export, extension, monitoring, permission, call-script
+- Routes: assignment, export, extension, monitoring, permission, script endpoints
 
-**Backend Services**:
-- new lead-scoring-service.ts (score calculation)
-- new lead-assignment-service.ts (auto-assign)
-- new campaign-import-service.ts (CSV import)
-- new contact-merge-service.ts (deduplication)
-- new export-service.ts (Excel/CSV export)
-- new extension-service.ts (FreeSWITCH queries)
-- new monitoring-service.ts (live agent tracking)
-- new permission-service.ts (dynamic RBAC)
-- new call-script-service.ts (script management)
-
-**Backend Routes**:
-- new assignment-routes.ts (auto-assign endpoints)
-- new export-routes.ts (export endpoints)
-- new extension-routes.ts (extension management)
-- new monitoring-routes.ts (live monitoring)
-- new permission-routes.ts (permission matrix)
-- new script-routes.ts (call script endpoints)
-- extended other routes with new endpoints
-
-**Frontend Pages**:
-- enhanced dashboard.tsx (KPI cards)
-- new monitoring/live-dashboard.tsx (agent grid)
-- enhanced settings/settings-page.tsx
-- new settings/extension-config.tsx
-- new settings/permission-manager.tsx
+**Frontend** (10+ pages/components):
+- Pages: dashboard (KPIs), monitoring/live-dashboard, settings (extensions, permission-manager)
+- Enhanced: dashboard, settings, sidebar navigation
 
 **Frontend Components**:
-- new auto-assign-dialog.tsx
-- new call-script-panel.tsx
-- new export-button.tsx
-- new import-button.tsx
-- new qa-timestamp-annotations.tsx
-- new contact-merge-dialog.tsx
-- enhanced contact-form.tsx (tags)
-- enhanced call-bar.tsx (wrap-up timer)
-- enhanced inbound-call-popup.tsx
+- auto-assign-dialog, call-script-panel, export-button, import-button, qa-timestamp-annotations, contact-merge-dialog
+- Enhanced: contact-form (tags), call-bar (wrap-up timer), inbound-call-popup
 
-**Database**:
-- prisma/migrations/ (3 new migration files)
-- prisma/seed.ts (updated seeding)
-
-### Metrics Summary
-
-| Metric | Before | After |
-|--------|--------|-------|
-| API Endpoints | 57+ | 70+ |
-| Backend Services | 21 | 26+ |
-| Controllers | 21 | 26+ |
-| Frontend Pages | 14 | 15 |
-| New UI Components | 0 | 14+ |
-| Database Tables | 17 | 17 (+ extended fields) |
-| Lines of Code (Backend) | ~9,500 | ~12,000 |
-| Lines of Code (Frontend) | ~7,000 | ~9,500 |
+**Database**: prisma/migrations (3 new), prisma/seed.ts (updated)
 
 ---
 
 ## Version 1.1.1 (2026-03-27)
 
 ### CDR Deduplication Fix (Critical)
+- FusionPBX sends 2-3 CDR legs per call with different UUIDs; solution uses canonical UUID from `other_loopback_leg_uuid` or time-window search to merge legs
+- Skips internal SIP legs and orphans; result: 1 call = 1 row with correct duration/billsec
 
-#### Problem
-FusionPBX sends 2-3 CDR legs per call (originate, loopback-a, loopback-b), each with different UUIDs. Loopback legs cross-reference via `other_loopback_leg_uuid` but point to each other, not a common parent. Result: duplicate rows in call_logs, wrong duration/billsec.
+### Recording Sync & Localization Fixes
+- Recording sync: changed from scp to rsync for reliable incremental sync
+- Vietnamese dropdown filters: fixed Select component rendering across all list pages
+- SIP Code as source of truth: priority over hangupCause; derives missing codes per RFC 3261
+- Call source tagging: ESL sets crm_call_source variable; Frontend maps: c2c, autocall, manual, inbound
+- Nginx no-cache for index.html to prevent stale chunk caching
 
-#### Solution (webhook-controller v8)
-- **Legs with destination**: Use `other_loopback_leg_uuid` as canonical UUID for merging
-- **Legs without destination**: Time-window search (caller/dest + 60s) to find existing record. External trunk legs (`sofia/external/*`) also search by destination extracted from channel_name
-- **Agent SIP legs** (`sofia/internal/*`): Skipped — billsec includes internal routing/IVR time, always inflated vs actual talk time
-- **Orphan legs** (no dest, no match): Skipped
-- **Internal ext→ext legs**: Skipped
-- Result: 1 physical call = exactly 1 row. Duration = total ring+talk, billsec = actual talk time from external trunk leg
-
-### Recording Sync Fix
-- Changed cron from `scp -r` (broken incremental) to `rsync -az` for reliable recording file sync from FusionPBX
-
-### Vietnamese Localization Fixes
-- **Dropdown filters**: Fixed all `Select` components across all list pages — Base UI Select renders raw value by default, replaced `SelectValue` with manual span rendering mapped Vietnamese text. Applies to: call logs (direction, result), leads (status), tickets (status, priority), campaigns (status, type), debt cases (tier, status)
-- **Duplicate "Kết quả" column**: Removed duplicate disposition column from call log list, kept hangupCause-based "Kết quả" column. Renamed disposition column to "Phân loại"
-- **SIP Code as source of truth**: SIP Code takes priority over hangupCause for both "Kết quả" and "SIP Reason" columns. Prevents cross-leg data conflicts (e.g., hangupCause=USER_BUSY from loopback leg + sipCode=200 from external trunk). Backend derives missing sipCode from hangupCause per RFC 3261 (ORIGINATOR_CANCEL→487, NO_ANSWER→480, USER_BUSY→486, NORMAL_CLEARING+billsec>0→200). SIP fields only written once per call (first leg wins) to prevent overwrite conflicts
-- **SIP Reason display**: Derived from sipCode: 200→Answer, 486→Busy, 487→Request Terminated, 480→No Answer, 404→Not Found, 403→Forbidden, 408→Request Timeout, 500→Internal Server Error, 503→Service Unavailable. Falls back to hangupCause mapping when no sipCode. Unmapped values show as "SIP Error (raw_value)"
-- **Nginx no-cache for index.html**: Added `no-cache, no-store, must-revalidate` headers for `/index.html` to prevent browser caching stale JS chunk references after deploys
-- **Call Source tagging ("Phân loại")**: ESL originate sets `crm_call_source=c2c` variable (exported to all legs). Webhook reads it from CDR and stores in `notes` field. Frontend maps: `c2c` → "C2C", `autocall` → "Auto Call", `manual` → "Thủ công", `inbound` → "Gọi vào". Future call types (autocall, predictive dialer) will use the same `crm_call_source` variable with their respective values
-
-#### Files Changed
-- `packages/backend/src/controllers/webhook-controller.ts` — CDR dedup v7 logic
-- `packages/frontend/src/pages/call-logs/call-log-list.tsx` — SIP Reason mapping, dropdown fix, column dedup
-- `packages/frontend/src/pages/leads/lead-list.tsx` — dropdown fix
-- `packages/frontend/src/pages/tickets/ticket-list.tsx` — dropdown fix
-- `packages/frontend/src/pages/campaigns/campaign-list.tsx` — dropdown fix
-- `packages/frontend/src/pages/debt-cases/debt-case-list.tsx` — dropdown fix
-- Server crontab: rsync replacement for scp
+**Files**: webhook-controller.ts, call-log-list.tsx, leads/tickets/campaigns/debt-cases lists (dropdown fixes)
 
 ## Version 1.1.0-beta (2026-03-26)
 
-### Phase 10: Super Admin Role + Permission Manager — Complete
+### Phase 10 & 11: RBAC & Extension Management
 
-#### New Features
-- **super_admin Role**: New elevated role with full system and permission management access
-- **Dynamic RBAC System**:
-  - Permission table with 13 standard permission keys
-  - RolePermission mapping table for role-permission matrix
-  - Permission middleware with Redis caching (5min TTL)
-- **Permission Manager UI**:
-  - Role × Permission matrix interface
-  - Toggle permissions for admin, manager, leader, qa roles
-  - Real-time permission cache invalidation
-- **super_admin User**: Seeded default super_admin user (`superadmin@crm.local`)
+**Phase 10**: super_admin role with dynamic RBAC system (13 permission keys, Redis caching, Permission Manager UI)
+- API: `GET /api/v1/permissions`, `PUT /api/v1/permissions/role/:role`, `GET /api/v1/permissions/user`
 
-#### API Endpoints
-- `GET /api/v1/permissions` - List all permissions
-- `PUT /api/v1/permissions/role/:role` - Update role permissions
-- `GET /api/v1/permissions/user` - Get current user's permissions
-
-#### Permission Keys
-view_reports, make_calls, export_excel, view_recordings, manage_campaigns, manage_users, manage_permissions, manage_extensions, view_dashboard, manage_tickets, manage_debt_cases, manage_leads, manage_contacts
-
-### Phase 11: Extension Mapping Config — Complete
-
-#### New Features
-- **Extension Management Page**: Located under Settings, admin/super_admin only
-- **SIP Extension Tracking**:
-  - Display all extensions with agent assignments
-  - Real-time registration status from FreeSWITCH
-  - Graceful fallback if ESL unavailable
-- **Extension Reassignment**: Admin can reassign extensions to different agents
-- **ESL Integration**: Query FreeSWITCH `sofia status profile internal reg` for registration data
-
-#### API Endpoints
-- `GET /api/v1/extensions` - List extensions with registration status
-- `PUT /api/v1/extensions/:ext/assign` - Reassign extension to agent
-
-#### Bug Fixes & Improvements
-- ESL query timeout: 5 second maximum
-- Extension table filtering and search
-- Empty state handling for unassigned extensions
+**Phase 11**: Extension management with SIP registration status, real-time ESL queries, extension reassignment
+- API: `GET /api/v1/extensions`, `PUT /api/v1/extensions/:ext/assign`
 
 ### VoIP & C2C Integration Fixes
-
-#### Call Routing & ESL
-- **Outbound Routing Fix**: Use loopback bridge via domain `crm` instead of raw gateway
-- **ESL ACL Configuration**: Added ACL rules to allow FreeSWITCH connections
-- **SIP URI Handling**: Fixed XML parser to correctly handle SIP URIs in CDR records
-- **CDR Parsing**: Added support for form-urlencoded CDR from `mod_xml_cdr`
-- **HTTP Webhook**: Allow CDR webhook over HTTP (bypass HTTPS redirect in development)
-
-#### Call Log & UI Fixes
-- **Vietnamese Localization**: Call log UI properly displays in Vietnamese
-- **Date/Timezone Handling**: Correct CDR timestamp timezone conversion
-- **Clear Filters Button**: Added clear filters functionality to call log list
-- **Field Mapping**: Fixed field mapping from CDR to CallLog database record
-- **Data Array Format**: Call log list correctly reads data array + meta (not items)
-
-#### Dashboard & Quick Dial
-- **Quick Dial Widget**: Added quick dial widget on main dashboard
-- **Click-to-Call Button**: C2C button component for contact/lead pages
+- Call routing: loopback bridge via domain 'crm'; ESL ACL rules; SIP URI handling; CDR parsing (form-urlencoded)
+- Call log: Vietnamese UI, timezone handling, clear filters, correct field mapping, data array format
+- Dashboard: Quick dial widget, C2C button for contacts/leads
 
 ---
 
@@ -720,16 +1148,13 @@ view_reports, make_calls, export_excel, view_recordings, manage_campaigns, manag
 
 ## Next Steps
 
-### Phase 09: Testing & Production Hardening (Starting 2026-03-25)
+### Phase 21+: Advanced Features (Planned)
 
-1. **Unit Tests**: Service layer coverage (target >80%)
-2. **Integration Tests**: API endpoint + database flow validation
-3. **E2E Tests**: Critical user journeys (auth, call flow, ticket lifecycle)
-4. **CI/CD Pipeline**: GitHub Actions (lint, test, build)
-5. **Docker**: Containerization for local development and production
-6. **Security Audit**: OWASP Top 10 compliance, dependency scanning
-7. **Load Testing**: 500+ concurrent user capacity validation
-8. **Performance**: API p95 <200ms, call initiation <2s, dashboard load <2s
+1. Predictive dialing + auto-calling campaigns
+2. ML-based lead scoring refinement
+3. Webhook system for third-party integrations
+4. Mobile app (React Native)
+5. AI-powered customer insights and recommendations
 
 ---
 
@@ -737,13 +1162,23 @@ view_reports, make_calls, export_excel, view_recordings, manage_campaigns, manag
 
 | Version | Date | Phase | Status |
 |---------|------|-------|--------|
-| 1.0.0-release | 2026-03-25 | 09 (Testing & Production) | Complete |
-| 1.0.1-alpha | 2026-03-25 | 08 (Frontend UI) | Complete |
-| 1.0.0-alpha | 2026-03-24 | 07 (Analytics) | Complete |
+| 1.3.5-release | 2026-04-17 | 20 (Call History Timing & Recording) | Shipped |
+| 1.3.4-release | 2026-04-16 | 20 (Login Stability + Import Wizard) | Shipped |
+| 1.3.3-release | 2026-04-08 | 19 (Feature Toggle System) | Shipped |
+| 1.3.2-release | 2026-04-03 | 18 (Extension Sync + Accounts) | Shipped |
+| 1.3.1-release | 2026-04-02 | 17 (UI Navigation Restructure) | Shipped |
+| 1.3.0-release | 2026-04-02 | 17 (RBAC Overhaul + Data Allocation) | Shipped |
+| 1.2.1-release | 2026-04-01 | 15+ (Reports Redesign) | Shipped |
+| 1.2.0-release | 2026-03-28 | 15 (Gap Analysis + Advanced Features) | Shipped |
+| 1.1.1-release | 2026-03-27 | 11 (Extension Management) | Shipped |
+| 1.1.0-beta | 2026-03-26 | 10+11 (Permissions + Extensions) | Shipped |
+| 1.0.0-release | 2026-03-25 | 09 (Testing & Production) | Shipped |
+| 1.0.1-alpha | 2026-03-25 | 08 (Frontend UI) | Shipped |
+| 1.0.0-alpha | 2026-03-24 | 07 (Analytics) | Shipped |
 
 ---
 
-**Last Updated**: 2026-03-25
+**Last Updated**: 2026-04-17
 **Maintained By**: Development Team
-**MVP Status**: READY FOR DEPLOYMENT
-**Next Phase**: Post-launch monitoring and feature enhancements
+**Deployment Status**: v1.3.5 deployed to dev (10.10.101.207)
+**Next Phase**: Phase 21 planning (Advanced Features)
