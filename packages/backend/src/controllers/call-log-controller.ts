@@ -19,6 +19,7 @@ export async function listCallLogs(req: Request, res: Response, next: NextFuncti
       search: req.query.search as string | undefined,
       hangupCause: req.query.hangupCause as string | undefined,
       sipCode: req.query.sipCode as string | undefined,
+      callType: req.query.callType as 'c2c' | 'autocall' | 'manual' | 'callbot' | undefined,
     };
     const result = await callLogService.listCallLogs(pagination, filters, req.dataScope || {}, req.user!.clusterId, req.user!.role);
     res.json({ success: true, ...result });
@@ -38,6 +39,31 @@ export async function getCallLog(req: Request, res: Response, next: NextFunction
     const error = err as Error & { code?: string };
     if (error.code === 'NOT_FOUND') {
       res.status(404).json({ success: false, error: { code: error.code, message: error.message } });
+      return;
+    }
+    next(err);
+  }
+}
+
+/** DELETE /call-logs/:id/recording */
+export async function deleteRecording(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const updated = await callLogService.deleteRecording(
+      req.params.id as string,
+      req.user!.userId,
+      req.user!.clusterId,
+      req.user!.role,
+      req,
+    );
+    res.json({ success: true, data: updated });
+  } catch (err: unknown) {
+    const error = err as Error & { code?: string };
+    if (error.code === 'NOT_FOUND') {
+      res.status(404).json({ success: false, error: { code: error.code, message: error.message } });
+      return;
+    }
+    if (error.code === 'PATH_ESCAPE') {
+      res.status(400).json({ success: false, error: { code: error.code, message: 'Invalid recording path' } });
       return;
     }
     next(err);

@@ -4,23 +4,13 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 
 const GROUP_LABEL_MAP: Record<string, string> = {
-  switchboard: 'Tổng đài',
-  crm: 'CRM',
   campaign: 'Chiến dịch',
+  crm: 'CRM',
   report: 'Báo cáo',
+  switchboard: 'Tổng đài',
   ticket: 'Phiếu ghi',
   qa: 'QA',
   system: 'Hệ thống',
-  // Legacy groups
-  reports: 'Báo cáo',
-  calls: 'Tổng đài',
-  users: 'Hệ thống',
-  campaigns: 'Chiến dịch',
-  dashboard: 'Tổng quan',
-  tickets: 'Phiếu ghi',
-  debts: 'Công nợ',
-  leads: 'Leads',
-  contacts: 'Danh bạ',
 };
 
 export interface PermissionRow {
@@ -37,28 +27,23 @@ interface Props {
   onToggle: (row: PermissionRow, role: string, value: boolean) => void;
 }
 
-const EDITABLE_ROLES = ['admin', 'manager', 'qa', 'leader', 'agent_telesale', 'agent_collection'] as const;
+const EDITABLE_ROLES = ['admin', 'manager', 'supervisor', 'qa', 'leader', 'agent'] as const;
 export type EditableRole = (typeof EDITABLE_ROLES)[number];
 export const ALL_ROLES = ['super_admin', ...EDITABLE_ROLES] as const;
 
-export const ROLE_LABELS: Record<string, string> = {
-  super_admin: 'Super Admin',
-  admin: 'Admin',
-  manager: 'Quản lý',
-  qa: 'QA',
-  leader: 'Trưởng nhóm',
-  agent_telesale: 'Telesale',
-  agent_collection: 'Thu hồi nợ',
-};
+// Re-export from single source of truth (@/lib/vi-text) so every screen stays in sync.
+// Kept as a named const to preserve the prior import path and avoid a sweeping rename.
+import { VI } from '@/lib/vi-text';
+export const ROLE_LABELS: Record<string, string> = { ...VI.roles };
 
 export const ROLE_COLORS: Record<string, string> = {
   super_admin: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
   admin: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
   manager: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  supervisor: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
   qa: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
   leader: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
-  agent_telesale: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',
-  agent_collection: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  agent: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',
 };
 
 function getGrant(row: PermissionRow, role: string, localGrants: Record<string, Record<string, boolean>>): boolean {

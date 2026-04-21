@@ -20,12 +20,12 @@ const routeToPermission: Record<string, string> = {
   '/leads': 'crm.leads.view',
   '/debt-cases': 'crm.debt.view',
   '/tickets': 'ticket.create',
-  '/reports': 'view_reports',
-  '/call-logs': 'view_recordings',
-  '/settings/permissions': 'manage_permissions',
-  '/settings/teams': 'manage_teams',
-  '/settings/clusters': 'manage_clusters',
-  '/settings/accounts': 'manage_users',
+  '/reports': 'report.view_own',
+  '/call-logs': 'switchboard.listen_recording',
+  '/settings/permissions': 'system.permissions',
+  '/settings/teams': 'system.manage',
+  '/settings/clusters': 'system.manage',
+  '/settings/accounts': 'system.users',
 };
 
 const STORAGE_KEY = 'crm-sidebar-groups';

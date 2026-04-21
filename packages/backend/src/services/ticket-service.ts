@@ -19,11 +19,36 @@ const ticketSelect = {
   firstResponseAt: true,
   resolvedAt: true,
   slaBreached: true,
+  clusterId: true,
   createdAt: true,
   updatedAt: true,
-  contact: { select: { id: true, fullName: true, phone: true } },
-  user: { select: { id: true, fullName: true } },
+  contact: { select: { id: true, fullName: true, phone: true, email: true, address: true } },
+  user: {
+    select: {
+      id: true,
+      fullName: true,
+      extension: true,
+      team: { select: { id: true, name: true } },
+    },
+  },
   category: { select: { id: true, name: true } },
+  callLog: {
+    select: {
+      id: true,
+      callUuid: true,
+      startTime: true,
+      answerTime: true,
+      endTime: true,
+      duration: true,
+      billsec: true,
+      hangupCause: true,
+      sipCode: true,
+      recordingPath: true,
+      callerNumber: true,
+      destinationNumber: true,
+      direction: true,
+    },
+  },
 };
 
 interface CreateTicketInput {
@@ -36,7 +61,12 @@ interface CreateTicketInput {
   priority?: 'low' | 'medium' | 'high' | 'urgent';
 }
 
-export async function createTicket(input: CreateTicketInput, userId: string, req?: Request) {
+export async function createTicket(
+  input: CreateTicketInput,
+  userId: string,
+  clusterId: string | null,
+  req?: Request,
+) {
   const ticket = await prisma.ticket.create({
     data: {
       contactId: input.contactId,
@@ -47,6 +77,7 @@ export async function createTicket(input: CreateTicketInput, userId: string, req
       content: input.content || null,
       resultCode: input.resultCode || null,
       priority: input.priority || 'medium',
+      clusterId: clusterId ?? null,
     },
     select: ticketSelect,
   });
@@ -59,13 +90,21 @@ export async function getTicketById(id: string, userId: string, role: string) {
   const where: Record<string, unknown> = { id };
 
   // Agents can only see their own tickets
-  if (role === 'agent_telesale' || role === 'agent_collection') {
+  if (role === 'agent' || role === 'agent_telesale' || role === 'agent_collection') {
     where.userId = userId;
   }
 
   const ticket = await prisma.ticket.findFirst({ where, select: ticketSelect });
   if (!ticket) throw Object.assign(new Error('Ticket not found'), { code: 'NOT_FOUND' });
-  return ticket;
+
+  const auditLog = await prisma.auditLog.findMany({
+    where: { entityType: 'tickets', entityId: id },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+    include: { user: { select: { id: true, fullName: true } } },
+  });
+
+  return { ...ticket, auditLog };
 }
 
 interface UpdateTicketInput {
@@ -87,6 +126,22 @@ export async function updateTicket(
   const existing = await getTicketById(id, userId, role);
   const now = new Date();
 
+  // Require resultCode and content when resolving
+  if (input.status === 'resolved') {
+    if (!input.resultCode?.trim()) {
+      throw Object.assign(
+        new Error('resultCode is required when resolving a ticket'),
+        { code: 'VALIDATION_ERROR', statusCode: 400 },
+      );
+    }
+    if (!input.content?.trim()) {
+      throw Object.assign(
+        new Error('content (resolution note) is required when resolving a ticket'),
+        { code: 'VALIDATION_ERROR', statusCode: 400 },
+      );
+    }
+  }
+
   // SLA: track first response time when moving open → in_progress
   const slaData: Record<string, unknown> = {};
   if (input.status === 'in_progress' && existing.status === 'open' && !existing.firstResponseAt) {
@@ -94,7 +149,6 @@ export async function updateTicket(
     const diffHours = (now.getTime() - new Date(existing.createdAt).getTime()) / 3600000;
     if (diffHours > SLA_FIRST_RESPONSE_HOURS) {
       slaData.slaBreached = true;
-      // Notify the assigned agent about SLA breach
       createNotification(
         existing.user.id,
         'sla_breach',
@@ -130,7 +184,10 @@ export async function updateTicket(
 }
 
 export async function deleteTicket(id: string, userId: string, role: string, req?: Request) {
-  await getTicketById(id, userId, role);
+  // Permission enforced at route via requirePermission('ticket.delete')
+  const ticket = await prisma.ticket.findFirst({ where: { id }, select: { id: true } });
+  if (!ticket) throw Object.assign(new Error('Ticket not found'), { code: 'NOT_FOUND' });
+
   await prisma.ticket.delete({ where: { id } });
   logAudit(userId, 'delete', 'tickets', id, null, req);
 }
@@ -143,7 +200,7 @@ export async function listTickets(
 ) {
   const where: Record<string, unknown> = {};
 
-  if (role === 'agent_telesale' || role === 'agent_collection') {
+  if (role === 'agent' || role === 'agent_telesale' || role === 'agent_collection') {
     where.userId = userId;
   }
 

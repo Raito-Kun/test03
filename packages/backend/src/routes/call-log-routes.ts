@@ -2,18 +2,20 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { authMiddleware } from '../middleware/auth-middleware';
-import { requireRole } from '../middleware/rbac-middleware';
+import { requireRole, requirePermission } from '../middleware/rbac-middleware';
 import { applyDataScope } from '../middleware/data-scope-middleware';
 import * as callLogCtrl from '../controllers/call-log-controller';
 import * as dispositionCtrl from '../controllers/disposition-code-controller';
 import * as qaCtrl from '../controllers/qa-annotation-controller';
 import { bulkDownloadRecordings } from '../services/recording-service';
+import { checkFeatureEnabled } from '../middleware/feature-flag-middleware';
 import prisma from '../lib/prisma';
 import logger from '../lib/logger';
 
 const router = Router();
 
 router.use(authMiddleware);
+router.use(checkFeatureEnabled('call_history'));
 
 const bulkDownloadSchema = z.object({
   callLogIds: z.array(z.string().uuid()).min(1).max(50),
@@ -58,6 +60,7 @@ router.post('/manual', async (req: Request, res: Response, next: NextFunction) =
 router.get('/', applyDataScope('userId'), callLogCtrl.listCallLogs);
 router.get('/:id', applyDataScope('userId'), callLogCtrl.getCallLog);
 router.get('/:id/recording', callLogCtrl.getRecording);
+router.delete('/:id/recording', requirePermission('recording.delete'), callLogCtrl.deleteRecording);
 
 // Set disposition on call
 router.post('/:id/disposition', dispositionCtrl.setCallDisposition);

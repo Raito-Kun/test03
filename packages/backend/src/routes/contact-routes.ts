@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { authMiddleware } from '../middleware/auth-middleware';
-import { requireRole } from '../middleware/rbac-middleware';
+import { requireRole, requirePermission } from '../middleware/rbac-middleware';
 import { applyDataScope } from '../middleware/data-scope-middleware';
 import * as contactCtrl from '../controllers/contact-controller';
 import * as importService from '../services/contact-import-service';
@@ -108,11 +108,11 @@ router.get('/export', requireRole('super_admin', 'admin', 'manager', 'leader'), 
 
 // Bulk delete — placed BEFORE `/:id` so the string "bulk-delete" doesn't
 // get captured as an :id param.
-router.post('/bulk-delete', requireRole('super_admin', 'admin', 'manager'), contactCtrl.bulkDeleteContacts);
+router.post('/bulk-delete', requirePermission('crm.contacts.delete'), contactCtrl.bulkDeleteContacts);
 
 router.get('/:id', contactCtrl.getContact);
 router.patch('/:id', requireRole('super_admin', 'admin', 'manager', 'leader', 'agent'), contactCtrl.updateContact);
-router.delete('/:id', requireRole('super_admin', 'admin', 'manager'), contactCtrl.deleteContact);
+router.delete('/:id', requirePermission('crm.contacts.delete'), contactCtrl.deleteContact);
 router.get('/:id/timeline', contactCtrl.getTimeline);
 
 export default router;

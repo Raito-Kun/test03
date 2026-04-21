@@ -6,7 +6,7 @@ import { autoAssignLeads } from '../services/lead-assignment-service';
 
 const router = Router();
 
-router.use(authMiddleware, requirePermission('manage_campaigns'));
+router.use(authMiddleware, requirePermission('campaign.manage'));
 
 const assignSchema = z.object({
   campaignId: z.string().uuid(),

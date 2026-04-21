@@ -3,10 +3,11 @@ import { authMiddleware } from '../middleware/auth-middleware';
 import { requirePermission } from '../middleware/rbac-middleware';
 import { applyDataScope } from '../middleware/data-scope-middleware';
 import { exportToExcel } from '../services/export-service';
+import { checkFeatureEnabled } from '../middleware/feature-flag-middleware';
 
 const router = Router();
 
-router.use(authMiddleware, requirePermission('export_excel'), applyDataScope());
+router.use(authMiddleware, requirePermission('report.export'), checkFeatureEnabled('reports_export'), applyDataScope());
 
 /** GET /export/:entity — stream Excel file */
 router.get('/:entity', async (req: Request, res: Response, next: NextFunction) => {

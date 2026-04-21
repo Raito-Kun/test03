@@ -3,18 +3,20 @@ import { z } from 'zod';
 import { authMiddleware } from '../middleware/auth-middleware';
 import { requirePermission } from '../middleware/rbac-middleware';
 import { getActiveCalls, getAgentStatuses, whisperToAgent } from '../services/monitoring-service';
+import { checkFeatureEnabled } from '../middleware/feature-flag-middleware';
 
 const router = Router();
 
 router.use(authMiddleware);
+router.use(checkFeatureEnabled('live_monitoring'));
 
 /** GET /monitoring/live — combined live dashboard: agent counts + active calls */
-router.get('/live', requirePermission('view_dashboard'), async (req: Request, res: Response, next: NextFunction) => {
+router.get('/live', requirePermission('report.view_own'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const teamId = req.user?.role === 'leader' ? req.user.teamId || undefined : undefined;
     const [agents, activeCalls] = await Promise.all([
-      getAgentStatuses(teamId ?? undefined),
-      getActiveCalls(),
+      getAgentStatuses(teamId ?? undefined, req.user?.clusterId, req.user?.role),
+      getActiveCalls(req.user?.clusterId, req.user?.role),
     ]);
 
     const counts = agents.reduce(
@@ -42,11 +44,11 @@ router.get('/live', requirePermission('view_dashboard'), async (req: Request, re
 });
 
 /** GET /monitoring/agents — all agent statuses (manager/leader) */
-router.get('/agents', requirePermission('view_dashboard'), async (req: Request, res: Response, next: NextFunction) => {
+router.get('/agents', requirePermission('report.view_own'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     // Leaders see only their team
     const teamId = req.user?.role === 'leader' ? req.user.teamId || undefined : undefined;
-    const agents = await getAgentStatuses(teamId ?? undefined);
+    const agents = await getAgentStatuses(teamId ?? undefined, req.user?.clusterId, req.user?.role);
     res.json({ success: true, data: agents });
   } catch (err) {
     next(err);
@@ -54,9 +56,9 @@ router.get('/agents', requirePermission('view_dashboard'), async (req: Request, 
 });
 
 /** GET /monitoring/active-calls — currently active calls */
-router.get('/active-calls', requirePermission('view_dashboard'), async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/active-calls', requirePermission('report.view_own'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const calls = await getActiveCalls();
+    const calls = await getActiveCalls(req.user?.clusterId, req.user?.role);
     res.json({ success: true, data: calls });
   } catch (err) {
     next(err);
@@ -68,7 +70,7 @@ const whisperSchema = z.object({
 });
 
 /** POST /monitoring/whisper — whisper to agent during call */
-router.post('/whisper', requirePermission('view_recordings'), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/whisper', requirePermission('switchboard.listen_recording'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const input = whisperSchema.parse(req.body);
     const managerExt = await getManagerExtension(req.user!.userId);

@@ -2,7 +2,9 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Mic, RefreshCw, Download, CheckSquare } from 'lucide-react';
+import { Mic, RefreshCw, Download, CheckSquare, Trash2 } from 'lucide-react';
+import { useAuthStore } from '@/stores/auth-store';
+import { deleteCallRecording } from '@/api/call-log-api';
 import { SectionHeader } from '@/components/ops/section-header';
 import { DataTable, type Column } from '@/components/data-table/data-table';
 import { Badge } from '@/components/ui/badge';
@@ -56,7 +58,15 @@ interface CallLog {
   recordingStatus?: string;
   notes?: string;
   user?: { fullName: string };
-  dispositionCode?: { label: string };
+  dispositionCode?: { id: string; label: string };
+  dispositionSetBy?: { id: string; fullName: string } | null;
+  dispositionSetAt?: string | null;
+}
+
+interface DispositionOption {
+  id: string;
+  code: string;
+  label: string;
 }
 
 /** Get agent extension number based on call direction */
@@ -77,6 +87,8 @@ interface AgentOption {
 
 export default function CallLogListPage() {
   const queryClient = useQueryClient();
+  const hasPermission = useAuthStore((s) => s.hasPermission);
+  const canDeleteRecording = hasPermission('recording.delete');
   const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
   const [directionFilter, setDirectionFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -91,16 +103,51 @@ export default function CallLogListPage() {
     queryFn: () => api.get('/users', { params: { limit: 200 } }).then((r) => r.data.data as AgentOption[]),
     staleTime: 5 * 60_000,
   });
+
+  // Disposition options for inline status editor
+  const { data: dispositionOptions = [] } = useQuery<DispositionOption[]>({
+    queryKey: ['disposition-codes-active'],
+    queryFn: () => api.get('/disposition-codes', { params: { active: 'true' } }).then((r) => r.data.data),
+    staleTime: 5 * 60_000,
+  });
+
+  async function saveDisposition(callLogId: string, dispositionCodeId: string) {
+    try {
+      await api.post(`/call-logs/${callLogId}/disposition`, { dispositionCodeId });
+      toast.success('Đã cập nhật trạng thái');
+      queryClient.invalidateQueries({ queryKey: ['call-logs'] });
+    } catch (err) {
+      toast.error(`Lỗi cập nhật trạng thái: ${(err as Error).message}`);
+    }
+  }
+  async function handleDeleteRecording(id: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!window.confirm('Xác nhận xoá ghi âm cuộc gọi này?')) return;
+    try {
+      await deleteCallRecording(id);
+      toast.success('Đã xoá ghi âm');
+      queryClient.invalidateQueries({ queryKey: ['call-logs'] });
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } }).response?.status;
+      if (status === 403) {
+        toast.error('Bạn không có quyền xoá ghi âm');
+      } else {
+        toast.error(`Lỗi xoá ghi âm: ${(err as Error).message}`);
+      }
+    }
+  }
+
   const [resultFilter, setResultFilter] = useState('');
   const [sipCodeFilter, setSipCodeFilter] = useState('');
   const [callTypeFilter, setCallTypeFilter] = useState('');
+  const [dispositionFilter, setDispositionFilter] = useState('');
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDownloading, setBulkDownloading] = useState(false);
   const { page, setPage, limit, setLimit, sortKey, sortOrder, handleSort, queryParams } = usePagination();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['call-logs', queryParams, directionFilter, dateFrom, dateTo, appliedSearch, agentFilter, resultFilter, sipCodeFilter, callTypeFilter],
+    queryKey: ['call-logs', queryParams, directionFilter, dateFrom, dateTo, appliedSearch, agentFilter, resultFilter, sipCodeFilter, callTypeFilter, dispositionFilter],
     queryFn: async () => {
       const params: Record<string, string | number> = { ...queryParams, search: appliedSearch };
       if (directionFilter) params.direction = directionFilter;
@@ -110,6 +157,7 @@ export default function CallLogListPage() {
       if (resultFilter) params.hangupCause = resultFilter;
       if (sipCodeFilter) params.sipCode = sipCodeFilter;
       if (callTypeFilter) params.callType = callTypeFilter;
+      if (dispositionFilter) params.disposition = dispositionFilter;
       const { data: resp } = await api.get('/call-logs', { params });
       return { items: resp.data as CallLog[], total: resp.meta?.total ?? 0 };
     },
@@ -189,7 +237,22 @@ export default function CallLogListPage() {
     {
       key: 'recordingStatus', label: VI.callLog.recording,
       render: (row) => row.recordingStatus === 'available'
-        ? <Mic className="h-4 w-4 text-green-500" />
+        ? (
+          <div className="flex items-center gap-1">
+            <Mic className="h-4 w-4 text-green-500 shrink-0" />
+            {canDeleteRecording && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-destructive hover:text-destructive"
+                title="Xoá ghi âm"
+                onClick={(e) => handleDeleteRecording(row.id, e)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+        )
         : <span className="text-muted-foreground text-xs">—</span>,
     },
     {
@@ -213,38 +276,65 @@ export default function CallLogListPage() {
     },
     { key: 'sipCode', label: 'SIP Code', render: (row) => row.sipCode || '—' },
     {
-      key: 'sipReason', label: 'SIP Reason',
+      key: 'sipReason', label: 'Lý do SIP',
+      // SIP sub-reason — English short labels (protocol-standard, grep-friendly against FS logs).
       render: (row) => {
-        // Derive from SIP code (authoritative) with hangupCause fallback
         const code = row.sipCode ? parseInt(row.sipCode, 10) : 0;
-        if (code === 200) return 'Answer';
+        if (code === 200) return 'Answered';
         if (code === 430) return 'Voicemail';
+        if (code === 480) return 'No answer';
         if (code === 486) return 'Busy';
-        if (code === 487) return 'Request Terminated';
-        if (code === 480) return 'No Answer';
-        if (code === 404) return 'Not Found';
-        if (code === 403) return 'Forbidden';
-        if (code === 408) return 'Request Timeout';
-        if (code === 500) return 'Internal Server Error';
-        if (code === 503) return 'Service Unavailable';
-        // No SIP code → derive from hangupCause
-        if (row.hangupCause === 'ORIGINATOR_CANCEL') return 'Request Terminated';
-        if (row.hangupCause === 'NO_ANSWER') return 'No Answer';
-        if (row.hangupCause === 'NORMAL_CLEARING') return 'Answer';
+        if (code === 487) return 'Cancelled';
+        if (code === 404) return 'Not found';
+        if (code === 403) return 'Rejected';
+        if (code === 408) return 'Timeout';
+        if (code === 500) return 'Server error';
+        if (code === 503) return 'Unavailable';
+        if (row.hangupCause === 'NORMAL_CLEARING') return 'Answered';
         if (row.hangupCause === 'USER_BUSY') return 'Busy';
-        if (!row.hangupCause && !row.sipReason) return '—';
-        return row.sipReason || '—';
+        if (row.hangupCause === 'NO_ANSWER') return 'No answer';
+        if (row.hangupCause === 'ORIGINATOR_CANCEL') return 'Cancelled';
+        if (row.hangupCause === 'CALL_REJECTED') return 'Rejected';
+        return row.sipReason || row.hangupCause || '—';
       },
     },
     {
-      key: 'disposition', label: 'Phân loại',
+      key: 'callType', label: 'Phân loại',
+      // Call origin only — not the disposition. Kept English (product-level label).
       render: (row) => {
-        if (row.dispositionCode?.label) return row.dispositionCode.label;
-        const source = (row.notes || row.disposition || '').trim();
-        // Anything that's not c2c / autocall is treated as a manual call
-        const key = source === 'c2c' || source === 'autocall' ? source : 'manual';
-        const CALL_SOURCE_VI: Record<string, string> = { c2c: 'C2C', autocall: 'Auto Call', manual: 'Thủ công' };
-        return CALL_SOURCE_VI[key];
+        const source = (row.notes || '').trim();
+        if (source === 'c2c') return 'Click2call';
+        if (source === 'autocall') return 'Autocall';
+        if (source === 'callbot') return 'Callbot';
+        return 'Manual';
+      },
+    },
+    {
+      key: 'status', label: 'Trạng thái',
+      // Agent-set disposition after the call. Inline-editable; audit-logged by backend.
+      render: (row) => {
+        const by = row.dispositionSetBy?.fullName;
+        const at = row.dispositionSetAt ? format(new Date(row.dispositionSetAt), 'dd/MM/yyyy HH:mm') : '';
+        const title = by ? `Cập nhật bởi ${by}${at ? ` lúc ${at}` : ''}` : 'Chưa cập nhật';
+        return (
+          <div onClick={(e) => e.stopPropagation()} title={title}>
+            <Select
+              value={row.dispositionCode?.id ?? undefined}
+              onValueChange={(v) => { if (v) saveDisposition(row.id, v); }}
+            >
+              <SelectTrigger className="h-8 w-40 text-xs">
+                {row.dispositionCode?.label
+                  ? <span>{row.dispositionCode.label}</span>
+                  : <span className="text-muted-foreground">—</span>}
+              </SelectTrigger>
+              <SelectContent>
+                {dispositionOptions.map((opt) => (
+                  <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        );
       },
     },
     {
@@ -265,11 +355,12 @@ export default function CallLogListPage() {
     setResultFilter('');
     setSipCodeFilter('');
     setCallTypeFilter('');
+    setDispositionFilter('');
   }
 
-  const hasFilters = directionFilter || dateFrom || dateTo || agentFilter || resultFilter || sipCodeFilter || callTypeFilter;
+  const hasFilters = directionFilter || dateFrom || dateTo || agentFilter || resultFilter || sipCodeFilter || callTypeFilter || dispositionFilter;
 
-  const CALL_TYPE_VI: Record<string, string> = { c2c: 'C2C', autocall: 'Auto Call', manual: 'Thủ công' };
+  const CALL_TYPE_LABEL: Record<string, string> = { c2c: 'Click2call', autocall: 'Autocall', manual: 'Manual', callbot: 'Callbot' };
 
   const toolbar = (
     <div className="flex items-end gap-2 flex-wrap">
@@ -303,14 +394,28 @@ export default function CallLogListPage() {
       <Select value={callTypeFilter || undefined} onValueChange={(v) => setCallTypeFilter(v === '_all' ? '' : v || '')}>
         <SelectTrigger className="w-40">
           {callTypeFilter
-            ? <span>{CALL_TYPE_VI[callTypeFilter] ?? callTypeFilter}</span>
+            ? <span>{CALL_TYPE_LABEL[callTypeFilter] ?? callTypeFilter}</span>
             : <span className="text-muted-foreground">Tất cả phân loại</span>}
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="_all">Tất cả phân loại</SelectItem>
-          <SelectItem value="c2c">C2C</SelectItem>
-          <SelectItem value="autocall">Auto Call</SelectItem>
-          <SelectItem value="manual">Thủ công</SelectItem>
+          <SelectItem value="manual">Manual</SelectItem>
+          <SelectItem value="c2c">Click2call</SelectItem>
+          <SelectItem value="autocall">Autocall</SelectItem>
+          <SelectItem value="callbot">Callbot</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select value={dispositionFilter || undefined} onValueChange={(v) => setDispositionFilter(v === '_all' ? '' : v || '')}>
+        <SelectTrigger className="w-44">
+          {dispositionFilter
+            ? <span>{dispositionOptions.find((o) => o.id === dispositionFilter)?.label ?? '—'}</span>
+            : <span className="text-muted-foreground">Tất cả trạng thái</span>}
+        </SelectTrigger>
+        <SelectContent className="max-h-80">
+          <SelectItem value="_all">Tất cả trạng thái</SelectItem>
+          {dispositionOptions.map((opt) => (
+            <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>
+          ))}
         </SelectContent>
       </Select>
       <Select value={agentFilter || undefined} onValueChange={(v) => setAgentFilter(v === '_all' ? '' : v || '')}>

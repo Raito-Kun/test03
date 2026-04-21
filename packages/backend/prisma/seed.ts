@@ -128,24 +128,6 @@ async function main() {
   type PermDef = { key: string; label: string; group: string; parentKey?: string };
 
   const permissionDefs: PermDef[] = [
-    // Legacy flat permissions (keep for backward compat)
-    { key: 'view_reports',       label: 'Xem báo cáo',              group: 'reports' },
-    { key: 'make_calls',         label: 'Gọi điện',                  group: 'calls' },
-    { key: 'export_excel',       label: 'Xuất Excel',                group: 'reports' },
-    { key: 'view_recordings',    label: 'Nghe ghi âm',               group: 'calls' },
-    { key: 'manage_campaigns',   label: 'Quản lý chiến dịch',        group: 'campaigns' },
-    { key: 'manage_users',       label: 'Quản lý người dùng',        group: 'users' },
-    { key: 'manage_permissions', label: 'Quản lý phân quyền',        group: 'users' },
-    { key: 'manage_extensions',  label: 'Cấu hình máy nhánh',        group: 'system' },
-    { key: 'view_dashboard',     label: 'Xem tổng quan',             group: 'dashboard' },
-    { key: 'manage_tickets',     label: 'Quản lý phiếu hỗ trợ',     group: 'tickets' },
-    { key: 'manage_debt_cases',  label: 'Quản lý công nợ',           group: 'debts' },
-    { key: 'manage_leads',       label: 'Quản lý khách tiềm năng',   group: 'leads' },
-    { key: 'manage_contacts',    label: 'Quản lý danh bạ',           group: 'contacts' },
-    { key: 'import_contacts',    label: 'Nhập danh bạ CSV',           group: 'contacts' },
-    { key: 'import_leads',       label: 'Nhập leads CSV',             group: 'leads' },
-    { key: 'import_campaigns',   label: 'Nhập chiến dịch CSV',        group: 'campaigns' },
-
     // ── Tổng đài (Switchboard) ──
     { key: 'switchboard.manage',            label: 'Quản lý tổng đài',        group: 'switchboard' },
     { key: 'switchboard.make_call',         label: 'Thực hiện cuộc gọi',      group: 'switchboard', parentKey: 'switchboard.manage' },
@@ -154,6 +136,7 @@ async function main() {
     { key: 'switchboard.hold_call',         label: 'Giữ cuộc gọi',            group: 'switchboard', parentKey: 'switchboard.manage' },
     { key: 'switchboard.listen_recording',  label: 'Nghe ghi âm',             group: 'switchboard', parentKey: 'switchboard.manage' },
     { key: 'switchboard.download_recording',label: 'Tải ghi âm',              group: 'switchboard', parentKey: 'switchboard.manage' },
+    { key: 'recording.delete',              label: 'Xoá ghi âm',              group: 'switchboard', parentKey: 'switchboard.manage' },
 
     // ── CRM ──
     { key: 'crm.manage',           label: 'Quản lý CRM',         group: 'crm' },
@@ -167,6 +150,7 @@ async function main() {
     { key: 'crm.leads.create',     label: 'Tạo lead',            group: 'crm', parentKey: 'crm.manage' },
     { key: 'crm.leads.edit',       label: 'Sửa lead',            group: 'crm', parentKey: 'crm.manage' },
     { key: 'crm.leads.delete',     label: 'Xóa lead',            group: 'crm', parentKey: 'crm.manage' },
+    { key: 'crm.leads.import',     label: 'Import leads',         group: 'crm', parentKey: 'crm.manage' },
     { key: 'crm.debt.view',        label: 'Xem công nợ',         group: 'crm', parentKey: 'crm.manage' },
     { key: 'crm.debt.edit',        label: 'Sửa công nợ',         group: 'crm', parentKey: 'crm.manage' },
     { key: 'crm.data_allocation',  label: 'Phân bổ dữ liệu',     group: 'crm', parentKey: 'crm.manage' },
@@ -177,6 +161,7 @@ async function main() {
     { key: 'campaign.edit',   label: 'Sửa chiến dịch',       group: 'campaign', parentKey: 'campaign.manage' },
     { key: 'campaign.delete', label: 'Xóa chiến dịch',       group: 'campaign', parentKey: 'campaign.manage' },
     { key: 'campaign.assign', label: 'Phân bổ chiến dịch',   group: 'campaign', parentKey: 'campaign.manage' },
+    { key: 'campaign.import', label: 'Nhập chiến dịch CSV',  group: 'campaign', parentKey: 'campaign.manage' },
 
     // ── Báo cáo (Reports) ──
     { key: 'report.manage',     label: 'Quản lý báo cáo',        group: 'report' },
@@ -246,12 +231,10 @@ async function main() {
       .map((p) => p.key),
     manager: [
       'switchboard.manage','switchboard.make_call','switchboard.receive_call','switchboard.transfer_call','switchboard.hold_call','switchboard.listen_recording','switchboard.download_recording',
-      'crm.manage','crm.contacts.view','crm.contacts.create','crm.contacts.edit','crm.contacts.delete','crm.contacts.import','crm.contacts.export','crm.leads.view','crm.leads.create','crm.leads.edit','crm.leads.delete','crm.debt.view','crm.debt.edit','crm.data_allocation',
-      'campaign.manage','campaign.create','campaign.edit','campaign.delete','campaign.assign',
+      'crm.manage','crm.contacts.view','crm.contacts.create','crm.contacts.edit','crm.contacts.delete','crm.contacts.import','crm.contacts.export','crm.leads.view','crm.leads.create','crm.leads.edit','crm.leads.delete','crm.leads.import','crm.debt.view','crm.debt.edit','crm.data_allocation',
+      'campaign.manage','campaign.create','campaign.edit','campaign.delete','campaign.assign','campaign.import',
       'report.manage','report.view_own','report.view_team','report.view_all','report.export',
       'ticket.manage','ticket.create','ticket.edit','ticket.delete','ticket.assign',
-      // Legacy
-      'view_reports','make_calls','export_excel','view_recordings','manage_campaigns','view_dashboard','manage_tickets','manage_debt_cases','manage_leads','manage_contacts','import_leads','import_campaigns',
     ],
     leader: [
       'switchboard.manage','switchboard.make_call','switchboard.receive_call','switchboard.transfer_call','switchboard.hold_call','switchboard.listen_recording',
@@ -259,43 +242,40 @@ async function main() {
       'campaign.manage',
       'report.manage','report.view_own','report.view_team',
       'ticket.manage','ticket.create','ticket.edit','ticket.assign',
-      // Legacy
-      'make_calls','view_reports','view_recordings','view_dashboard','manage_tickets','manage_leads','manage_contacts',
     ],
     qa: [
       'qa.manage','qa.score','qa.review','qa.annotate',
       'switchboard.listen_recording',
       'report.manage','report.view_own',
-      // Legacy
-      'view_recordings','view_reports','view_dashboard',
     ],
     agent_telesale: [
       'switchboard.make_call','switchboard.receive_call','switchboard.hold_call',
       'crm.contacts.view','crm.contacts.create','crm.contacts.edit',
       'crm.leads.view','crm.leads.create','crm.leads.edit',
       'ticket.create','ticket.edit',
-      // Legacy
-      'make_calls','view_dashboard','manage_leads','manage_contacts','manage_tickets',
     ],
     agent_collection: [
       'switchboard.make_call','switchboard.receive_call','switchboard.hold_call',
       'crm.contacts.view','crm.contacts.edit',
       'crm.debt.view','crm.debt.edit',
       'ticket.create','ticket.edit',
-      // Legacy
-      'make_calls','view_dashboard','manage_debt_cases','manage_contacts','manage_tickets',
     ],
   };
 
-  for (const [role, keys] of Object.entries(defaultGrants)) {
-    for (const key of keys) {
-      const permissionId = permMap[key];
-      if (!permissionId) continue;
-      await prisma.rolePermission.upsert({
-        where: { role_permissionId: { role: role as any, permissionId } },
-        update: { granted: true },
-        create: { role: role as any, permissionId, granted: true },
-      });
+  const clusters = await prisma.pbxCluster.findMany({ select: { id: true } });
+  for (const cluster of clusters) {
+    for (const [role, keys] of Object.entries(defaultGrants)) {
+      for (const key of keys) {
+        const permissionId = permMap[key];
+        if (!permissionId) continue;
+        await prisma.rolePermission.upsert({
+          where: {
+            clusterId_role_permissionId: { clusterId: cluster.id, role: role as any, permissionId },
+          },
+          update: { granted: true },
+          create: { clusterId: cluster.id, role: role as any, permissionId, granted: true },
+        });
+      }
     }
   }
 
@@ -479,6 +459,29 @@ Em muốn hiểu tình hình hiện tại của anh/chị — có lý do gì khi
       await prisma.callScript.create({ data: s });
     }
   }
+
+  // Seed default PBX cluster
+  await prisma.pbxCluster.upsert({
+    where: { id: '20000000-0000-0000-0000-000000000001' },
+    update: {},
+    create: {
+      id: '20000000-0000-0000-0000-000000000001',
+      name: 'Cụm mặc định',
+      description: 'Cụm PBX chính',
+      eslHost: '10.10.101.189',
+      eslPort: 8021,
+      eslPassword: 'ClueCon',
+      sipDomain: 'crm',
+      sipWssUrl: '',
+      pbxIp: '10.10.101.189',
+      gatewayName: '368938db-bc9d-48ba-b9d3-e18bc3000623',
+      recordingPath: '/var/lib/freeswitch/recordings/',
+      recordingUrlPrefix: '',
+      cdrReportUrl: '',
+      isActive: true,
+    },
+  });
+  console.log('Default PBX cluster seeded');
 
   console.log('Seed complete: 2 teams, 7 users, 20 disposition codes, 4 ticket categories, 60+ permissions (hierarchical), 5 call scripts');
 }

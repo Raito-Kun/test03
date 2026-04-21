@@ -22,7 +22,7 @@ const createTimestampSchema = z.object({
 });
 
 /** POST /qa-timestamps — save standalone timestamp annotation */
-router.post('/', requirePermission('view_recordings'), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/', requirePermission('switchboard.listen_recording'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const input = createTimestampSchema.parse(req.body);
     const reviewerId = req.user!.userId;
@@ -84,7 +84,7 @@ router.get('/:callLogId', async (req: Request, res: Response, next: NextFunction
 });
 
 /** POST /qa-timestamps/:annotationId — add timestamp annotation to existing QA annotation */
-router.post('/:annotationId', requirePermission('view_recordings'), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/:annotationId', requirePermission('switchboard.listen_recording'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { annotationId } = req.params;
     const input = timestampSchema.parse(req.body);
@@ -132,7 +132,7 @@ router.get('/call/:callLogId', async (req: Request, res: Response, next: NextFun
 });
 
 /** POST /qa-timestamps/call/:callLogId/quick — create annotation + timestamp in one step */
-router.post('/call/:callLogId/quick', requirePermission('view_recordings'), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/call/:callLogId/quick', requirePermission('switchboard.listen_recording'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const input = timestampSchema.parse(req.body);
     const callLogId = req.params.callLogId as string;

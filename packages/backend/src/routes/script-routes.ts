@@ -79,7 +79,7 @@ router.get('/active-call', async (req: Request, res: Response, next: NextFunctio
 });
 
 /** GET /scripts — list all scripts (admin/manager) */
-router.get('/', requirePermission('manage_campaigns'), async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/', requirePermission('campaign.manage'), async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const scripts = await scriptService.listScripts();
     res.json({ success: true, data: scripts });
@@ -96,7 +96,7 @@ const scriptSchema = z.object({
 });
 
 /** POST /scripts — create script */
-router.post('/', requirePermission('manage_campaigns'), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/', requirePermission('campaign.manage'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const input = scriptSchema.parse(req.body);
     const script = await scriptService.createScript({ ...input, createdBy: req.user!.userId });
@@ -107,7 +107,7 @@ router.post('/', requirePermission('manage_campaigns'), async (req: Request, res
 });
 
 /** PATCH /scripts/:id — update script */
-router.patch('/:id', requirePermission('manage_campaigns'), async (req: Request, res: Response, next: NextFunction) => {
+router.patch('/:id', requirePermission('campaign.manage'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const script = await scriptService.updateScript(req.params.id as string, req.body);
     res.json({ success: true, data: script });
@@ -117,7 +117,7 @@ router.patch('/:id', requirePermission('manage_campaigns'), async (req: Request,
 });
 
 /** DELETE /scripts/:id — delete script */
-router.delete('/:id', requirePermission('manage_campaigns'), async (req: Request, res: Response, next: NextFunction) => {
+router.delete('/:id', requirePermission('campaign.manage'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     await scriptService.deleteScript(req.params.id as string);
     res.json({ success: true, data: null });

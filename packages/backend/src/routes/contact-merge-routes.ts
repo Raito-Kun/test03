@@ -6,7 +6,7 @@ import { findDuplicates, mergeContacts } from '../services/contact-merge-service
 
 const router = Router();
 
-router.use(authMiddleware, requirePermission('manage_contacts'));
+router.use(authMiddleware, requirePermission('crm.contacts.edit'));
 
 /** GET /contact-merge/duplicates — find duplicate contacts by phone */
 router.get('/duplicates', async (_req: Request, res: Response, next: NextFunction) => {

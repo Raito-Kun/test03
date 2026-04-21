@@ -19,43 +19,23 @@ import { SectionHeader } from '@/components/ops/section-header';
 interface ClusterOption { id: string; name: string; isActive: boolean }
 
 const GROUP_LABEL_MAP: Record<string, string> = {
-  switchboard: 'Tổng đài',
-  crm: 'CRM',
   campaign: 'Chiến dịch',
+  crm: 'CRM',
   report: 'Báo cáo',
+  switchboard: 'Tổng đài',
   ticket: 'Phiếu ghi',
   qa: 'QA',
   system: 'Hệ thống',
-  // Legacy groups
-  reports: 'Báo cáo',
-  calls: 'Tổng đài',
-  users: 'Hệ thống',
-  campaigns: 'Chiến dịch',
-  dashboard: 'Tổng quan',
-  tickets: 'Phiếu ghi',
-  debts: 'Công nợ',
-  leads: 'Leads',
-  contacts: 'Danh sách khách hàng',
 };
 
 const GROUP_ICONS: Record<string, React.ElementType> = {
-  switchboard: Phone,
-  crm: ShieldCheck,
   campaign: Megaphone,
+  crm: ShieldCheck,
   report: BarChart2,
+  switchboard: Phone,
   ticket: FileText,
   qa: Star,
   system: Settings,
-  // Legacy
-  reports: BarChart2,
-  calls: Phone,
-  users: Settings,
-  campaigns: Megaphone,
-  dashboard: BarChart2,
-  tickets: FileText,
-  debts: ShieldCheck,
-  leads: ShieldCheck,
-  contacts: ShieldCheck,
 };
 
 function GroupIcon({ group }: { group: string }) {
@@ -106,7 +86,7 @@ export default function PermissionManager() {
       const { data } = await api.get(url);
       return (data.data ?? []) as PermissionRow[];
     },
-    enabled: hasPermission('manage_permissions') && (!isSuperAdmin || !!effectiveClusterId),
+    enabled: hasPermission('system.permissions') && (!isSuperAdmin || !!effectiveClusterId),
   });
 
   // Set the first group as active once data loads
@@ -141,7 +121,7 @@ export default function PermissionManager() {
     setIsDirty(true);
   }, []);
 
-  if (!hasPermission('manage_permissions')) {
+  if (!hasPermission('system.permissions')) {
     return (
       <div className="flex h-64 items-center justify-center text-muted-foreground">
         Bạn không có quyền truy cập trang này.

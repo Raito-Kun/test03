@@ -246,7 +246,7 @@ export default function LeadList() {
     </Button>
   );
 
-  const importAction = hasPermission('import_leads') ? (
+  const importAction = hasPermission('crm.leads.import') ? (
     <ImportButton
       endpoint="/leads/import"
       templateType="leads"
