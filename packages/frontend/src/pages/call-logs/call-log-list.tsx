@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Mic, RefreshCw, Download, CheckSquare, Trash2 } from 'lucide-react';
+import { Mic, RefreshCw, Download, CheckSquare, Trash2, Save, Search } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { deleteCallRecording } from '@/api/call-log-api';
 import { SectionHeader } from '@/components/ops/section-header';
@@ -94,8 +94,11 @@ export default function CallLogListPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
+  const [destSearchDraft, setDestSearchDraft] = useState('');
   // Enhanced filters
   const [agentFilter, setAgentFilter] = useState('');
+  // Pending disposition edits — buffer locally until user clicks the save icon.
+  const [pendingDispositions, setPendingDispositions] = useState<Record<string, string>>({});
 
   // Agent dropdown source — cluster-scoped on backend
   const { data: agents = [] } = useQuery<AgentOption[]>({
@@ -115,6 +118,11 @@ export default function CallLogListPage() {
     try {
       await api.post(`/call-logs/${callLogId}/disposition`, { dispositionCodeId });
       toast.success('Đã cập nhật trạng thái');
+      setPendingDispositions((prev) => {
+        const next = { ...prev };
+        delete next[callLogId];
+        return next;
+      });
       queryClient.invalidateQueries({ queryKey: ['call-logs'] });
     } catch (err) {
       toast.error(`Lỗi cập nhật trạng thái: ${(err as Error).message}`);
@@ -311,20 +319,25 @@ export default function CallLogListPage() {
     },
     {
       key: 'status', label: 'Trạng thái',
-      // Agent-set disposition after the call. Inline-editable; audit-logged by backend.
+      // Agent edits locally; persisted only when the Save icon is clicked.
       render: (row) => {
         const by = row.dispositionSetBy?.fullName;
         const at = row.dispositionSetAt ? format(new Date(row.dispositionSetAt), 'dd/MM/yyyy HH:mm') : '';
         const title = by ? `Cập nhật bởi ${by}${at ? ` lúc ${at}` : ''}` : 'Chưa cập nhật';
+        const originalId = row.dispositionCode?.id ?? '';
+        const draftId = pendingDispositions[row.id];
+        const selectedId = draftId ?? originalId;
+        const isDirty = draftId !== undefined && draftId !== originalId;
+        const label = dispositionOptions.find((o) => o.id === selectedId)?.label ?? row.dispositionCode?.label;
         return (
-          <div onClick={(e) => e.stopPropagation()} title={title}>
+          <div onClick={(e) => e.stopPropagation()} title={title} className="flex items-center gap-1">
             <Select
-              value={row.dispositionCode?.id ?? undefined}
-              onValueChange={(v) => { if (v) saveDisposition(row.id, v); }}
+              value={selectedId || undefined}
+              onValueChange={(v) => { if (v) setPendingDispositions((prev) => ({ ...prev, [row.id]: v })); }}
             >
               <SelectTrigger className="h-8 w-40 text-xs">
-                {row.dispositionCode?.label
-                  ? <span>{row.dispositionCode.label}</span>
+                {label
+                  ? <span className={isDirty ? 'text-amber-600 font-medium' : ''}>{label}</span>
                   : <span className="text-muted-foreground">—</span>}
               </SelectTrigger>
               <SelectContent>
@@ -333,6 +346,17 @@ export default function CallLogListPage() {
                 ))}
               </SelectContent>
             </Select>
+            {isDirty && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-emerald-600 hover:text-emerald-700"
+                title="Lưu"
+                onClick={() => saveDisposition(row.id, draftId!)}
+              >
+                <Save className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
         );
       },
@@ -356,14 +380,35 @@ export default function CallLogListPage() {
     setSipCodeFilter('');
     setCallTypeFilter('');
     setDispositionFilter('');
+    setDestSearchDraft('');
+    setAppliedSearch('');
   }
 
-  const hasFilters = directionFilter || dateFrom || dateTo || agentFilter || resultFilter || sipCodeFilter || callTypeFilter || dispositionFilter;
+  const hasFilters = directionFilter || dateFrom || dateTo || agentFilter || resultFilter || sipCodeFilter || callTypeFilter || dispositionFilter || appliedSearch;
 
   const CALL_TYPE_LABEL: Record<string, string> = { c2c: 'Click2call', autocall: 'Autocall', manual: 'Manual', callbot: 'Callbot' };
 
+  function submitDestSearch() {
+    setAppliedSearch(destSearchDraft.trim());
+    setPage(1);
+  }
+
   const toolbar = (
     <div className="flex items-end gap-2 flex-wrap">
+      <div className="space-y-1">
+        <Label className="text-xs">Số nhận</Label>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="VD: 0983..."
+            value={destSearchDraft}
+            onChange={(e) => setDestSearchDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') submitDestSearch(); }}
+            onBlur={submitDestSearch}
+            className="w-40 pl-8 h-9"
+          />
+        </div>
+      </div>
       <Select value={directionFilter || undefined} onValueChange={(v) => setDirectionFilter(v === '_all' ? '' : v || '')}>
         <SelectTrigger className="w-36">
           {directionFilter
@@ -492,7 +537,6 @@ export default function CallLogListPage() {
         page={page}
         limit={limit}
         isLoading={isLoading}
-        onSearchSubmit={(v) => { setAppliedSearch(v); setPage(1); }}
         onPageChange={setPage}
         onLimitChange={setLimit}
         onSort={handleSort}
