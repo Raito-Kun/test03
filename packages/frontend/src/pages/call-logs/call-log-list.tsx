@@ -90,13 +90,18 @@ export default function CallLogListPage() {
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const canDeleteRecording = hasPermission('recording.delete');
   const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
+  // Applied filters — what the query actually uses. Only mutated by the "Tìm kiếm" button.
   const [directionFilter, setDirectionFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
-  const [destSearchDraft, setDestSearchDraft] = useState('');
-  // Enhanced filters
   const [agentFilter, setAgentFilter] = useState('');
+  // Draft filters — what the user is typing/picking. Stays local until submit.
+  const [draftDirection, setDraftDirection] = useState('');
+  const [draftDateFrom, setDraftDateFrom] = useState('');
+  const [draftDateTo, setDraftDateTo] = useState('');
+  const [destSearchDraft, setDestSearchDraft] = useState('');
+  const [draftAgent, setDraftAgent] = useState('');
   // Pending disposition edits — buffer locally until user clicks the save icon.
   const [pendingDispositions, setPendingDispositions] = useState<Record<string, string>>({});
 
@@ -149,6 +154,10 @@ export default function CallLogListPage() {
   const [sipCodeFilter, setSipCodeFilter] = useState('');
   const [callTypeFilter, setCallTypeFilter] = useState('');
   const [dispositionFilter, setDispositionFilter] = useState('');
+  const [draftResult, setDraftResult] = useState('');
+  const [draftSipCode, setDraftSipCode] = useState('');
+  const [draftCallType, setDraftCallType] = useState('');
+  const [draftDisposition, setDraftDisposition] = useState('');
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDownloading, setBulkDownloading] = useState(false);
@@ -372,29 +381,51 @@ export default function CallLogListPage() {
   ];
 
   function handleClearFilters() {
-    setDirectionFilter('');
-    setDateFrom('');
-    setDateTo('');
-    setAgentFilter('');
-    setResultFilter('');
-    setSipCodeFilter('');
-    setCallTypeFilter('');
-    setDispositionFilter('');
+    setDirectionFilter(''); setDraftDirection('');
+    setDateFrom(''); setDraftDateFrom('');
+    setDateTo(''); setDraftDateTo('');
+    setAgentFilter(''); setDraftAgent('');
+    setResultFilter(''); setDraftResult('');
+    setSipCodeFilter(''); setDraftSipCode('');
+    setCallTypeFilter(''); setDraftCallType('');
+    setDispositionFilter(''); setDraftDisposition('');
     setDestSearchDraft('');
     setAppliedSearch('');
+    setPage(1);
   }
 
-  const hasFilters = directionFilter || dateFrom || dateTo || agentFilter || resultFilter || sipCodeFilter || callTypeFilter || dispositionFilter || appliedSearch;
-
-  const CALL_TYPE_LABEL: Record<string, string> = { c2c: 'Click2call', autocall: 'Autocall', manual: 'Manual', callbot: 'Callbot' };
-
-  function submitDestSearch() {
+  function applyFilters() {
+    setDirectionFilter(draftDirection);
+    setDateFrom(draftDateFrom);
+    setDateTo(draftDateTo);
+    setAgentFilter(draftAgent);
+    setResultFilter(draftResult);
+    setSipCodeFilter(draftSipCode.trim());
+    setCallTypeFilter(draftCallType);
+    setDispositionFilter(draftDisposition);
     setAppliedSearch(destSearchDraft.trim());
     setPage(1);
   }
 
+  const hasFilters = directionFilter || dateFrom || dateTo || agentFilter || resultFilter || sipCodeFilter || callTypeFilter || dispositionFilter || appliedSearch;
+  const hasDraftChanges =
+    draftDirection !== directionFilter ||
+    draftDateFrom !== dateFrom ||
+    draftDateTo !== dateTo ||
+    draftAgent !== agentFilter ||
+    draftResult !== resultFilter ||
+    draftSipCode.trim() !== sipCodeFilter ||
+    draftCallType !== callTypeFilter ||
+    draftDisposition !== dispositionFilter ||
+    destSearchDraft.trim() !== appliedSearch;
+
+  const CALL_TYPE_LABEL: Record<string, string> = { c2c: 'Click2call', autocall: 'Autocall', manual: 'Manual', callbot: 'Callbot' };
+
   const toolbar = (
-    <div className="flex items-end gap-2 flex-wrap">
+    <div
+      className="flex items-end gap-2 flex-wrap"
+      onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
+    >
       <div className="space-y-1">
         <Label className="text-xs">Số nhận</Label>
         <div className="relative">
@@ -403,16 +434,14 @@ export default function CallLogListPage() {
             placeholder="VD: 0983..."
             value={destSearchDraft}
             onChange={(e) => setDestSearchDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') submitDestSearch(); }}
-            onBlur={submitDestSearch}
             className="w-40 pl-8 h-9"
           />
         </div>
       </div>
-      <Select value={directionFilter || undefined} onValueChange={(v) => setDirectionFilter(v === '_all' ? '' : v || '')}>
+      <Select value={draftDirection || undefined} onValueChange={(v) => setDraftDirection(v === '_all' ? '' : v || '')}>
         <SelectTrigger className="w-36">
-          {directionFilter
-            ? <span>{directionFilter === 'inbound' ? VI.callLog.inbound : VI.callLog.outbound}</span>
+          {draftDirection
+            ? <span>{draftDirection === 'inbound' ? VI.callLog.inbound : VI.callLog.outbound}</span>
             : <span className="text-muted-foreground">Tất cả hướng</span>}
         </SelectTrigger>
         <SelectContent>
@@ -421,10 +450,10 @@ export default function CallLogListPage() {
           <SelectItem value="outbound">{VI.callLog.outbound}</SelectItem>
         </SelectContent>
       </Select>
-      <Select value={resultFilter || undefined} onValueChange={(v) => setResultFilter(v === '_all' ? '' : v || '')}>
+      <Select value={draftResult || undefined} onValueChange={(v) => setDraftResult(v === '_all' ? '' : v || '')}>
         <SelectTrigger className="w-44">
-          {resultFilter
-            ? <span>{HANGUP_CAUSE_VI[resultFilter] ?? resultFilter}</span>
+          {draftResult
+            ? <span>{HANGUP_CAUSE_VI[draftResult] ?? draftResult}</span>
             : <span className="text-muted-foreground">Tất cả kết quả</span>}
         </SelectTrigger>
         <SelectContent>
@@ -436,10 +465,10 @@ export default function CallLogListPage() {
           <SelectItem value="CALL_REJECTED">Từ chối</SelectItem>
         </SelectContent>
       </Select>
-      <Select value={callTypeFilter || undefined} onValueChange={(v) => setCallTypeFilter(v === '_all' ? '' : v || '')}>
+      <Select value={draftCallType || undefined} onValueChange={(v) => setDraftCallType(v === '_all' ? '' : v || '')}>
         <SelectTrigger className="w-40">
-          {callTypeFilter
-            ? <span>{CALL_TYPE_LABEL[callTypeFilter] ?? callTypeFilter}</span>
+          {draftCallType
+            ? <span>{CALL_TYPE_LABEL[draftCallType] ?? draftCallType}</span>
             : <span className="text-muted-foreground">Tất cả phân loại</span>}
         </SelectTrigger>
         <SelectContent>
@@ -450,10 +479,10 @@ export default function CallLogListPage() {
           <SelectItem value="callbot">Callbot</SelectItem>
         </SelectContent>
       </Select>
-      <Select value={dispositionFilter || undefined} onValueChange={(v) => setDispositionFilter(v === '_all' ? '' : v || '')}>
+      <Select value={draftDisposition || undefined} onValueChange={(v) => setDraftDisposition(v === '_all' ? '' : v || '')}>
         <SelectTrigger className="w-44">
-          {dispositionFilter
-            ? <span>{dispositionOptions.find((o) => o.id === dispositionFilter)?.label ?? '—'}</span>
+          {draftDisposition
+            ? <span>{dispositionOptions.find((o) => o.id === draftDisposition)?.label ?? '—'}</span>
             : <span className="text-muted-foreground">Tất cả trạng thái</span>}
         </SelectTrigger>
         <SelectContent className="max-h-80">
@@ -463,10 +492,10 @@ export default function CallLogListPage() {
           ))}
         </SelectContent>
       </Select>
-      <Select value={agentFilter || undefined} onValueChange={(v) => setAgentFilter(v === '_all' ? '' : v || '')}>
+      <Select value={draftAgent || undefined} onValueChange={(v) => setDraftAgent(v === '_all' ? '' : v || '')}>
         <SelectTrigger className="w-36">
-          {agentFilter
-            ? <span>{agents.find((a) => a.id === agentFilter)?.sipExtension ?? '—'}</span>
+          {draftAgent
+            ? <span>{agents.find((a) => a.id === draftAgent)?.sipExtension ?? '—'}</span>
             : <span className="text-muted-foreground">Tất cả nhân viên</span>}
         </SelectTrigger>
         <SelectContent className="max-h-80">
@@ -483,16 +512,19 @@ export default function CallLogListPage() {
       </Select>
       <div className="space-y-1">
         <Label className="text-xs">SIP Code</Label>
-        <Input placeholder="VD: 200, 486" value={sipCodeFilter} onChange={(e) => setSipCodeFilter(e.target.value)} className="w-28" />
+        <Input placeholder="VD: 200, 486" value={draftSipCode} onChange={(e) => setDraftSipCode(e.target.value)} className="w-28" />
       </div>
       <div className="space-y-1">
         <Label className="text-xs">Từ ngày</Label>
-        <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-36" />
+        <Input type="date" value={draftDateFrom} onChange={(e) => setDraftDateFrom(e.target.value)} className="w-36" />
       </div>
       <div className="space-y-1">
         <Label className="text-xs">Đến ngày</Label>
-        <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36" />
+        <Input type="date" value={draftDateTo} onChange={(e) => setDraftDateTo(e.target.value)} className="w-36" />
       </div>
+      <Button size="sm" onClick={applyFilters} disabled={!hasDraftChanges}>
+        <Search className="h-4 w-4 mr-1" />Tìm kiếm
+      </Button>
       {hasFilters && (
         <Button variant="ghost" size="sm" onClick={handleClearFilters}>Xóa lọc</Button>
       )}
