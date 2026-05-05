@@ -1,0 +1,70 @@
+
+==== 1. Restart docker daemon ====
+$ systemctl restart docker
+[exit=0]
+
+==== 2. Wait + check docker up ====
+$ sleep 10 && systemctl is-active docker && docker version --format '{{.Server.Version}}'
+active
+29.3.0
+[exit=0]
+
+==== 3. ps -a (expect auto-restart by unless-stopped) ====
+$ docker ps -a --format '{{.Names}}|{{.Status}}'
+|Dead
+crm-frontend|Restarting (1) 2 seconds ago
+|Dead
+crm-postgres|Up 12 seconds (healthy)
+crm-redis|Up 12 seconds (healthy)
+|Dead
+|Dead
+[exit=0]
+
+==== 4. Remove any still-dead containers ====
+$ docker rm -f crm-backend blackjack-web cloudflared 9e06b0cc0bd3_crm-backend 2>&1 || true
+Error response from daemon: No such container: crm-backend
+Error response from daemon: No such container: blackjack-web
+Error response from daemon: No such container: cloudflared
+Error response from daemon: No such container: 9e06b0cc0bd3_crm-backend
+[exit=0]
+
+==== 5. CRM up -d (all services) ====
+$ cd /opt/crm && docker compose -f docker-compose.prod.yml up -d
+ Container crm-redis Running 
+ Container crm-postgres Running 
+ Container 4b7520489069 Restart 
+ Container 9e06b0cc0bd3 Stopping 
+ Container 9e06b0cc0bd3 Error Error while Stopping
+ Container 9e06b0cc0bd3 Removed 
+Error response from daemon: No such container: 4b7520489069429b04d53bf7061addf399f9ae2cf1a9a1854c6ed6de5e17e4f3
+[exit=1]
+
+==== 6. cloudflared up ====
+$ cd /opt/03-Test && docker compose up -d cloudflared
+ Container b5999351d9b9 Restart 
+Error response from daemon: No such container: b5999351d9b9c3501ad399f3b0c61b321c7898581e9c3f857ddfad360e63f083
+[exit=1]
+
+==== 7. Wait 25s for healthchecks ====
+$ sleep 25 && docker ps --format '{{.Names}}|{{.Status}}'
+crm-frontend|Restarting (1) 3 seconds ago
+crm-postgres|Up 39 seconds (healthy)
+crm-redis|Up 39 seconds (healthy)
+[exit=0]
+
+==== 8. Backend logs ====
+$ docker logs --tail 20 crm-backend 2>&1 | tail -30
+Error response from daemon: No such container: crm-backend
+[exit=0]
+
+==== 9. API health ====
+$ curl -sk -o /dev/null -w '%{http_code}\n' https://localhost/api/v1/health ; echo ---; curl -sk https://localhost/api/v1/health
+000
+---
+[exit=7]
+
+==== 10. df -h ====
+$ df -h /
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1       148G  6.0G  135G   5% /
+[exit=0]

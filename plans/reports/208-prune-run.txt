@@ -1,0 +1,126 @@
+
+==== BEFORE df ====
+$ df -h /
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1        48G   12G   35G  25% /
+[exit=0]
+
+==== BEFORE docker df ====
+$ docker system df
+TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
+Images          4         4         8.516GB   8.516GB (100%)
+Containers      4         4         3.301MB   0B (0%)
+Local Volumes   2         2         80.48MB   0B (0%)
+Build Cache     109       0         8.21GB    8.114GB
+[exit=0]
+
+==== BEFORE containers ====
+$ docker ps --format '{{.Names}}|{{.Status}}'
+crm-frontend|Up 3 days
+crm-backend|Up 3 days (healthy)
+crm-postgres|Up 3 weeks (healthy)
+crm-redis|Up 3 weeks (healthy)
+[exit=0]
+
+==== Scoped builder prune (>168h) ====
+$ docker builder prune --filter 'until=168h' -f
+ID						RECLAIMABLE	SIZE		LAST ACCESSED
+1e2h5cj1her4n9c3fzthi9hhh               	true 		32.93kB   	2 weeks ago
+n13b5r9a2gimgi04ytm8cios3               	true 	72.07MB   	3 weeks ago
+tm8yyc35zh4g5ofvq2gr746hq               	true 	4.096kB   	3 weeks ago
+iv1jb60b5355dm7vavhidhi7e               	true 	114.3MB   	2 weeks ago
+v8wao9pk1fnzjvxcrzud7ma2x               	true 	32.94kB   	2 weeks ago
+t1e20w07oz37rqhcmia9qx2le               	true 	114.3MB   	2 weeks ago
+r6sqdqz9g9eio85e0f5khd12x               	true 	114.3MB   	2 weeks ago
+kyoevsv549pxlm1lapr0mn0di               	true 	113.9MB   	3 weeks ago
+hzw3j2ejp56nxselelr2adjok               	true 	32.96kB   	2 weeks ago
+di3vqol1l5gm73oep47rlfh0o               	true 	511MB     	3 weeks ago
+814xglmyfx0glyefxryyx3ukg               	true 	4.096kB   	2 weeks ago
+kz20xs1ac837uj28zu2bth15y               	true 	4.096kB   	2 weeks ago
+3rgk8cenvxhzq9auer32g1jrf               	true 	32.96kB   	2 weeks ago
+ykv07am28mq67o9c9wnvjxqv3               	true 	4.096kB   	3 weeks ago
+p2ptd0mov07go2lb138jyvk6w               	true 	17.78kB   	3 weeks ago
+hm4618u64pcwjb8kt5sp23wzw               	true 	4.096kB   	2 weeks ago
+ndmaxx3um9gorc1cswowq0yql               	true 	2.535MB   	2 weeks ago
+mc93hnqh05p22cw8qhmb7ru4a               	true 	98.3kB    	2 weeks ago
+czd87g02pwihdqc82f7aklv2r               	true 	2.612MB   	2 weeks ago
+hvgdy88sxt3sqcha8zula5y4p               	true 	598kB     	3 weeks ago
+wvlwvnlfisbsxdvfn9zwcehn8               	true 	98.3kB    	3 weeks ago
+7u4uf11oy1o0fn7v84dxwmjsh               	true 	98.3kB    	2 weeks ago
+zhh7bthn3vstv2nm4mks7oz85               	true 	13.49kB   	3 weeks ago
+5iahwqahniyatgvu1adjyjlz8               	true 	98.3kB    	2 weeks ago
+z2f4bcvj9len1yndcvgql72f6               	true 	12.69kB   	3 weeks ago
+k47exosus9x4ju3i3qmpllzmg               	true 	4.096kB   	2 weeks ago
+klo07cpizzl2zwoht75enf0j0               	true 	4.096kB   	3 weeks ago
+xt3om0cftdpd3bbky3s33u0s7               	true 	4.096kB   	2 weeks ago
+fcnk27jqpni8z0dneiy4ixwfb               	true 	4.096kB   	2 weeks ago
+mrtk3x7bq9up1d9pfzbl18qo9               	true 	164.3MB   	2 weeks ago
+ql7dt27gqxhpb0b074vvwbjgl               	true 	164.4MB   	2 weeks ago
+h8qot1ueqw42r47n908wvyazk               	true 	13.24kB   	3 weeks ago
+jhyuje5dlaljnnbp8tcul7p7w               	true 	568.1MB   	3 weeks ago
+6krdmt0edpwuu98k6pwa49yvy               	true 	569.7MB   	2 weeks ago
+dfirdpoy3yw9f5clxy5mvt4l6               	true 	4.128kB   	2 weeks ago
+ovzzylmh9ypjbcojtrx2h1kb2               	true 	569.7MB   	2 weeks ago
+9t8ufpy9wwzcr3estw3wsf42p               	true 	569.7MB   	2 weeks ago
+mrhc8yfk26bcctgy5wqbxqwtd               	true 	4.128kB   	2 weeks ago
+nahk57ma5f35dl26514yx8qk9               	true 	516.1kB   	2 weeks ago
+obk7ru5ke65fhnox6mf6mdb80               	true 	753.7kB   	2 weeks ago
+f0wg7uvputt5ia3n2wandyl1v               	true 	101kB     	2 weeks ago
+15p2eaesalm6o01j1ma50nhvt               	true 	101kB     	2 weeks ago
+gxlcvpgyafw740n8l0exklp3w               	true 	507.9kB   	3 weeks ago
+al77zl3t68j3vp9fo7t1b5s1m               	true 	753.7kB   	2 weeks ago
+nc9vkohvkqljzqg0r9nk1nujc               	true 	8.818kB   	3 weeks ago
+wsoutxz5xvl7b9mb68lvuy6ug               	true 	61.44kB   	2 weeks ago
+x6lphvjm3synzhmp3pehdabvq               	true 	4.128kB   	2 weeks ago
+qjr2aiovgs4jhabxkxn2mxxh0               	true 	4.128kB   	2 weeks ago
+xx27k6fr0mlafc5roq1zeox3f               	true 	61.44kB   	2 weeks ago
+dk3ctecagxvaclwa3c3mpy61j               	true 	7.461MB   	3 weeks ago
+g06jc1j5pdii6op9f9dp4s1sp               	true 	61.44kB   	2 weeks ago
+fhj3wm137ispiibtsr3twkw2n               	true 	61.44kB   	3 weeks ago
+ixjom995i0v67jmd90d438hnh               	true 	417.8kB   	2 weeks ago
+wwtod7avrzc94s016yreh07qu               	true 	801.5MB   	2 weeks ago
+c1919i0m4jpxi3nfudmkyrh7i               	true 	801.5MB   	2 weeks ago
+cet167nsjss4e1sgs2dvuyvjb               	true 	417.8kB   	2 weeks ago
+lx19efa1uuuougljkudodmp24               	true 	905.5kB   	2 weeks ago
+q6zv1lm3v6awrt9rd8ln9co3h               	true 	962.7kB   	2 weeks ago
+9ooc1aa0xvuybj96eny6xqu00               	true 	64.35kB   	2 weeks ago
+hneb47hr8gaigexd1j3wkf1nw               	true 	562.2kB   	2 weeks ago
+k3nzkoanrxglhdnh7e9dktj5o               	true 	8.285kB   	2 weeks ago
+x88sly7qxyss47bnnj1btxt9w               	true 	20.93kB   	3 weeks ago
+8ipra2je2mdml6dnmjw1te92s               	true 	6.743MB   	3 weeks ago
+ksyh1148scra9d54mlx4lbv6i               	true 	173.5MB   	3 weeks ago
+roa0abjf4a8qdv0kgdz762foi               	true 	3.862MB   	3 weeks ago
+Total:	5.453GB
+[exit=0]
+
+==== AFTER containers (verify healthy) ====
+$ docker ps --format '{{.Names}}|{{.Status}}'
+crm-frontend|Up 3 days
+crm-backend|Up 3 days (healthy)
+crm-postgres|Up 3 weeks (healthy)
+crm-redis|Up 3 weeks (healthy)
+[exit=0]
+
+==== AFTER dead/exited check ====
+$ docker ps -a -f status=dead -f status=exited --format '{{.Names}}|{{.Status}}' ; echo '(empty=none)'
+(empty=none)
+[exit=0]
+
+==== AFTER docker df ====
+$ docker system df
+TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
+Images          4         4         3.666GB   3.666GB (100%)
+Containers      4         4         3.301MB   0B (0%)
+Local Volumes   2         2         80.48MB   0B (0%)
+Build Cache     44        0         2.757GB   2.661GB
+[exit=0]
+
+==== AFTER df ====
+$ df -h /
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1        48G  6.1G   40G  14% /
+[exit=0]
+
+==== API health ====
+$ curl -sk https://localhost/api/v1/health
+{"status":"ok","timestamp":"2026-04-21T05:25:17.347Z"}[exit=0]

@@ -1,0 +1,106 @@
+
+### ports-listen (exit=0)
+State  Recv-Q Send-Q Local Address:Port  Peer Address:PortProcess                                   
+LISTEN 0      4096         0.0.0.0:8080       0.0.0.0:*    users:(("docker-proxy",pid=1562,fd=8))   
+LISTEN 0      4096         0.0.0.0:443        0.0.0.0:*    users:(("docker-proxy",pid=1093193,fd=8))
+LISTEN 0      4096         0.0.0.0:80         0.0.0.0:*    users:(("docker-proxy",pid=1093170,fd=8))
+LISTEN 0      128          0.0.0.0:22         0.0.0.0:*    users:(("sshd",pid=875,fd=3))            
+LISTEN 0      4096            [::]:8080          [::]:*    users:(("docker-proxy",pid=1571,fd=8))   
+LISTEN 0      4096            [::]:443           [::]:*    users:(("docker-proxy",pid=1093199,fd=8))
+LISTEN 0      4096            [::]:80            [::]:*    users:(("docker-proxy",pid=1093176,fd=8))
+LISTEN 0      128             [::]:22            [::]:*    users:(("sshd",pid=875,fd=4))
+
+### compose-files (exit=0)
+/opt/crm/docker-compose.yml
+/opt/crm/docker-compose.prod.yml
+/opt/03-Test/docker-compose.yml
+
+### blackjack-inspect (exit=0)
+["/opt/03-Test/public:/usr/share/nginx/html:ro"] | {"com.docker.compose.config-hash":"591c0470789076b22fddf10e1ab22ef7a07be170f1f91f4e36ba2f80bb730683","com.docker.compose.container-number":"1","com.docker.compose.depends_on":"","com.docker.compose.image":"sha256:e7257f1ef28ba17cf7c248cb8ccf6f0c6e0228ab9c315c152f9c203cd34cf6d1","com.docker.compose.oneoff":"False","com.docker.compose.project":"03-test","com.docker.compose.project.config_files":"/opt/03-Test/docker-compose.yml","com.docker.compose.project.working_dir":"/opt/03-Test","com.docker.compose.service":"web","com.docker.compose.version":"5.1.1","maintainer":"NGINX Docker Maintainers <docker-maint@nginx.com>"} | network={"03-test_app-network":{"IPAMConfig":null,"Links":null,"Aliases":["blackjack-web","web"],"DriverOpts":null,"GwPriority":0,"NetworkID":"944a09c171b2783de5e83020c0088a4afa34e0624ed4f76a1cc630287665cafa","EndpointID":"40c9f972e87682007b5742f4f36fd25c1712928690d6e2083f9e5a9b2f220430","Gateway":"172.20.0.1","IPAddress":"172.20.0.2","MacAddress":"e6:a1:1d:a4:a8:74","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"DNSNames":["blackjack-web","web","1ff8937ee9f4"]}} | cmd=["nginx","-g","daemon off;"] | ports={"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"8080"},{"HostIp":"::","HostPort":"8080"}]}
+
+### blackjack-logs-tail (exit=0)
+172.20.0.3 - - [28/Mar/2026:12:56:16 +0000] "GET / HTTP/1.1" 304 0 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36" "116.110.41.96"
+2026/04/02 01:49:43 [error] 24#24: *3 open() "/usr/share/nginx/html/api/health" failed (2: No such file or directory), client: 172.20.0.1, server: localhost, request: "GET /api/health HTTP/1.1", host: "localhost:8080"
+172.20.0.1 - - [02/Apr/2026:01:49:43 +0000] "GET /api/health HTTP/1.1" 404 153 "-" "curl/7.88.1" "-"
+2026/04/03 16:10:09 [error] 25#25: *4 open() "/usr/share/nginx/html/api/v1/health" failed (2: No such file or directory), client: 10.10.101.207, server: localhost, request: "GET /api/v1/health HTTP/1.1", host: "10.10.101.207:8080"
+10.10.101.207 - - [03/Apr/2026:16:10:09 +0000] "GET /api/v1/health HTTP/1.1" 404 153 "-" "curl/7.88.1" "-"
+
+### cloudflared-inspect (exit=0)
+["tunnel","--no-autoupdate","run","--token","eyJhIjoiZTQ0YTE3NzQzYTc3MGU1MWQ5ZGUxNzRkNzc5ZjE4OTAiLCJ0IjoiZDU5ZDlmMmMtMTliOS00ZjE1LTk3MWYtZmY3MDM2OGUwZmM5IiwicyI6Ik5XSXpabVV6WTJZdE5EWTJZaTAwWmpreExXSTBNR1V0TlRJek9EQmhOR1psT0dZMyJ9"] | ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin","SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt"] | null
+
+### cloudflared-logs-tail (exit=0)
+2026-04-21T04:20:23Z ERR failed to run the datagram handler error="context canceled" connIndex=0 event=0 ip=198.41.192.47
+2026-04-21T04:20:23Z ERR failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=0 event=0 ip=198.41.192.47
+2026-04-21T04:20:23Z ERR Serve tunnel error error="control stream encountered a failure while serving" connIndex=0 event=0 ip=198.41.192.47
+2026-04-21T04:20:23Z INF Retrying connection in up to 1m4s connIndex=0 event=0 ip=198.41.192.47
+2026-04-21T04:20:28Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=0 event=0 ip=198.41.192.47
+2026-04-21T04:20:28Z ERR failed to run the datagram handler error="context canceled" connIndex=0 event=0 ip=198.41.192.47
+2026-04-21T04:20:28Z ERR failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=0 event=0 ip=198.41.192.47
+2026-04-21T04:20:28Z ERR Serve tunnel error error="control stream encountered a failure while serving" connIndex=0 event=0 ip=198.41.192.47
+2026-04-21T04:20:28Z INF Retrying connection in up to 1m4s connIndex=0 event=0 ip=198.41.192.47
+2026-04-21T04:20:32Z ERR Connection terminated error="control stream encountered a failure while serving" connIndex=2
+2026-04-21T04:20:44Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=0 event=0 ip=198.41.192.47
+2026-04-21T04:20:44Z ERR failed to run the datagram handler error="context canceled" connIndex=0 event=0 ip=198.41.192.47
+2026-04-21T04:20:44Z ERR failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=0 event=0 ip=198.41.192.47
+2026-04-21T04:20:44Z ERR Serve tunnel error error="control stream encountered a failure while serving" connIndex=0 event=0 ip=198.41.192.47
+2026-04-21T04:20:44Z INF Retrying connection in up to 1m4s connIndex=0 event=0 ip=198.41.192.47
+
+### frontend-inspect (exit=0)
+ports={"443/tcp":[{"HostIp":"0.0.0.0","HostPort":"443"},{"HostIp":"::","HostPort":"443"}],"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"},{"HostIp":"::","HostPort":"80"}]} | binds=["/opt/crm/ssl:/etc/nginx/ssl:ro"]
+
+### nginx-blackjack-conf (exit=0)
+server {
+    listen       80;
+    listen  [::]:80;
+    server_name  localhost;
+
+    #access_log  /var/log/nginx/host.access.log  main;
+
+    location / {
+        root   /usr/share/nginx/html;
+        index  index.html index.htm;
+    }
+
+    #error_page  404              /404.html;
+
+    # redirect server error pages to the static page /50x.html
+    #
+    error_page   500 502 503 504  /50x.html;
+    location = /50x.html {
+        root   /usr/share/nginx/html;
+    }
+
+    # proxy the PHP scripts to Apache listening on 127.0.0.1:80
+    #
+    #location ~ \.php$ {
+    #    proxy_pass   http://127.0.0.1;
+    #}
+
+    # pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
+    #
+    #location ~ \.php$ {
+    #    root           html;
+    #    fastcgi_pass   127.0.0.1:9000;
+    #    fastcgi_index  index.php;
+    #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
+    #    include        fastcgi_params;
+    #}
+
+    # deny access to .htaccess files, if Apache's document root
+    # concurs with nginx's one
+    #
+    #location ~ /\.ht {
+    #    deny  all;
+    #}
+}
+
+### blackjack-webroot-ls (exit=0)
+game-engine.js
+index.html
+style.css
+ui-controller.js
+
+### blackjack-image-history (exit=0)
+RUN /bin/sh -c set -x     && apkArch="$(cat /etc/apk/arch)"     && nginxPackages="         nginx=${NGINX_VERSION}-r${PKG_RELEASE}         nginx-module-xslt=${NGINX_VERSION}-r${DYNPKG_RELEASE}         nginx-module-geoip=${NGINX_VERSION}-r${DYNPKG_RELEASE}         nginx-module-image-filter=${NGINX_VERSION}-r${DYNPKG_RELEASE}         nginx-module-njs=${NGINX_VERSION}.${NJS_VERSION}-r${NJS_RELEASE}         nginx-module-acme=${NGINX_VERSION}.${ACME_VERSION}-r${PKG_RELEASE}     "     && apk add --no-cache --virtual .checksum-deps         openssl     && case "$apkArch" in         x86_64|aarch64)             apk add -X "https://nginx.org/packages/mainline/alpine/v$(egrep -o '^[0-9]+\.[0-9]+' /etc/alpine-release)/main" --no-cache $nginxPackages             ;;         *)             set -x             && tempDir="$(mktemp -d)"             && chown nobody:nobody $tempDir             && apk add --no-cache --virtual .build-deps                 gcc                 libc-dev                 make                 openssl-dev                 pcre2-dev                 zlib-dev                 linux-headers                 libxslt-dev                 gd-dev                 geoip-dev                 libedit-dev                 bash                 alpine-sdk                 findutils                 curl                 cargo                 clang-libclang             && su nobody -s /bin/sh -c "                 export HOME=${tempDir}                 && cd ${tempDir}                 && curl -f -L -O https://github.com/nginx/pkg-oss/archive/${NGINX_VERSION}-${PKG_RELEASE}.tar.gz                 && PKGOSSCHECKSUM=\"9ae89f2f9efefec1c7098bfb8da88da93b1370230989dc3cdf3eb3a8d9bf6b777c9dfff7998ea173317f38a66ebc92f8fabf77f024a596a17d0f8a42dfc74b5a *${NGINX_VERSION}-${PKG_RELEASE}.tar.gz\"                 && if [ \"\$(openssl sha512 -r ${NGINX_VERSION}-${PKG_RELEASE}.tar.gz)\" = \"\$PKGOSSCHECKSUM\" ]; then                     echo \"pkg-oss tarball checksum verification succeeded!\";                 else                     echo \"pkg-oss tarball checksum verification failed!\";                     exit 1;                 fi                 && tar xzvf ${NGINX_VERSION}-${PKG_RELEASE}.tar.gz                 && cd pkg-oss-${NGINX_VERSION}-${PKG_RELEASE}                 && cd alpine                 && export BUILDTARGET=\"module-geoip module-image-filter module-njs module-xslt module-acme\"                 && if [ \"\$(apk --print-arch)\" = \"armhf\" ]; then BUILDTARGET=\"\$( echo \$BUILDTARGET | sed 's,module-acme,,' )\"; fi                 && make \$BUILDTARGET                 && apk index --allow-untrusted -o ${tempDir}/packages/alpine/${apkArch}/APKINDEX.tar.gz ${tempDir}/packages/alpine/${apkArch}/*.apk                 && abuild-sign -k ${tempDir}/.abuild/abuild-key.rsa ${tempDir}/packages/alpine/${apkArch}/APKINDEX.tar.gz                 "             && cp ${tempDir}/.abuild/abuild-key.rsa.pub /etc/apk/keys/             && apk del --no-network .build-deps             && if [ "$apkArch" = "armhf" ]; then nginxPackages="$( echo $nginxPackages | sed 's,nginx-module-acme=.*,,')"; fi             && apk add -X ${tempDir}/packages/alpine/ --no-cache $nginxPackages             ;;     esac     && apk del --no-network .checksum-deps     && if [ -n "$tempDir" ]; then rm -rf "$tempDir"; fi     && if [ -f "/etc/apk/keys/abuild-key.rsa.pub" ]; then rm -f /etc/apk/keys/abuild-key.rsa.pub; fi     && apk add --no-cache curl ca-certificates # buildkit
+ENV ACME_VERSION=0.3.1
+ENV NJS_RELEASE=1

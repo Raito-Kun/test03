@@ -1,0 +1,222 @@
+
+==== df-root ====
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1        48G   12G   35G  25% /
+[exit=0]
+
+==== docker-info ====
+ Containers: 4
+ Images: 4
+ Server Version: 29.3.1
+ Storage Driver: overlayfs
+ Docker Root Dir: /var/lib/docker
+[exit=0]
+
+==== docker-df ====
+TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
+Images          4         4         8.516GB   8.516GB (100%)
+Containers      4         4         3.297MB   0B (0%)
+Local Volumes   2         2         80.48MB   0B (0%)
+Build Cache     109       0         8.21GB    8.114GB
+[exit=0]
+
+==== docker-df-v ====
+Images space usage:
+
+REPOSITORY     TAG         IMAGE ID       CREATED       SIZE      SHARED SIZE   UNIQUE SIZE   CONTAINERS
+crm-backend    latest      cede39154df5   3 days ago    1.18GB    9.11MB        1.172GB       1
+crm-frontend   latest      f4c9d5a2cd10   3 days ago    96.1MB    9.11MB        87.04MB       1
+postgres       15-alpine   fceb6f86328c   7 weeks ago   392MB     0B            392.3MB       1
+redis          7-alpine    8b81dd37ff02   8 weeks ago   61.2MB    0B            61.16MB       1
+
+Containers space usage:
+
+CONTAINER ID   IMAGE                COMMAND                  LOCAL VOLUMES   SIZE      CREATED       STATUS                 NAMES
+fd158a49e01a   crm-frontend         "/docker-entrypoint.…"   0               98.3kB    3 days ago    Up 3 days              crm-frontend
+7fdfbf0b7a4a   crm-backend          "docker-entrypoint.s…"   0               3.11MB    3 days ago    Up 3 days (healthy)    crm-backend
+87aa8b11fb0e   postgres:15-alpine   "docker-entrypoint.s…"   1               81.9kB    3 weeks ago   Up 3 weeks (healthy)   crm-postgres
+682e3a8bf445   redis:7-alpine       "docker-entrypoint.s…"   1               4.1kB     3 weeks ago   Up 3 weeks (healthy)   crm-redis
+
+Local Volumes space usage:
+
+VOLUME NAME     LINKS     SIZE
+crm_pgdata      1         80.48MB
+crm_redisdata   1         269B
+
+Build cache usage: 8.21GB
+
+CACHE ID       CACHE TYPE     SIZE      CREATED       LAST USED     USAGE     SHARED
+roa0abjf4a8q   regular        3.86MB    3 weeks ago   3 weeks ago   1         false
+ksyh1148scra   regular        173MB     3 weeks ago   3 weeks ago   1         false
+dk3ctecagxva   regular        7.46MB    3 weeks ago   3 weeks ago   1         false
+8ipra2je2mdm   regular        6.74MB    3 weeks ago   3 weeks ago   1         false
+nc9vkohvkqlj   regular        8.82kB    3 weeks ago   3 weeks ago   1         false
+h8qot1ueqw42   regular        13.2kB    3 weeks ago   3 weeks ago   1         false
+z2f4bcvj9len   regular        12.7kB    3 weeks ago   3 weeks ago   1         false
+zhh7bthn3vst   regular        13.5kB    3 weeks ago   3 weeks ago   1         false
+p2ptd0mov07g   regular        17.8kB    3 weeks ago   3 weeks ago   1         false
+hvgdy88sxt3s   regular        598kB     3 weeks ago   3 weeks ago   1         false
+tm8yyc35zh4g   regular        4.1kB     3 weeks ago   3 weeks ago   1         false
+di3vqol1l5gm   regular        511MB     3 weeks ago   3 weeks ago   1         false
+n13b5r9a2gim   regular        72.1MB    3 weeks ago   3 weeks ago   1         false
+x88sly7qxyss   regular        20.9kB    3 weeks ago   3 weeks ago   1         false
+kyoevsv549px   regular        114MB     3 weeks ago   3 weeks ago   1         false
+ykv07am28mq6   regular        4.1kB     3 weeks ago   3 weeks ago   1         false
+gxlcvpgyafw7   regular        508kB     3 weeks ago   3 weeks ago   1         false
+jhyuje5dlalj   regular        568MB     3 weeks ago   3 weeks ago   1         false
+klo07cpizzl2   regular        4.1kB     3 weeks ago   3 weeks ago   1         false
+fhj3wm137isp   regular        61.4kB    3 weeks ago   3 weeks ago   1         false
+wvlwvnlfisbs   regular        98.3kB    3 weeks ago   3 weeks ago   1         false
+ovzzylmh9ypj   regular        570MB     2 weeks ago   2 weeks ago   1         false
+nahk57ma5f35   regular        516kB     2 weeks ago   2 weeks ago   1         false
+mc93hnqh05p2   regular        98.3kB    2 weeks ago   2 weeks ago   1         false
+g06jc1j5pdii   regular        61.4kB    2 weeks ago   2 weeks ago   1         false
+xt3om0cftdpd   regular        4.1kB     2 weeks ago   2 weeks ago   1         false
+kz20xs1ac837   regular        4.1kB     2 weeks ago   2 weeks ago   1         false
+t1e20w07oz37   regular        114MB     2 weeks ago   2 weeks ago   2         false
+ixjom995i0v6   regular        418kB     3 weeks ago   2 weeks ago   3         false
+fcnk27jqpni8   regular        4.1kB     2 weeks ago   2 weeks ago   1         false
+814xglmyfx0g   regular        4.1kB     2 weeks ago   2 weeks ago   1         false
+obk7ru5ke65f   regular        754kB     2 weeks ago   2 weeks ago   1         false
+9t8ufpy9wwzc   regular        570MB     2 weeks ago   2 weeks ago   1         false
+5iahwqahniya   regular        98.3kB    2 weeks ago   2 weeks ago   1         false
+wsoutxz5xvl7   regular        61.4kB    2 weeks ago   2 weeks ago   1         false
+r6sqdqz9g9ei   regular        114MB     2 weeks ago   2 weeks ago   1         false
+al77zl3t68j3   regular        754kB     2 weeks ago   2 weeks ago   1         false
+7u4uf11oy1o0   regular        98.3kB    2 weeks ago   2 weeks ago   1         false
+xx27k6fr0mla   regular        61.4kB    2 weeks ago   2 weeks ago   1         false
+hm4618u64pcw   regular        4.1kB     2 weeks ago   2 weeks ago   1         false
+iv1jb60b5355   regular        114MB     2 weeks ago   2 weeks ago   1         false
+cet167nsjss4   regular        418kB     2 weeks ago   2 weeks ago   1         false
+6krdmt0edpwu   regular        570MB     2 weeks ago   2 weeks ago   1         false
+k47exosus9x4   regular        4.1kB     2 weeks ago   2 weeks ago   1         false
+mrtk3x7bq9up   regular        164MB     2 weeks ago   2 weeks ago   1         false
+k3nzkoanrxgl   regular        8.29kB    3 weeks ago   2 weeks ago   3         false
+c1919i0m4jpx   regular        802MB     2 weeks ago   2 weeks ago   1         false
+dfirdpoy3yw9   regular        4.13kB    2 weeks ago   2 weeks ago   1         false
+ndmaxx3um9go   regular        2.54MB    2 weeks ago   2 weeks ago   1         false
+lx19efa1uuuo   regular        905kB     2 weeks ago   2 weeks ago   1         false
+f0wg7uvputt5   regular        101kB     2 weeks ago   2 weeks ago   1         false
+hzw3j2ejp56n   regular        33kB      2 weeks ago   2 weeks ago   1         false
+1e2h5cj1her4   regular        32.9kB    2 weeks ago   2 weeks ago   1         false
+hneb47hr8gai   regular        562kB     2 weeks ago   2 weeks ago   1         false
+x6lphvjm3syn   regular        4.13kB    2 weeks ago   2 weeks ago   1         false
+v8wao9pk1fnz   regular        32.9kB    2 weeks ago   2 weeks ago   1         false
+3rgk8cenvxhz   regular        33kB      2 weeks ago   2 weeks ago   1         false
+wwtod7avrzc9   regular        802MB     2 weeks ago   2 weeks ago   1         false
+mrhc8yfk26bc   regular        4.13kB    2 weeks ago   2 weeks ago   1         false
+czd87g02pwih   regular        2.61MB    2 weeks ago   2 weeks ago   1         false
+qjr2aiovgs4j   regular        4.13kB    2 weeks ago   2 weeks ago   1         false
+9ooc1aa0xvuy   regular        64.4kB    2 weeks ago   2 weeks ago   2         false
+q6zv1lm3v6aw   regular        963kB     2 weeks ago   2 weeks ago   1         false
+15p2eaesalm6   regular        101kB     2 weeks ago   2 weeks ago   1         false
+ql7dt27gqxhp   regular        164MB     2 weeks ago   2 weeks ago   1         false
+lmdtsenir07f   regular        13MB      3 days ago    3 days ago    1         true
+1p309m380d3b   regular        173MB     3 days ago    3 days ago    1         false
+pzkyjgj8wwis   regular        7.46MB    3 days ago    3 days ago    1         true
+gvc0pxwhnt62   regular        6.74MB    3 days ago    3 days ago    1         false
+3ma1wnhg8djh   regular        8.82kB    3 days ago    3 days ago    1         true
+sks6yeipbvac   regular        13.2kB    3 days ago    3 days ago    1         true
+72vh4roglt1k   regular        12.7kB    3 days ago    3 days ago    1         true
+ms2k9lnare6g   regular        13.5kB    3 days ago    3 days ago    1         true
+t5jyq1v01sx9   regular        17.8kB    3 days ago    3 days ago    1         true
+vqqk19wbb2ez   regular        492MB     3 days ago    3 days ago    1         false
+yvs4iymqcfbc   regular        2.81MB    3 days ago    3 days ago    1         false
+q9bnzg74z0d9   regular        72MB      3 days ago    3 days ago    1         true
+oav7gp3itxr2   regular        2.56MB    3 days ago    3 days ago    1         false
+acgb6c2l9qvf   regular        3.57MB    3 days ago    3 days ago    1         true
+aweyg0iem1w1   regular        20.9kB    3 days ago    3 days ago    1         false
+58mwfczzo6y8   regular        165MB     3 days ago    3 days ago    1         false
+lddbdhvcuxp6   regular        8.28kB    3 days ago    3 days ago    1         false
+i7l2uvx4t6pw   regular        4.13kB    3 days ago    3 days ago    1         false
+cy7w8ondy97l   regular        3.12MB    3 days ago    3 days ago    1         false
+jz2t6slvm4bq   regular        818MB     3 days ago    3 days ago    1         false
+31a1q1l0vu99   regular        101kB     3 days ago    3 days ago    1         false
+2melq78546ka   regular        33kB      3 days ago    3 days ago    1         false
+k6wsu5l9nh2z   regular        1.4MB     3 days ago    3 days ago    1         false
+a5zbjuce1ng5   regular        4.13kB    3 days ago    3 days ago    1         false
+7o38dwgj6yj6   regular        32.9kB    3 days ago    3 days ago    1         false
+rtx0cqsu1285   regular        573kB     3 days ago    3 days ago    1         false
+msb7wls3d5ru   source.local   8.19kB    3 weeks ago   3 days ago    9         false
+xwtg7ngux24d   regular        30kB      3 days ago    3 days ago    2         true
+lcoz89g54s0r   source.local   3.31MB    3 weeks ago   3 days ago    3         false
+4dahd68jw7aw   regular        4.1kB     3 days ago    3 days ago    2         false
+tw54p3lho5ix   regular        2.56MB    3 days ago    3 days ago    1         false
+ibdc2wnondne   source.local   1.73MB    3 weeks ago   3 days ago    9         false
+rw7cur0tn2sh   regular        64.4kB    3 days ago    3 days ago    2         false
+9jw3ebxhzfk2   regular        1.37MB    3 days ago    3 days ago    1         false
+4h5axkg0zohk   regular        33kB      3 days ago    3 days ago    1         false
+nu0wfd499hep   source.local   8.19kB    3 weeks ago   3 days ago    3         false
+05ker0ua7xk4   source.local   4.1kB     3 weeks ago   3 days ago    9         false
+rlyotlbflqi1   regular        3.12MB    3 days ago    3 days ago    1         false
+2tnyhcvijbp5   regular        4.13kB    3 days ago    3 days ago    1         false
+vbt4wd5cnw1b   regular        101kB     3 days ago    3 days ago    1         false
+ra9geh11l0gc   regular        165MB     3 days ago    3 days ago    1         false
+wuylif21p0sd   regular        818MB     3 days ago    3 days ago    1         false
+j9387vzivfnd   regular        4.13kB    3 days ago    3 days ago    1         false
+s670jst2d88l   regular        32.9kB    3 days ago    3 days ago    1         false
+[exit=0]
+
+==== running ====
+crm-frontend|crm-frontend|Up 3 days|0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp
+crm-backend|crm-backend|Up 3 days (healthy)|4000/tcp
+crm-postgres|postgres:15-alpine|Up 3 weeks (healthy)|5432/tcp
+crm-redis|redis:7-alpine|Up 3 weeks (healthy)|6379/tcp
+[exit=0]
+
+==== all-containers ====
+crm-frontend|crm-frontend|Up 3 days
+crm-backend|crm-backend|Up 3 days (healthy)
+crm-postgres|postgres:15-alpine|Up 3 weeks (healthy)
+crm-redis|redis:7-alpine|Up 3 weeks (healthy)
+[exit=0]
+
+==== all-images ====
+crm-backend:latest|cede39154df5|3 days ago|1.18GB
+crm-frontend:latest|f4c9d5a2cd10|3 days ago|96.1MB
+postgres:15-alpine|fceb6f86328c|7 weeks ago|392MB
+redis:7-alpine|8b81dd37ff02|8 weeks ago|61.2MB
+[exit=0]
+
+==== compose-files ====
+/opt/crm/docker-compose.yml
+/opt/crm/docker-compose.prod.yml
+[exit=0]
+
+==== ports-listen ====
+State  Recv-Q Send-Q Local Address:Port  Peer Address:PortProcess                                   
+LISTEN 0      4096         0.0.0.0:443        0.0.0.0:*    users:(("docker-proxy",pid=3857900,fd=8))
+LISTEN 0      4096         0.0.0.0:80         0.0.0.0:*    users:(("docker-proxy",pid=3857877,fd=8))
+LISTEN 0      128          0.0.0.0:22         0.0.0.0:*    users:(("sshd",pid=734,fd=3))            
+LISTEN 0      4096            [::]:443           [::]:*    users:(("docker-proxy",pid=3857908,fd=8))
+LISTEN 0      4096            [::]:80            [::]:*    users:(("docker-proxy",pid=3857884,fd=8))
+LISTEN 0      128             [::]:22            [::]:*    users:(("sshd",pid=734,fd=4))            
+[exit=0]
+
+==== compose-projects ====
+crm-frontend|crm|/opt/crm/docker-compose.prod.yml
+crm-backend|crm|/opt/crm/docker-compose.prod.yml
+crm-postgres|crm|/opt/crm/docker-compose.prod.yml
+crm-redis|crm|/opt/crm/docker-compose.prod.yml
+[exit=0]
+
+==== dangling-images ====
+[exit=0]
+
+==== stopped-containers ====
+[exit=0]
+
+==== networks ====
+NETWORK ID     NAME           DRIVER    SCOPE
+c249618081a7   bridge         bridge    local
+9d3150342130   crm_external   bridge    local
+de38730e8d2b   crm_internal   bridge    local
+29d71e8e5b46   host           host      local
+f818a6028f89   none           null      local
+[exit=0]
+
+==== volumes ====
+DRIVER    VOLUME NAME
+local     crm_pgdata
+local     crm_redisdata
+[exit=0]

@@ -1,0 +1,43 @@
+
+==== labels crm-frontend ====
+crm|frontend|/opt/crm/docker-compose.prod.yml|running|
+[exit=0]
+
+==== labels crm-postgres ====
+crm|postgres|/opt/crm/docker-compose.prod.yml|running|
+[exit=0]
+
+==== labels crm-redis ====
+crm|redis|/opt/crm/docker-compose.prod.yml|running|
+[exit=0]
+
+==== labels crm-backend ====
+crm|backend|/opt/crm/docker-compose.prod.yml|removing|
+[exit=0]
+
+==== backend exit details ====
+2026-04-20T16:42:02.402648962Z|2026-04-21T04:31:13.54540906Z|137|
+[exit=0]
+
+==== backend logs tail ====
+Error response from daemon: can not get logs from container which is dead or marked for removal
+[exit=0]
+
+==== opt/03-Test env ====
+-rw-r--r-- 1 root root 209 Mar 27 21:54 /opt/03-Test/.env
+CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoiZTQ0YTE3NzQzYTc3MGU1MWQ5ZGUxNzRkNzc5ZjE4OTAiLCJ0IjoiZDU5ZDlmMmMtMTliOS00ZjE1LTk3MWYtZmY3MDM2OGUwZmM5IiwicyI6Ik5XSXpabVV6WTJZdE5EWTJZaTAwWmpreExXSTBNR1V0TlRJek9EQmhOR1psT0dZMyJ9
+[exit=0]
+
+==== opt/crm env ====
+-rw-r--r-- 1 root root 1292 Apr 17 11:40 /opt/crm/.env
+[exit=0]
+
+==== docker networks ====
+NETWORK ID     NAME                  DRIVER    SCOPE
+944a09c171b2   03-test_app-network   bridge    local
+04611f568058   bridge                bridge    local
+2f614fac150f   crm_external          bridge    local
+3ff3eee499f0   crm_internal          bridge    local
+a944788554ef   host                  host      local
+135291a3375b   none                  null      local
+[exit=0]

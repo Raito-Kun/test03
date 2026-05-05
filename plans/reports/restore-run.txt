@@ -1,0 +1,53 @@
+
+==== A. rm dead containers ====
+$ docker rm -f crm-backend 9e06b0cc0bd3_crm-backend blackjack-web cloudflared 2>&1 || true
+Error response from daemon: removal of container crm-backend is already in progress
+Error response from daemon: removal of container 9e06b0cc0bd3_crm-backend is already in progress
+Error response from daemon: removal of container blackjack-web is already in progress
+Error response from daemon: removal of container cloudflared is already in progress
+[exit=0]
+
+==== B. CRM backend up ====
+$ cd /opt/crm && docker compose -f docker-compose.prod.yml up -d --no-deps backend
+ Container crm-backend Stopping 
+ Container 9e06b0cc0bd3_crm-backend Restart 
+ Container crm-backend Stopped 
+ Container crm-backend Removing 
+ Container crm-backend Removed 
+Error response from daemon: container is marked for removal and cannot be started
+[exit=1]
+
+==== C. cloudflared up ====
+$ cd /opt/03-Test && docker compose up -d cloudflared
+ Container cloudflared Restart 
+Error response from daemon: container is marked for removal and cannot be started
+[exit=1]
+
+==== D1. backend status 20s ====
+$ sleep 20 && docker ps --filter name=crm-backend --format '{{.Names}}|{{.Status}}'
+[exit=0]
+
+==== D2. backend logs tail ====
+$ docker logs --tail 30 crm-backend 2>&1 | tail -40
+Error response from daemon: can not get logs from container which is dead or marked for removal
+[exit=0]
+
+==== D3. all running ====
+$ docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}'
+crm-frontend|crm-frontend|Up 12 hours
+crm-postgres|postgres:15-alpine|Up 3 weeks (healthy)
+crm-redis|redis:7-alpine|Up 3 weeks (healthy)
+[exit=0]
+
+==== D4. API health ====
+$ curl -sk -o /dev/null -w '%{http_code}\n' https://localhost/api/v1/health ; echo ---; curl -sk https://localhost/api/v1/health | head -c 200
+502
+---
+<html>
+<head><title>502 Bad Gateway</title></head>
+<body>
+<center><h1>502 Bad Gateway</h1></center>
+<hr><center>nginx/1.29.7</center>
+</body>
+</html>
+[exit=0]

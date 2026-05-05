@@ -1,0 +1,29 @@
+
+==== 1. compose rm cloudflared -fs ====
+$ cd /opt/03-Test && docker compose rm -fs cloudflared 2>&1 || true
+ Container b5999351d9b9 Stopping 
+ Container b5999351d9b9 Error Error while Stopping
+Error response from daemon: No such container: b5999351d9b9c3501ad399f3b0c61b321c7898581e9c3f857ddfad360e63f083
+[exit=0]
+
+==== 2. rm 03-test network ====
+$ docker network rm 03-test_app-network 2>&1 || true
+03-test_app-network
+[exit=0]
+
+==== 3. up cloudflared ====
+$ cd /opt/03-Test && docker compose up -d cloudflared
+ Network 03-test_app-network Creating 
+ Network 03-test_app-network Created 
+ Container b5999351d9b9 Restart 
+Error response from daemon: No such container: b5999351d9b9c3501ad399f3b0c61b321c7898581e9c3f857ddfad360e63f083
+[exit=1]
+
+==== 4. ps cloudflared ====
+$ docker ps -a --filter name=cloudflared --format '{{.Names}}|{{.Status}}'
+[exit=0]
+
+==== 5. logs ====
+$ docker logs --tail 8 cloudflared 2>&1 | tail -15
+Error response from daemon: No such container: cloudflared
+[exit=0]

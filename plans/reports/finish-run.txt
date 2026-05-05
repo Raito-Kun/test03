@@ -1,0 +1,81 @@
+
+==== 1. rm crm-frontend if any ====
+$ docker rm -f crm-frontend 2>&1 || true
+crm-frontend
+[exit=0]
+
+==== 2. start frontend ====
+$ cd /opt/crm && docker compose -f docker-compose.prod.yml up -d --no-deps frontend
+ Container crm-frontend Creating 
+ Container crm-frontend Created 
+ Container crm-frontend Starting 
+ Container crm-frontend Started 
+[exit=0]
+
+==== 3. 03-test compose down --remove-orphans ====
+$ cd /opt/03-Test && docker compose down --remove-orphans 2>&1 || true
+ Container 1ff8937ee9f4 Stopping 
+ Container b5999351d9b9_cloudflared Stopping 
+ Container b5999351d9b9 Stopping 
+ Container b5999351d9b9_cloudflared Stopped 
+ Container b5999351d9b9_cloudflared Removing 
+ Container 1ff8937ee9f4 Error Error while Stopping
+ Container 1ff8937ee9f4 Removed 
+ Container b5999351d9b9 Error Error while Stopping
+ Container b5999351d9b9 Removed 
+ Container b5999351d9b9_cloudflared Removed 
+ Network 03-test_app-network Removing 
+ Network 03-test_app-network Removed 
+[exit=0]
+
+==== 4. rm any stale cloudflared ====
+$ docker rm -f cloudflared 2>&1 || true
+Error response from daemon: No such container: cloudflared
+[exit=0]
+
+==== 5. up cloudflared only ====
+$ cd /opt/03-Test && docker compose up -d cloudflared
+ Network 03-test_app-network Creating 
+ Network 03-test_app-network Created 
+ Container b5999351d9b9 Restart 
+Error response from daemon: No such container: b5999351d9b9c3501ad399f3b0c61b321c7898581e9c3f857ddfad360e63f083
+[exit=1]
+
+==== 6. wait 20s + ps ====
+$ sleep 20 && docker ps --format '{{.Names}}|{{.Status}}'
+crm-frontend|Up 22 seconds
+crm-backend|Up About a minute (healthy)
+crm-postgres|Up About a minute (healthy)
+crm-redis|Up About a minute (healthy)
+[exit=0]
+
+==== 7. API health ====
+$ curl -sk -o /dev/null -w '%{http_code}\n' https://localhost/api/v1/health ; echo ---; curl -sk https://localhost/api/v1/health | head -c 300
+200
+---
+{"status":"ok","timestamp":"2026-04-21T04:43:05.637Z"}[exit=0]
+
+==== 8. frontend logs if unhealthy ====
+$ docker logs --tail 10 crm-frontend 2>&1 | tail -15
+2026/04/21 04:42:46 [warn] 29#29: *1 a client request body is buffered to a temporary file /var/cache/nginx/client_temp/0000000001, client: 10.10.101.206, server: _, request: "POST /api/v1/webhooks/cdr?uuid=42a95a1e-e547-4910-9440-d153cb9d332f HTTP/1.1", host: "10.10.101.207"
+2026/04/21 04:42:46 [warn] 30#30: *3 a client request body is buffered to a temporary file /var/cache/nginx/client_temp/0000000002, client: 10.10.101.206, server: _, request: "POST /api/v1/webhooks/cdr?uuid=a_bbd0d91c-3ee5-41c7-8031-c55a7c518ea2 HTTP/1.1", host: "10.10.101.207"
+10.10.101.206 - webhook [21/Apr/2026:04:42:46 +0000] "POST /api/v1/webhooks/cdr?uuid=42a95a1e-e547-4910-9440-d153cb9d332f HTTP/1.1" 200 28 "-" "freeswitch-xml/1.0" "-"
+10.10.101.206 - webhook [21/Apr/2026:04:42:46 +0000] "POST /api/v1/webhooks/cdr?uuid=a_bbd0d91c-3ee5-41c7-8031-c55a7c518ea2 HTTP/1.1" 200 28 "-" "freeswitch-xml/1.0" "-"
+2026/04/21 04:42:48 [warn] 32#32: *5 a client request body is buffered to a temporary file /var/cache/nginx/client_temp/0000000003, client: 10.10.101.206, server: _, request: "POST /api/v1/webhooks/cdr?uuid=5a32ec9d-a8f6-4e9d-83a7-b55a29678aa2 HTTP/1.1", host: "10.10.101.207"
+2026/04/21 04:42:48 [warn] 31#31: *7 a client request body is buffered to a temporary file /var/cache/nginx/client_temp/0000000004, client: 10.10.101.206, server: _, request: "POST /api/v1/webhooks/cdr?uuid=a_be73a4b6-f8d8-456b-a8eb-2e7fce66fde8 HTTP/1.1", host: "10.10.101.207"
+10.10.101.206 - webhook [21/Apr/2026:04:42:48 +0000] "POST /api/v1/webhooks/cdr?uuid=5a32ec9d-a8f6-4e9d-83a7-b55a29678aa2 HTTP/1.1" 200 28 "-" "freeswitch-xml/1.0" "-"
+10.10.101.206 - webhook [21/Apr/2026:04:42:48 +0000] "POST /api/v1/webhooks/cdr?uuid=a_be73a4b6-f8d8-456b-a8eb-2e7fce66fde8 HTTP/1.1" 200 28 "-" "freeswitch-xml/1.0" "-"
+172.19.0.1 - - [21/Apr/2026:04:43:05 +0000] "GET /api/v1/health HTTP/1.1" 200 54 "-" "curl/7.88.1" "-"
+172.19.0.1 - - [21/Apr/2026:04:43:05 +0000] "GET /api/v1/health HTTP/1.1" 200 54 "-" "curl/7.88.1" "-"
+[exit=0]
+
+==== 9. cloudflared logs ====
+$ docker logs --tail 5 cloudflared 2>&1 | tail -10
+Error response from daemon: No such container: cloudflared
+[exit=0]
+
+==== 10. df -h ====
+$ df -h /
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1       148G  6.0G  135G   5% /
+[exit=0]
