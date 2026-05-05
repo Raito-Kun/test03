@@ -50,8 +50,8 @@ export function AiAssistantPanel({ onClose }: AiAssistantPanelProps) {
           <Sparkles className="h-4 w-4 text-white" />
         </div>
         <div className="flex-1">
-          <h3 className="text-sm font-semibold text-slate-800">Trợ lý AI</h3>
-          <p className="text-[10px] text-slate-500">Hỗ trợ bạn trong công việc</p>
+          <h3 className="text-sm font-semibold text-foreground">Trợ lý AI</h3>
+          <p className="text-[10px] text-muted-foreground">Hỗ trợ bạn trong công việc</p>
         </div>
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
           <X className="h-4 w-4" />
@@ -62,14 +62,14 @@ export function AiAssistantPanel({ onClose }: AiAssistantPanelProps) {
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
           <div className="text-center py-12">
-            <Bot className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-            <p className="text-sm text-slate-500">Xin chào! Tôi có thể giúp gì cho bạn?</p>
+            <Bot className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Xin chào! Tôi có thể giúp gì cho bạn?</p>
             <div className="mt-4 space-y-2">
               {['Tóm tắt khách hàng này', 'Gợi ý kịch bản gọi', 'Phân tích hiệu suất hôm nay'].map((q) => (
                 <button
                   key={q}
                   onClick={() => { setInput(q); }}
-                  className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-left text-xs text-slate-600 hover:bg-slate-50 transition-colors"
+                  className="block w-full rounded-lg border border-border px-3 py-2 text-left text-xs text-muted-foreground hover:bg-muted transition-colors"
                 >
                   {q}
                 </button>
@@ -89,7 +89,7 @@ export function AiAssistantPanel({ onClose }: AiAssistantPanelProps) {
               className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${
                 msg.role === 'user'
                   ? 'bg-blue-600 text-white rounded-br-sm'
-                  : 'bg-slate-100 text-slate-700 rounded-bl-sm'
+                  : 'bg-muted text-foreground rounded-bl-sm'
               }`}
             >
               <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -98,8 +98,8 @@ export function AiAssistantPanel({ onClose }: AiAssistantPanelProps) {
               )}
             </div>
             {msg.role === 'user' && (
-              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 mt-0.5">
-                <User className="h-3 w-3 text-slate-600" />
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted mt-0.5">
+                <User className="h-3 w-3 text-muted-foreground" />
               </div>
             )}
           </div>
@@ -116,7 +116,7 @@ export function AiAssistantPanel({ onClose }: AiAssistantPanelProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Nhập câu hỏi..."
-            className="flex-1 rounded-lg border bg-slate-50 px-3 py-2 text-sm outline-none focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+            className="flex-1 rounded-lg border bg-muted px-3 py-2 text-sm outline-none focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
             disabled={isStreaming}
           />
           <Button type="submit" size="icon" disabled={isStreaming || !input.trim()} className="bg-blue-600 hover:bg-blue-700">

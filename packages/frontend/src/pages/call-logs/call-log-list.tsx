@@ -1,18 +1,18 @@
-/* call-log-list v11 — ops restyle */
+/* call-log-list v12 — mockup-06 alignment */
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Mic, RefreshCw, Download, CheckSquare, Trash2, Save, Search } from 'lucide-react';
+import { Mic, RefreshCw, Download, CheckSquare, Trash2, Save, Search, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { deleteCallRecording } from '@/api/call-log-api';
 import { SectionHeader } from '@/components/ops/section-header';
 import { DataTable, type Column } from '@/components/data-table/data-table';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { usePagination } from '@/hooks/use-pagination';
@@ -21,6 +21,7 @@ import { VI } from '@/lib/vi-text';
 import { ExportButton } from '@/components/export-button';
 import { formatDuration, fmtPhone } from '@/lib/format';
 import { CallLogDetailContent } from './call-log-detail';
+import { AudioPlayer } from '@/components/audio-player';
 
 const HANGUP_CAUSE_VI: Record<string, string> = {
   NORMAL_CLEARING: 'Thành công',
@@ -40,7 +41,6 @@ const HANGUP_CAUSE_VI: Record<string, string> = {
   EXCHANGE_ROUTING_ERROR: 'Lỗi định tuyến',
   NORMAL_UNSPECIFIED: 'Bình thường',
 };
-
 
 interface CallLog {
   id: string;
@@ -85,11 +85,46 @@ interface AgentOption {
   sipExtension?: string | null;
 }
 
+/** SIP status pill — "200 OK" / "486 Busy" style with border + mono, matching mockup 06 */
+function SipStatusPill({ sipCode, hangupCause }: { sipCode?: string; hangupCause?: string }) {
+  const code = sipCode ? parseInt(sipCode, 10) : 0;
+  type PillDef = { label: string; cls: string };
+  const map: Record<number, PillDef> = {
+    200: { label: '200 OK',         cls: 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800' },
+    430: { label: '430 Voicemail',  cls: 'bg-slate-50  text-slate-500   border-slate-200   dark:bg-slate-800/40  dark:text-slate-400   dark:border-slate-700' },
+    480: { label: '480 No answer',  cls: 'bg-amber-50  text-amber-700   border-amber-100   dark:bg-amber-900/20  dark:text-amber-400   dark:border-amber-800' },
+    486: { label: '486 Busy',       cls: 'bg-amber-50  text-amber-700   border-amber-100   dark:bg-amber-900/20  dark:text-amber-400   dark:border-amber-800' },
+    487: { label: '487 Cancelled',  cls: 'bg-red-50    text-red-700     border-red-100     dark:bg-red-900/20    dark:text-red-400     dark:border-red-800' },
+    404: { label: '404 Not found',  cls: 'bg-red-50    text-red-700     border-red-100     dark:bg-red-900/20    dark:text-red-400     dark:border-red-800' },
+    403: { label: '403 Rejected',   cls: 'bg-red-50    text-red-700     border-red-100     dark:bg-red-900/20    dark:text-red-400     dark:border-red-800' },
+    408: { label: '408 Timeout',    cls: 'bg-amber-50  text-amber-700   border-amber-100   dark:bg-amber-900/20  dark:text-amber-400   dark:border-amber-800' },
+    500: { label: '500 Error',      cls: 'bg-red-50    text-red-700     border-red-100     dark:bg-red-900/20    dark:text-red-400     dark:border-red-800' },
+    503: { label: '503 Unavail',    cls: 'bg-red-50    text-red-700     border-red-100     dark:bg-red-900/20    dark:text-red-400     dark:border-red-800' },
+  };
+  const entry = map[code];
+  if (entry) {
+    return (
+      <span className={`inline-block font-mono text-[10px] px-2 py-0.5 rounded border ${entry.cls}`}>
+        {entry.label}
+      </span>
+    );
+  }
+  const fallback = hangupCause ? (HANGUP_CAUSE_VI[hangupCause] ?? hangupCause) : null;
+  if (!fallback) return <span className="text-muted-foreground">—</span>;
+  return (
+    <span className="inline-block font-mono text-[10px] px-2 py-0.5 rounded border bg-muted text-muted-foreground border-border">
+      {fallback}
+    </span>
+  );
+}
+
 export default function CallLogListPage() {
   const queryClient = useQueryClient();
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const canDeleteRecording = hasPermission('recording.delete');
   const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
+  // Recording đang được mở popover phát inline (chỉ 1 cái mở 1 lúc)
+  const [playingRecId, setPlayingRecId] = useState<string | null>(null);
   // Applied filters — what the query actually uses. Only mutated by the "Tìm kiếm" button.
   const [directionFilter, setDirectionFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -133,6 +168,7 @@ export default function CallLogListPage() {
       toast.error(`Lỗi cập nhật trạng thái: ${(err as Error).message}`);
     }
   }
+
   async function handleDeleteRecording(id: string, e: React.MouseEvent) {
     e.stopPropagation();
     if (!window.confirm('Xác nhận xoá ghi âm cuộc gọi này?')) return;
@@ -239,96 +275,79 @@ export default function CallLogListPage() {
       ),
     },
     {
-      key: 'direction', label: VI.callLog.direction,
+      // THỜI GIAN — mono datetime matching mockup yyyy-MM-dd HH:mm:ss
+      key: 'startTime', label: 'THỜI GIAN', sortable: true,
       render: (row) => (
-        <Badge variant={row.direction === 'inbound' ? 'default' : 'secondary'}>
-          {row.direction === 'inbound' ? VI.callLog.inbound : VI.callLog.outbound}
-        </Badge>
+        <span className="font-mono text-xs text-on-surface-variant whitespace-nowrap">
+          {format(new Date(row.startTime), 'yyyy-MM-dd HH:mm:ss')}
+        </span>
       ),
     },
-    { key: 'callerNumber', label: 'Số gọi', render: (row) => fmtPhone(getAgentNumber(row)) || '—' },
-    { key: 'destinationNumber', label: 'Số nhận', render: (row) => fmtPhone(getCustomerNumber(row)) || '—' },
-    { key: 'user', label: VI.callLog.agent, render: (row) => row.user?.fullName ?? '—' },
-    { key: 'duration', label: VI.callLog.duration, sortable: true, render: (row) => formatDuration(row.duration) },
-    { key: 'billsec', label: 'Thời gian nói', render: (row) => row.billsec != null ? formatDuration(row.billsec) : '—' },
     {
-      key: 'recordingStatus', label: VI.callLog.recording,
-      render: (row) => row.recordingStatus === 'available'
-        ? (
-          <div className="flex items-center gap-1">
-            <Mic className="h-4 w-4 text-green-500 shrink-0" />
-            {canDeleteRecording && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 text-destructive hover:text-destructive"
-                title="Xoá ghi âm"
-                onClick={(e) => handleDeleteRecording(row.id, e)}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            )}
+      // HƯỚNG — icon only, no text pill
+      key: 'direction', label: 'HƯỚNG',
+      render: (row) => {
+        const inbound = row.direction === 'inbound';
+        return inbound
+          ? <ArrowDownLeft className="h-4 w-4 text-primary" />
+          : <ArrowUpRight className="h-4 w-4 text-primary" />;
+      },
+    },
+    {
+      // CALLER — name bold + phone mono below
+      key: 'callerNumber', label: 'CALLER',
+      render: (row) => {
+        const phone = fmtPhone(row.direction === 'inbound' ? row.callerNumber : (row.destinationNumber || ''));
+        const name = null; // CallLog list doesn't carry contact name — show number only
+        return (
+          <div>
+            {name && <div className="text-sm font-semibold leading-tight">{name}</div>}
+            <div className="font-mono text-[11px] text-muted-foreground">{phone || '—'}</div>
           </div>
-        )
-        : <span className="text-muted-foreground text-xs">—</span>,
-    },
-    {
-      key: 'hangupCause', label: 'Kết quả',
-      render: (row) => {
-        // SIP code is source of truth when it exists (different CDR legs can have conflicting hangupCause)
-        const code = row.sipCode ? parseInt(row.sipCode, 10) : 0;
-        if (code === 200) return 'Thành công';
-        if (code === 430) return 'Voicemail';
-        if (code === 486) return 'Máy bận';
-        if (code === 487) return 'Hủy';
-        if (code === 480) return 'Không trả lời';
-        if (code === 404) return 'Số không tồn tại';
-        if (code === 403) return 'Từ chối cuộc gọi';
-        if (code === 408) return 'Hết thời gian';
-        if (code === 500) return 'Lỗi server';
-        if (code === 503) return 'Dịch vụ không khả dụng';
-        // No SIP code → use hangupCause
-        return row.hangupCause ? (HANGUP_CAUSE_VI[row.hangupCause] ?? row.hangupCause) : '—';
-      },
-    },
-    { key: 'sipCode', label: 'SIP Code', render: (row) => row.sipCode || '—' },
-    {
-      key: 'sipReason', label: 'Lý do SIP',
-      // SIP sub-reason — English short labels (protocol-standard, grep-friendly against FS logs).
-      render: (row) => {
-        const code = row.sipCode ? parseInt(row.sipCode, 10) : 0;
-        if (code === 200) return 'Answered';
-        if (code === 430) return 'Voicemail';
-        if (code === 480) return 'No answer';
-        if (code === 486) return 'Busy';
-        if (code === 487) return 'Cancelled';
-        if (code === 404) return 'Not found';
-        if (code === 403) return 'Rejected';
-        if (code === 408) return 'Timeout';
-        if (code === 500) return 'Server error';
-        if (code === 503) return 'Unavailable';
-        if (row.hangupCause === 'NORMAL_CLEARING') return 'Answered';
-        if (row.hangupCause === 'USER_BUSY') return 'Busy';
-        if (row.hangupCause === 'NO_ANSWER') return 'No answer';
-        if (row.hangupCause === 'ORIGINATOR_CANCEL') return 'Cancelled';
-        if (row.hangupCause === 'CALL_REJECTED') return 'Rejected';
-        return row.sipReason || row.hangupCause || '—';
+        );
       },
     },
     {
-      key: 'callType', label: 'Phân loại',
-      // Call origin only — not the disposition. Kept English (product-level label).
+      // DESTINATION — agent extension / destination
+      key: 'destinationNumber', label: 'DESTINATION',
+      render: (row) => (
+        <span className="font-mono text-xs">
+          {fmtPhone(row.direction === 'inbound' ? (row.destinationNumber || '') : row.callerNumber) || '—'}
+        </span>
+      ),
+    },
+    {
+      // AGENT — avatar initial + name
+      key: 'user', label: 'AGENT',
       render: (row) => {
-        const source = (row.notes || '').trim();
-        if (source === 'c2c') return 'Click2call';
-        if (source === 'autocall') return 'Autocall';
-        if (source === 'callbot') return 'Callbot';
-        return 'Manual';
+        const name = row.user?.fullName;
+        if (!name) return <span className="text-muted-foreground">—</span>;
+        const initials = name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+        return (
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-accent text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+              {initials}
+            </div>
+            <span className="text-sm">{name}</span>
+          </div>
+        );
       },
     },
     {
-      key: 'status', label: 'Trạng thái',
-      // Agent edits locally; persisted only when the Save icon is clicked.
+      // THỜI LƯỢNG — mono, center
+      key: 'duration', label: 'THỜI LƯỢNG', sortable: true,
+      render: (row) => (
+        <span className="font-mono text-xs tabular-nums">{formatDuration(row.duration)}</span>
+      ),
+    },
+    {
+      // SIP STATUS — bordered pill "200 OK" / "486 Busy"
+      key: 'hangupCause', label: 'SIP STATUS',
+      render: (row) => <SipStatusPill sipCode={row.sipCode} hangupCause={row.hangupCause} />,
+    },
+    {
+      // DISPOSITION — text with inline edit + save (existing state machine)
+      key: 'status', label: 'DISPOSITION',
       render: (row) => {
         const by = row.dispositionSetBy?.fullName;
         const at = row.dispositionSetAt ? format(new Date(row.dispositionSetAt), 'dd/MM/yyyy HH:mm') : '';
@@ -344,10 +363,10 @@ export default function CallLogListPage() {
               value={selectedId || undefined}
               onValueChange={(v) => { if (v) setPendingDispositions((prev) => ({ ...prev, [row.id]: v })); }}
             >
-              <SelectTrigger className="h-8 w-40 text-xs">
+              <SelectTrigger className="h-7 w-40 text-xs border-0 shadow-none px-1 hover:bg-muted/50">
                 {label
-                  ? <span className={isDirty ? 'text-amber-600 font-medium' : ''}>{label}</span>
-                  : <span className="text-muted-foreground">—</span>}
+                  ? <span className={`text-sm ${isDirty ? 'text-amber-600 font-medium' : ''}`}>{label}</span>
+                  : <span className="text-muted-foreground text-xs">—</span>}
               </SelectTrigger>
               <SelectContent>
                 {dispositionOptions.map((opt) => (
@@ -359,7 +378,7 @@ export default function CallLogListPage() {
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7 text-emerald-600 hover:text-emerald-700"
+                className="h-6 w-6 text-emerald-600 hover:text-emerald-700"
                 title="Lưu"
                 onClick={() => saveDisposition(row.id, draftId!)}
               >
@@ -371,12 +390,90 @@ export default function CallLogListPage() {
       },
     },
     {
-      key: 'startTime', label: VI.callLog.startTime, sortable: true,
-      render: (row) => format(new Date(row.startTime), 'dd/MM/yyyy HH:mm'),
-    },
-    {
-      key: 'endTime', label: 'Kết thúc',
-      render: (row) => row.endTime ? format(new Date(row.endTime), 'dd/MM/yyyy HH:mm') : '—',
+      // GHI ÂM — Mic là button mở popover phát inline (KHÔNG mở popup detail)
+      key: 'recordingStatus', label: 'GHI ÂM',
+      render: (row) => row.recordingStatus === 'available'
+        ? (
+          <div className="flex items-center gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+            <Popover
+              open={playingRecId === row.id}
+              onOpenChange={(open) => setPlayingRecId(open ? row.id : null)}
+            >
+              <PopoverTrigger
+                render={(props) => (
+                  <button
+                    {...props}
+                    type="button"
+                    title="Nghe ghi âm"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent text-primary transition-colors cursor-pointer"
+                    onClick={(e) => { e.stopPropagation(); setPlayingRecId(playingRecId === row.id ? null : row.id); }}
+                  >
+                    <Mic className="h-4 w-4" />
+                  </button>
+                )}
+              />
+              <PopoverContent
+                className="w-[360px] p-0 overflow-hidden border border-border shadow-lg"
+                side="left"
+                align="center"
+              >
+                {playingRecId === row.id && (
+                  <div>
+                    {/* Header — số khách → ext agent (theo direction), kèm time + duration */}
+                    {(() => {
+                      // Match convention bảng: CALLER col luôn là số external, DESTINATION luôn là ext agent
+                      const externalNum = row.direction === 'inbound' ? row.callerNumber : (row.destinationNumber || '');
+                      const agentExt = row.direction === 'inbound' ? (row.destinationNumber || '') : row.callerNumber;
+                      const arrow = row.direction === 'inbound' ? '→' : '←';
+                      return (
+                        <div className="flex items-center justify-between gap-2 px-3 py-2.5 bg-accent/40 border-b border-dashed border-border">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 shrink-0">
+                              <Mic className="h-3.5 w-3.5 text-primary" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-mono text-xs font-semibold text-foreground truncate">
+                                {fmtPhone(externalNum)}
+                                {agentExt && (
+                                  <span className="text-muted-foreground"> {arrow} Ext {agentExt}</span>
+                                )}
+                              </p>
+                              <p className="font-mono text-[10px] text-muted-foreground">
+                                {format(new Date(row.startTime), 'dd/MM HH:mm')} · {formatDuration(row.billsec ?? row.duration)}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="font-mono text-[9px] uppercase tracking-widest text-primary bg-primary/10 px-1.5 py-0.5 rounded shrink-0">
+                            Recording
+                          </span>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Player */}
+                    <div className="p-3">
+                      <AudioPlayer
+                        src={`${window.location.origin}/api/v1/call-logs/${row.id}/recording?token=${getAccessToken()}`}
+                      />
+                    </div>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+            {canDeleteRecording && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-destructive hover:text-destructive"
+                title="Xoá ghi âm"
+                onClick={(e) => handleDeleteRecording(row.id, e)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+        )
+        : <span className="text-muted-foreground text-xs">—</span>,
     },
   ];
 
@@ -421,112 +518,98 @@ export default function CallLogListPage() {
 
   const CALL_TYPE_LABEL: Record<string, string> = { c2c: 'Click2call', autocall: 'Autocall', manual: 'Manual', callbot: 'Callbot' };
 
+  // Mockup 06 filter toolbar: 5 labeled inputs + search button
   const toolbar = (
     <div
-      className="flex items-end gap-2 flex-wrap"
+      className="flex items-end gap-3 flex-wrap"
       onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
     >
+      {/* SỐ ĐÍCH */}
       <div className="space-y-1">
-        <Label className="text-xs">Số nhận</Label>
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="VD: 0983..."
-            value={destSearchDraft}
-            onChange={(e) => setDestSearchDraft(e.target.value)}
-            className="w-40 pl-8 h-9"
-          />
-        </div>
+        <Label className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Số đích</Label>
+        <Input
+          placeholder="090..."
+          value={destSearchDraft}
+          onChange={(e) => setDestSearchDraft(e.target.value)}
+          className="w-36 h-9"
+        />
       </div>
-      <Select value={draftDirection || undefined} onValueChange={(v) => setDraftDirection(v === '_all' ? '' : v || '')}>
-        <SelectTrigger className="w-36">
-          {draftDirection
-            ? <span>{draftDirection === 'inbound' ? VI.callLog.inbound : VI.callLog.outbound}</span>
-            : <span className="text-muted-foreground">Tất cả hướng</span>}
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="_all">Tất cả hướng</SelectItem>
-          <SelectItem value="inbound">{VI.callLog.inbound}</SelectItem>
-          <SelectItem value="outbound">{VI.callLog.outbound}</SelectItem>
-        </SelectContent>
-      </Select>
-      <Select value={draftResult || undefined} onValueChange={(v) => setDraftResult(v === '_all' ? '' : v || '')}>
-        <SelectTrigger className="w-44">
-          {draftResult
-            ? <span>{HANGUP_CAUSE_VI[draftResult] ?? draftResult}</span>
-            : <span className="text-muted-foreground">Tất cả kết quả</span>}
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="_all">Tất cả kết quả</SelectItem>
-          <SelectItem value="NORMAL_CLEARING">Thành công</SelectItem>
-          <SelectItem value="NO_ANSWER">Không trả lời</SelectItem>
-          <SelectItem value="USER_BUSY">Máy bận</SelectItem>
-          <SelectItem value="ORIGINATOR_CANCEL">Hủy</SelectItem>
-          <SelectItem value="CALL_REJECTED">Từ chối</SelectItem>
-        </SelectContent>
-      </Select>
-      <Select value={draftCallType || undefined} onValueChange={(v) => setDraftCallType(v === '_all' ? '' : v || '')}>
-        <SelectTrigger className="w-40">
-          {draftCallType
-            ? <span>{CALL_TYPE_LABEL[draftCallType] ?? draftCallType}</span>
-            : <span className="text-muted-foreground">Tất cả phân loại</span>}
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="_all">Tất cả phân loại</SelectItem>
-          <SelectItem value="manual">Manual</SelectItem>
-          <SelectItem value="c2c">Click2call</SelectItem>
-          <SelectItem value="autocall">Autocall</SelectItem>
-          <SelectItem value="callbot">Callbot</SelectItem>
-        </SelectContent>
-      </Select>
-      <Select value={draftDisposition || undefined} onValueChange={(v) => setDraftDisposition(v === '_all' ? '' : v || '')}>
-        <SelectTrigger className="w-44">
-          {draftDisposition
-            ? <span>{dispositionOptions.find((o) => o.id === draftDisposition)?.label ?? '—'}</span>
-            : <span className="text-muted-foreground">Tất cả trạng thái</span>}
-        </SelectTrigger>
-        <SelectContent className="max-h-80">
-          <SelectItem value="_all">Tất cả trạng thái</SelectItem>
-          {dispositionOptions.map((opt) => (
-            <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select value={draftAgent || undefined} onValueChange={(v) => setDraftAgent(v === '_all' ? '' : v || '')}>
-        <SelectTrigger className="w-36">
-          {draftAgent
-            ? <span>{agents.find((a) => a.id === draftAgent)?.sipExtension ?? '—'}</span>
-            : <span className="text-muted-foreground">Tất cả nhân viên</span>}
-        </SelectTrigger>
-        <SelectContent className="max-h-80">
-          <SelectItem value="_all">Tất cả nhân viên</SelectItem>
-          {agents
-            .filter((a) => a.sipExtension) // drop accounts without an extension (admins, system users)
-            .sort((a, b) => (a.sipExtension ?? '').localeCompare(b.sipExtension ?? '', undefined, { numeric: true }))
-            .map((a) => (
-              <SelectItem key={a.id} value={a.id}>
-                {a.sipExtension}
-              </SelectItem>
-            ))}
-        </SelectContent>
-      </Select>
+      {/* HƯỚNG */}
       <div className="space-y-1">
-        <Label className="text-xs">SIP Code</Label>
-        <Input placeholder="VD: 200, 486" value={draftSipCode} onChange={(e) => setDraftSipCode(e.target.value)} className="w-28" />
+        <Label className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Hướng</Label>
+        <Select value={draftDirection || undefined} onValueChange={(v) => setDraftDirection(v === '_all' ? '' : v || '')}>
+          <SelectTrigger className="w-36 h-9">
+            {draftDirection
+              ? <span>{draftDirection === 'inbound' ? VI.callLog.inbound : VI.callLog.outbound}</span>
+              : <span className="text-muted-foreground">Tất cả</span>}
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_all">Tất cả</SelectItem>
+            <SelectItem value="inbound">{VI.callLog.inbound}</SelectItem>
+            <SelectItem value="outbound">{VI.callLog.outbound}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {/* TRẠNG THÁI */}
+      <div className="space-y-1">
+        <Label className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Trạng thái</Label>
+        <Select value={draftResult || undefined} onValueChange={(v) => setDraftResult(v === '_all' ? '' : v || '')}>
+          <SelectTrigger className="w-40 h-9">
+            {draftResult
+              ? <span>{HANGUP_CAUSE_VI[draftResult] ?? draftResult}</span>
+              : <span className="text-muted-foreground">Tất cả</span>}
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_all">Tất cả</SelectItem>
+            <SelectItem value="NORMAL_CLEARING">Thành công</SelectItem>
+            <SelectItem value="NO_ANSWER">Không trả lời</SelectItem>
+            <SelectItem value="USER_BUSY">Máy bận</SelectItem>
+            <SelectItem value="ORIGINATOR_CANCEL">Hủy</SelectItem>
+            <SelectItem value="CALL_REJECTED">Từ chối</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {/* NHÂN VIÊN */}
+      <div className="space-y-1">
+        <Label className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Nhân viên</Label>
+        <Select value={draftAgent || undefined} onValueChange={(v) => setDraftAgent(v === '_all' ? '' : v || '')}>
+          <SelectTrigger className="w-40 h-9">
+            {draftAgent
+              ? <span>{agents.find((a) => a.id === draftAgent)?.fullName ?? '—'}</span>
+              : <span className="text-muted-foreground">Chọn nhân viên</span>}
+          </SelectTrigger>
+          <SelectContent className="max-h-80">
+            <SelectItem value="_all">Tất cả nhân viên</SelectItem>
+            {agents
+              .filter((a) => a.sipExtension)
+              .sort((a, b) => (a.sipExtension ?? '').localeCompare(b.sipExtension ?? '', undefined, { numeric: true }))
+              .map((a) => (
+                <SelectItem key={a.id} value={a.id}>
+                  {a.fullName}{a.sipExtension ? ` (${a.sipExtension})` : ''}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {/* KHOẢNG THỜI GIAN — date pair */}
+      <div className="space-y-1">
+        <Label className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Từ ngày</Label>
+        <Input type="date" value={draftDateFrom} onChange={(e) => setDraftDateFrom(e.target.value)} className="w-36 h-9" />
       </div>
       <div className="space-y-1">
-        <Label className="text-xs">Từ ngày</Label>
-        <Input type="date" value={draftDateFrom} onChange={(e) => setDraftDateFrom(e.target.value)} className="w-36" />
+        <Label className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Đến ngày</Label>
+        <Input type="date" value={draftDateTo} onChange={(e) => setDraftDateTo(e.target.value)} className="w-36 h-9" />
       </div>
-      <div className="space-y-1">
-        <Label className="text-xs">Đến ngày</Label>
-        <Input type="date" value={draftDateTo} onChange={(e) => setDraftDateTo(e.target.value)} className="w-36" />
-      </div>
-      <Button size="sm" onClick={applyFilters} disabled={!hasDraftChanges}>
-        <Search className="h-4 w-4 mr-1" />Tìm kiếm
+      {/* Search button — violet filled, icon only style matching mockup */}
+      <Button
+        className="h-9 px-4 bg-primary text-white hover:bg-primary/90 font-semibold"
+        onClick={applyFilters}
+        disabled={!hasDraftChanges}
+      >
+        <Search className="h-4 w-4 mr-1.5" />Tìm kiếm
       </Button>
       {hasFilters && (
-        <Button variant="ghost" size="sm" onClick={handleClearFilters}>Xóa lọc</Button>
+        <Button variant="ghost" size="sm" className="h-9" onClick={handleClearFilters}>Xóa lọc</Button>
       )}
     </div>
   );

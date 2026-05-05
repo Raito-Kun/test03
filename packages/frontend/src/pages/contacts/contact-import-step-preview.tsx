@@ -76,35 +76,38 @@ export function ImportStepPreview({ rows, totalRaw, errors, uploading, onUpload 
       )}
 
       {preview.length > 0 && (
-        <div className="max-h-[50vh] overflow-auto rounded-md border">
+        <div className="max-h-[50vh] overflow-auto rounded-xl border border-dashed border-border">
           <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-muted">
-              <tr>
-                <th className="px-2 py-1.5 text-left font-medium" title="Số thứ tự trong danh sách hợp lệ">#</th>
-                <th className="px-2 py-1.5 text-left font-medium" title="Dòng trong file Excel/CSV gốc">Dòng file</th>
-                <th className="px-2 py-1.5 text-left font-medium">Họ tên</th>
-                <th className="px-2 py-1.5 text-left font-medium">SĐT</th>
-                <th className="px-2 py-1.5 text-left font-medium">Email</th>
-                <th className="px-2 py-1.5 text-left font-medium">Công ty</th>
-                <th className="px-2 py-1.5 text-left font-medium">Địa chỉ</th>
+            <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm">
+              <tr className="border-b border-dashed border-border">
+                <th className="px-2 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground" title="Số thứ tự">#</th>
+                <th className="px-2 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Trạng thái</th>
+                <th className="px-2 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Họ tên</th>
+                <th className="px-2 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">SĐT</th>
+                <th className="px-2 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Email</th>
+                <th className="px-2 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Công ty</th>
               </tr>
             </thead>
             <tbody>
               {preview.map((r, idx) => (
-                <tr key={r.rowNumber} className="border-t">
-                  <td className="px-2 py-1 text-muted-foreground">{idx + 1}</td>
-                  <td className="px-2 py-1 text-muted-foreground">{r.rowNumber}</td>
-                  <td className="px-2 py-1">{r.fullName}</td>
-                  <td className="px-2 py-1">{r.phone}</td>
-                  <td className="px-2 py-1">{r.email || '—'}</td>
-                  <td className="px-2 py-1">{r.company || '—'}</td>
-                  <td className="px-2 py-1">{r.address || '—'}</td>
+                <tr key={r.rowNumber} className="border-b border-dashed border-border/50 hover:bg-muted/30">
+                  <td className="px-2 py-1.5 text-muted-foreground font-mono">{idx + 1}</td>
+                  <td className="px-2 py-1.5">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-100 text-green-800 text-[10px] font-bold uppercase">
+                      <span className="w-1 h-1 rounded-full bg-green-500" />
+                      MỚI
+                    </span>
+                  </td>
+                  <td className="px-2 py-1.5 font-medium">{r.fullName}</td>
+                  <td className="px-2 py-1.5 font-mono">{r.phone}</td>
+                  <td className="px-2 py-1.5 text-muted-foreground">{r.email || '—'}</td>
+                  <td className="px-2 py-1.5 text-muted-foreground">{r.company || '—'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           {rows.length > PREVIEW_LIMIT && (
-            <div className="border-t bg-muted/50 px-2 py-1.5 text-center text-xs text-muted-foreground">
+            <div className="border-t border-dashed border-border bg-muted/30 px-2 py-1.5 text-center text-xs text-muted-foreground">
               Đang hiển thị {PREVIEW_LIMIT} / {rows.length} dòng hợp lệ
             </div>
           )}
@@ -112,7 +115,7 @@ export function ImportStepPreview({ rows, totalRaw, errors, uploading, onUpload 
       )}
 
       {rows.length === 0 && !uploading && (
-        <div className="flex min-h-[120px] items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
+        <div className="flex min-h-[140px] items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 text-sm text-muted-foreground">
           Chọn file CSV hoặc Excel để xem trước dữ liệu
         </div>
       )}

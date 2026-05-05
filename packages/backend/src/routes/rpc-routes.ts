@@ -10,7 +10,7 @@ router.use(authMiddleware);
 /** POST /rpc/mark — mark a call as Right Party Contact */
 router.post(
   '/mark',
-  requireRole('agent_collection', 'leader', 'manager', 'admin', 'super_admin'),
+  requireRole('agent', 'leader', 'manager', 'admin', 'super_admin'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { callLogId, isRightParty } = req.body as {

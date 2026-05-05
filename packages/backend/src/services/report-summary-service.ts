@@ -106,6 +106,7 @@ export async function getCallSummaryByAgent(
     cancelled: r.cancelled,
     avgDuration: r.totalCalls > 0 ? Math.round(r.totalDuration / r.totalCalls) : 0,
     avgBillsec: r.answered > 0 ? Math.round(r.totalBillsec / r.answered) : 0,
+    totalBillsec: r.totalBillsec,
     answerRate: r.totalCalls > 0 ? Math.round((r.answered / r.totalCalls) * 10000) / 10000 : 0,
   }));
 }

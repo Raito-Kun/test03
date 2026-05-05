@@ -61,8 +61,14 @@ export async function bulkUpsertFlags(
 /**
  * Check if a feature is enabled for a given cluster.
  * Cluster-level (domainName="") must be enabled. If no row exists, default is ON.
+ * super_admin bypasses cluster-scoped flags (cross-tenant by design).
  */
-export async function isFeatureEnabled(featureKey: string, userClusterId?: string | null): Promise<boolean> {
+export async function isFeatureEnabled(
+  featureKey: string,
+  userClusterId?: string | null,
+  userRole?: string,
+): Promise<boolean> {
+  if (userRole === 'super_admin') return true;
   const clusterId = await getActiveClusterId(userClusterId);
   if (!clusterId) return true;
 
@@ -78,8 +84,15 @@ export async function isFeatureEnabled(featureKey: string, userClusterId?: strin
 /**
  * Get all effective flags for the active cluster in one query.
  * Returns map: featureKey → isEnabled. Missing keys default to true.
+ * super_admin gets every flag ON (cross-tenant bypass).
  */
-export async function getEffectiveFlags(userClusterId?: string | null): Promise<Record<string, boolean>> {
+export async function getEffectiveFlags(
+  userClusterId?: string | null,
+  userRole?: string,
+): Promise<Record<string, boolean>> {
+  if (userRole === 'super_admin') {
+    return Object.fromEntries(FEATURE_KEYS.map((k) => [k, true]));
+  }
   const clusterId = await getActiveClusterId(userClusterId);
   if (!clusterId) {
     return Object.fromEntries(FEATURE_KEYS.map((k) => [k, true]));

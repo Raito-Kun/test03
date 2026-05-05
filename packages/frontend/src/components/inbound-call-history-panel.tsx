@@ -60,7 +60,7 @@ export function InboundCallHistoryPanel({
       <CardHeader className="pb-2 pt-3 px-3">
         <CardTitle className="text-sm flex items-center justify-between gap-2">
           <span className="flex items-center gap-1.5">
-            <Phone className="h-4 w-4 text-slate-500" />
+            <Phone className="h-4 w-4 text-muted-foreground" />
             Lịch sử cuộc gọi
           </span>
           {ticketCount > 0 && (
@@ -84,13 +84,13 @@ export function InboundCallHistoryPanel({
             ))}
           </div>
         ) : calls.length === 0 ? (
-          <p className="text-xs text-slate-400 text-center py-3">Không có cuộc gọi nào</p>
+          <p className="text-xs text-muted-foreground text-center py-3">Không có cuộc gọi nào</p>
         ) : (
           <div className="space-y-1 max-h-52 overflow-y-auto">
             {calls.map((c) => (
               <div
                 key={c.id}
-                className="flex items-center gap-2 rounded bg-slate-50 px-2 py-1.5 text-xs"
+                className="flex items-center gap-2 rounded bg-muted px-2 py-1.5 text-xs"
               >
                 {c.direction === 'inbound' ? (
                   <PhoneIncoming className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
@@ -109,20 +109,20 @@ export function InboundCallHistoryPanel({
                   {c.direction === 'inbound' ? 'Cuộc gọi đến' : 'Cuộc gọi đi'}
                 </Badge>
 
-                <span className="text-slate-500 shrink-0">
+                <span className="text-muted-foreground shrink-0">
                   {format(new Date(c.startTime), 'dd/MM HH:mm')}
                 </span>
 
-                <span className="font-medium text-slate-700 shrink-0">
+                <span className="font-medium text-foreground shrink-0">
                   {formatDuration(c.duration)}
                 </span>
 
                 {c.dispositionCode && (
-                  <span className="text-slate-500 truncate">{c.dispositionCode}</span>
+                  <span className="text-muted-foreground truncate">{c.dispositionCode}</span>
                 )}
 
                 {c.agentName && (
-                  <span className="ml-auto text-slate-400 truncate shrink-0 max-w-[80px]">
+                  <span className="ml-auto text-muted-foreground truncate shrink-0 max-w-[80px]">
                     {c.agentName}
                   </span>
                 )}

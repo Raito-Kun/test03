@@ -51,8 +51,8 @@ function monogram(name: string): string {
 
 function AgentRow({ agent }: { agent: AgentStatus }) {
   const status = agent.currentStatus.status;
-  const dot = STATUS_DOT[status] || "bg-slate-400";
-  const chip = STATUS_CHIP[status] || "border-slate-200 text-slate-600 bg-slate-50";
+  const dot = STATUS_DOT[status] || "bg-muted-foreground/60";
+  const chip = STATUS_CHIP[status] || "border-border text-muted-foreground bg-muted";
   const label =
     VI.agentStatus[status as keyof typeof VI.agentStatus] || status;
   const elapsed = agent.currentStatus.updatedAt
@@ -60,12 +60,12 @@ function AgentRow({ agent }: { agent: AgentStatus }) {
     : null;
 
   return (
-    <div className="flex items-center gap-2.5 py-1.5 border-b border-border/40 last:border-0">
+    <div className="flex items-center gap-2.5 py-1.5 border-b border-dashed border-border/40 last:border-0">
       {/* Avatar monogram */}
-      <div className="w-6 h-6 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center shrink-0">
+      <div className="w-6 h-6 rounded-full bg-accent text-accent-foreground flex items-center justify-center shrink-0">
         <span className="font-mono text-[9px] font-bold">{monogram(agent.fullName)}</span>
       </div>
-      {/* Name */}
+      {/* Name + ext */}
       <div className="flex-1 min-w-0">
         <p className="font-mono text-[11px] text-foreground truncate">{agent.fullName}</p>
         {agent.sipExtension && (
@@ -107,10 +107,25 @@ export function AgentsPanel() {
   return (
     <DottedCard className="flex flex-col h-full min-h-[280px]">
       <SectionHeader
-        label="Trạng thái agents"
-        hint={`${online}/${total} · ext.101-399`}
+        label="Nhân viên trực tuyến"
+        hint={`ext.101-399`}
         className="mb-3"
       />
+
+      {/* Prominent online count — matches mockup "12 Online" */}
+      <div className="flex items-center gap-2 mb-3 pb-3 border-b border-dashed border-border/40">
+        <span className="font-mono text-3xl font-semibold text-foreground tabular-nums leading-none">
+          {online}
+        </span>
+        <div className="flex flex-col">
+          <div className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <span className="font-mono text-[11px] text-emerald-700 font-medium">Online</span>
+          </div>
+          <span className="font-mono text-[10px] text-muted-foreground">/ {total} tổng</span>
+        </div>
+      </div>
+
       {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -122,7 +137,7 @@ export function AgentsPanel() {
           Chưa có agent nào
         </p>
       ) : (
-        <div className="overflow-y-auto max-h-60 pr-0.5" style={{ scrollbarWidth: "thin" }}>
+        <div className="overflow-y-auto max-h-52 pr-0.5" style={{ scrollbarWidth: "thin" }}>
           {(agents ?? []).map((a) => (
             <AgentRow key={a.id} agent={a} />
           ))}

@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { ChevronDown, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { VI } from '@/lib/vi-text';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter,
-} from '@/components/ui/sheet';
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog';
 import api from '@/services/api-client';
+import { PROVINCES, DISTRICTS } from '@/lib/vietnam-provinces';
 
 interface Contact {
   id: string;
@@ -19,7 +20,8 @@ interface Contact {
   phoneAlt?: string;
   email?: string;
   tags?: string[];
-  notes?: string;
+  gender?: 'male' | 'female' | 'other';
+  dateOfBirth?: string;
   occupation?: string;
   income?: string | number;
   province?: string;
@@ -40,61 +42,89 @@ interface ContactFormProps {
   contact?: Contact;
 }
 
+type GenderValue = 'male' | 'female' | 'other' | '';
+
 interface FormState {
-  fullName: string; phone: string; phoneAlt: string; email: string;
-  tags: string; notes: string;
-  occupation: string; income: string;
-  province: string; district: string; fullAddress: string;
-  company: string; jobTitle: string; companyEmail: string;
-  creditLimit: string; bankAccount: string; bankName: string;
+  fullName: string;
+  phone: string;
+  phoneAlt: string;
+  email: string;
+  tags: string;
+  gender: GenderValue;
+  dateOfBirth: string;
+  occupation: string;
+  income: string;
+  province: string;
+  district: string;
+  fullAddress: string;
+  company: string;
+  jobTitle: string;
+  companyEmail: string;
+  creditLimit: string;
+  bankAccount: string;
+  bankName: string;
   internalNotes: string;
 }
 
 const EMPTY_FORM: FormState = {
-  fullName: '', phone: '', phoneAlt: '', email: '', tags: '', notes: '',
-  occupation: '', income: '', province: '', district: '', fullAddress: '',
-  company: '', jobTitle: '', companyEmail: '', creditLimit: '',
-  bankAccount: '', bankName: '', internalNotes: '',
+  fullName: '', phone: '', phoneAlt: '', email: '', tags: '',
+  gender: '', dateOfBirth: '',
+  occupation: '', income: '',
+  province: '', district: '', fullAddress: '',
+  company: '', jobTitle: '', companyEmail: '',
+  creditLimit: '', bankAccount: '', bankName: '',
+  internalNotes: '',
 };
 
 function toFormState(c: Contact): FormState {
   return {
-    fullName: c.fullName ?? '', phone: c.phone ?? '',
-    phoneAlt: c.phoneAlt ?? '', email: c.email ?? '',
-    tags: c.tags?.join(', ') ?? '', notes: c.notes ?? '',
+    fullName: c.fullName ?? '',
+    phone: c.phone ?? '',
+    phoneAlt: c.phoneAlt ?? '',
+    email: c.email ?? '',
+    tags: c.tags?.join(', ') ?? '',
+    gender: (c.gender as GenderValue) ?? '',
+    dateOfBirth: c.dateOfBirth ? c.dateOfBirth.slice(0, 10) : '',
     occupation: c.occupation ?? '',
     income: c.income != null ? String(c.income) : '',
-    province: c.province ?? '', district: c.district ?? '',
-    fullAddress: c.fullAddress ?? '', company: c.company ?? '',
-    jobTitle: c.jobTitle ?? '', companyEmail: c.companyEmail ?? '',
+    province: c.province ?? '',
+    district: c.district ?? '',
+    fullAddress: c.fullAddress ?? '',
+    company: c.company ?? '',
+    jobTitle: c.jobTitle ?? '',
+    companyEmail: c.companyEmail ?? '',
     creditLimit: c.creditLimit != null ? String(c.creditLimit) : '',
-    bankAccount: c.bankAccount ?? '', bankName: c.bankName ?? '',
+    bankAccount: c.bankAccount ?? '',
+    bankName: c.bankName ?? '',
     internalNotes: c.internalNotes ?? '',
   };
 }
 
-interface SectionProps {
-  title: string;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-}
-
-function Section({ title, children, defaultOpen = false }: SectionProps) {
-  const [open, setOpen] = useState(defaultOpen);
+function Field({
+  label, required, error, children,
+}: {
+  label: string; required?: boolean; error?: string; children: React.ReactNode;
+}) {
   return (
-    <div>
-      <button
-        type="button"
-        className="flex w-full items-center justify-between py-2 text-sm font-semibold border-b hover:text-primary transition-colors"
-        onClick={() => setOpen((v) => !v)}
-      >
-        {title}
-        <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && <div className="space-y-3 pt-3 pb-1">{children}</div>}
+    <div className="space-y-1">
+      <Label className={`text-[10px] font-bold uppercase tracking-widest font-mono ${error ? 'text-destructive' : 'text-muted-foreground'}`}>
+        {label}{required && <span className="text-destructive ml-0.5">*</span>}
+      </Label>
+      {children}
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }
+
+function SectionTitle({ title }: { title: string }) {
+  return (
+    <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-mono border-b border-dashed border-border pb-2 mb-3">
+      {title}
+    </h3>
+  );
+}
+
+const selectClass = 'flex h-[42px] w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50';
 
 export function ContactForm({ open, onClose, contact }: ContactFormProps) {
   const queryClient = useQueryClient();
@@ -105,6 +135,8 @@ export function ContactForm({ open, onClose, contact }: ContactFormProps) {
     setForm(contact ? toFormState(contact) : EMPTY_FORM);
     setErrors({});
   }, [contact, open]);
+
+  const districtOptions = form.province ? (DISTRICTS[form.province] ?? []) : [];
 
   const mutation = useMutation({
     mutationFn: (payload: Record<string, unknown>) =>
@@ -117,7 +149,12 @@ export function ContactForm({ open, onClose, contact }: ContactFormProps) {
       toast.success(contact ? 'Đã cập nhật liên hệ' : 'Đã tạo liên hệ');
       onClose();
     },
-    onError: () => toast.error('Lưu thất bại'),
+    onError: (err: any) => {
+      const msg = err?.response?.data?.error?.message
+        || err?.response?.data?.errors?.map((e: any) => `${e.path}: ${e.message}`).join(', ')
+        || 'Lưu thất bại';
+      toast.error(msg);
+    },
   });
 
   function validate(): boolean {
@@ -131,132 +168,185 @@ export function ContactForm({ open, onClose, contact }: ContactFormProps) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
-    mutation.mutate({
-      ...form,
-      tags: form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
-      income: form.income ? Number(form.income) : undefined,
-      creditLimit: form.creditLimit ? Number(form.creditLimit) : undefined,
-    });
+
+    // Find province/district names for submission
+    const provinceName = PROVINCES.find((p) => p.code === form.province)?.name ?? form.province;
+    const districtName = districtOptions.find((d) => d.code === form.district)?.name ?? form.district;
+
+    const payload: Record<string, unknown> = {
+      fullName: form.fullName,
+      phone: form.phone,
+      ...(form.phoneAlt && { phoneAlt: form.phoneAlt }),
+      ...(form.email && { email: form.email }),
+      ...(form.gender && { gender: form.gender }),
+      ...(form.dateOfBirth && { dateOfBirth: new Date(form.dateOfBirth).toISOString() }),
+      ...(form.tags && { tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean) }),
+      ...(form.occupation && { occupation: form.occupation }),
+      ...(form.income ? { income: Number(form.income) } : {}),
+      ...(form.province && { province: provinceName }),
+      ...(form.district && { district: districtName }),
+      ...(form.fullAddress && { fullAddress: form.fullAddress }),
+      ...(form.company && { company: form.company }),
+      ...(form.jobTitle && { jobTitle: form.jobTitle }),
+      ...(form.companyEmail && { companyEmail: form.companyEmail }),
+      ...(form.creditLimit ? { creditLimit: Number(form.creditLimit) } : {}),
+      ...(form.bankAccount && { bankAccount: form.bankAccount }),
+      ...(form.bankName && { bankName: form.bankName }),
+      ...(form.internalNotes && { internalNotes: form.internalNotes }),
+    };
+    mutation.mutate(payload);
   }
 
   function handleChange(field: keyof FormState) {
-    return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
       setForm((prev) => ({ ...prev, [field]: e.target.value }));
       if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
     };
   }
 
+  function handleProvinceChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    setForm((prev) => ({ ...prev, province: e.target.value, district: '' }));
+  }
+
   return (
-    <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-lg overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>{contact ? VI.contact.editTitle : VI.contact.createTitle}</SheetTitle>
-        </SheetHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[900px] w-[95vw] max-h-[90vh] overflow-y-auto p-6">
+        <DialogHeader>
+          <DialogTitle>{contact ? VI.contact.editTitle : VI.contact.createTitle}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-5 pt-2">
 
-          {/* Basic — always open */}
-          <Section title={VI.contact.sections.basic} defaultOpen>
-            <div className="space-y-1">
-              <Label htmlFor="fullName">{VI.contact.fullName} *</Label>
-              <Input id="fullName" value={form.fullName} onChange={handleChange('fullName')} placeholder="Nguyễn Văn A" />
-              {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
+          {/* Thông tin cơ bản */}
+          <div>
+            <SectionTitle title={VI.contact.sections.basic} />
+            <div className="grid grid-cols-3 gap-4">
+              <Field label={VI.contact.fullName} required error={errors.fullName}>
+                <Input value={form.fullName} onChange={handleChange('fullName')} placeholder="Nguyễn Văn A" />
+              </Field>
+              <Field label={VI.contact.phone} required error={errors.phone}>
+                <Input value={form.phone} onChange={handleChange('phone')} placeholder="0901234567" />
+              </Field>
+              <Field label={VI.contact.phoneAlt}>
+                <Input value={form.phoneAlt} onChange={handleChange('phoneAlt')} placeholder="0901234568" />
+              </Field>
+              <Field label={VI.contact.email}>
+                <Input type="email" value={form.email} onChange={handleChange('email')} placeholder="email@example.com" />
+              </Field>
+              <Field label={VI.contact.gender}>
+                <select
+                  className={selectClass}
+                  value={form.gender}
+                  onChange={handleChange('gender')}
+                >
+                  <option value="">(trống)</option>
+                  <option value="male">Nam</option>
+                  <option value="female">Nữ</option>
+                  <option value="other">Khác</option>
+                </select>
+              </Field>
+              <Field label={VI.contact.dateOfBirth}>
+                <Input type="date" value={form.dateOfBirth} onChange={handleChange('dateOfBirth')} />
+              </Field>
+              <Field label={VI.contact.tags}>
+                <Input value={form.tags} onChange={handleChange('tags')} placeholder="VIP, Khách cũ" />
+              </Field>
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="phone">{VI.contact.phone} *</Label>
-              <Input id="phone" value={form.phone} onChange={handleChange('phone')} placeholder="0901234567" />
-              {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="phoneAlt">{VI.contact.phoneAlt}</Label>
-              <Input id="phoneAlt" value={form.phoneAlt} onChange={handleChange('phoneAlt')} placeholder="0901234568" />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="email">{VI.contact.email}</Label>
-              <Input id="email" type="email" value={form.email} onChange={handleChange('email')} placeholder="email@example.com" />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="tags">{VI.contact.tags}</Label>
-              <Input id="tags" value={form.tags} onChange={handleChange('tags')} placeholder="VIP, Khách cũ (phân cách bằng dấu phẩy)" />
-            </div>
-          </Section>
+          </div>
 
-          {/* Work */}
-          <Section title={VI.contact.sections.work}>
-            <div className="space-y-1">
-              <Label htmlFor="company">{VI.contact.company}</Label>
-              <Input id="company" value={form.company} onChange={handleChange('company')} />
+          {/* Công việc */}
+          <div>
+            <SectionTitle title={VI.contact.sections.work} />
+            <div className="grid grid-cols-3 gap-4">
+              <Field label={VI.contact.company}>
+                <Input value={form.company} onChange={handleChange('company')} />
+              </Field>
+              <Field label={VI.contact.jobTitle}>
+                <Input value={form.jobTitle} onChange={handleChange('jobTitle')} />
+              </Field>
+              <Field label={VI.contact.companyEmail}>
+                <Input type="email" value={form.companyEmail} onChange={handleChange('companyEmail')} />
+              </Field>
+              <Field label={VI.contact.occupation}>
+                <Input value={form.occupation} onChange={handleChange('occupation')} />
+              </Field>
+              <Field label={VI.contact.income}>
+                <Input type="number" value={form.income} onChange={handleChange('income')} placeholder="" />
+              </Field>
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="jobTitle">{VI.contact.jobTitle}</Label>
-              <Input id="jobTitle" value={form.jobTitle} onChange={handleChange('jobTitle')} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="companyEmail">{VI.contact.companyEmail}</Label>
-              <Input id="companyEmail" type="email" value={form.companyEmail} onChange={handleChange('companyEmail')} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="occupation">{VI.contact.occupation}</Label>
-              <Input id="occupation" value={form.occupation} onChange={handleChange('occupation')} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="income">{VI.contact.income}</Label>
-              <Input id="income" type="number" value={form.income} onChange={handleChange('income')} />
-            </div>
-          </Section>
+          </div>
 
-          {/* Address */}
-          <Section title={VI.contact.sections.address}>
-            <div className="space-y-1">
-              <Label htmlFor="province">{VI.contact.province}</Label>
-              <Input id="province" value={form.province} onChange={handleChange('province')} />
+          {/* Địa chỉ */}
+          <div>
+            <SectionTitle title={VI.contact.sections.address} />
+            <div className="grid grid-cols-3 gap-4">
+              <Field label={VI.contact.province}>
+                <select
+                  className={selectClass}
+                  value={form.province}
+                  onChange={handleProvinceChange}
+                >
+                  <option value="">(trống)</option>
+                  {PROVINCES.map((p) => (
+                    <option key={p.code} value={p.code}>{p.name}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label={VI.contact.district}>
+                <select
+                  className={selectClass}
+                  value={form.district}
+                  onChange={handleChange('district')}
+                  disabled={districtOptions.length === 0}
+                >
+                  <option value="">(trống)</option>
+                  {districtOptions.map((d) => (
+                    <option key={d.code} value={d.code}>{d.name}</option>
+                  ))}
+                </select>
+              </Field>
+              <div className="col-span-3">
+                <Field label={VI.contact.fullAddress}>
+                  <Textarea value={form.fullAddress} onChange={handleChange('fullAddress')} rows={2} />
+                </Field>
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="district">{VI.contact.district}</Label>
-              <Input id="district" value={form.district} onChange={handleChange('district')} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="fullAddress">{VI.contact.fullAddress}</Label>
-              <Textarea id="fullAddress" value={form.fullAddress} onChange={handleChange('fullAddress')} rows={2} />
-            </div>
-          </Section>
+          </div>
 
-          {/* Finance */}
-          <Section title={VI.contact.sections.finance}>
-            <div className="space-y-1">
-              <Label htmlFor="creditLimit">{VI.contact.creditLimit}</Label>
-              <Input id="creditLimit" type="number" value={form.creditLimit} onChange={handleChange('creditLimit')} />
+          {/* Tài chính */}
+          <div>
+            <SectionTitle title={VI.contact.sections.finance} />
+            <div className="grid grid-cols-3 gap-4">
+              <Field label={VI.contact.creditLimit}>
+                <Input type="number" value={form.creditLimit} onChange={handleChange('creditLimit')} placeholder="" />
+              </Field>
+              <Field label={VI.contact.bankAccount}>
+                <Input value={form.bankAccount} onChange={handleChange('bankAccount')} />
+              </Field>
+              <Field label={VI.contact.bankName}>
+                <Input value={form.bankName} onChange={handleChange('bankName')} />
+              </Field>
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="bankAccount">{VI.contact.bankAccount}</Label>
-              <Input id="bankAccount" value={form.bankAccount} onChange={handleChange('bankAccount')} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="bankName">{VI.contact.bankName}</Label>
-              <Input id="bankName" value={form.bankName} onChange={handleChange('bankName')} />
-            </div>
-          </Section>
+          </div>
 
-          {/* Notes */}
-          <Section title={VI.contact.sections.notes}>
-            <div className="space-y-1">
-              <Label htmlFor="notes">{VI.lead.notes}</Label>
-              <Textarea id="notes" value={form.notes} onChange={handleChange('notes')} rows={3} />
+          {/* Ghi chú */}
+          <div>
+            <SectionTitle title={VI.contact.sections.notes} />
+            <div className="grid grid-cols-1 gap-4">
+              <Field label={VI.contact.internalNotes}>
+                <Textarea value={form.internalNotes} onChange={handleChange('internalNotes')} rows={3} />
+              </Field>
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="internalNotes">{VI.contact.internalNotes}</Label>
-              <Textarea id="internalNotes" value={form.internalNotes} onChange={handleChange('internalNotes')} rows={3} />
-            </div>
-          </Section>
+          </div>
 
-          <SheetFooter className="pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>{VI.actions.cancel}</Button>
-            <Button type="submit" disabled={mutation.isPending}>
+          <DialogFooter className="pt-2 border-t border-dashed border-border">
+            <Button type="button" variant="outline" className="border-dashed" onClick={onClose}>{VI.actions.cancel}</Button>
+            <Button type="submit" disabled={mutation.isPending} className="bg-primary hover:bg-primary/90">
               {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {VI.actions.save}
             </Button>
-          </SheetFooter>
+          </DialogFooter>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

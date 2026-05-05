@@ -13,9 +13,13 @@ const dispositionSelect = {
   sortOrder: true,
 };
 
-export async function listDispositionCodes(isActive?: boolean) {
+export async function listDispositionCodes(isActive?: boolean, category?: 'telesale' | 'collection') {
+  // When category is passed, include category codes + 'both' (applicable to any campaign type).
+  const where: Record<string, unknown> = {};
+  if (isActive !== undefined) where.isActive = isActive;
+  if (category) where.category = { in: [category, 'both'] };
   return prisma.dispositionCode.findMany({
-    where: isActive !== undefined ? { isActive } : undefined,
+    where: Object.keys(where).length ? where : undefined,
     select: dispositionSelect,
     orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
   });
@@ -91,7 +95,11 @@ export async function deleteDispositionCode(id: string, userId: string, req?: Re
   logAudit(userId, 'delete', 'disposition_codes', id, null, req);
 }
 
-/** Set disposition on a call log */
+/** Set disposition on a call log.
+ *  `notes` here is NOT written to `call_logs.notes` (that column stores the call-source tag
+ *  'c2c'/'autocall'/'callbot'). The optional `notes` argument is only recorded in the audit log
+ *  as a free-text reason for the change.
+ */
 export async function setCallDisposition(
   callLogId: string,
   dispositionCodeId: string,
@@ -99,7 +107,10 @@ export async function setCallDisposition(
   userId: string,
   req?: Request,
 ) {
-  const callLog = await prisma.callLog.findUnique({ where: { id: callLogId } });
+  const callLog = await prisma.callLog.findUnique({
+    where: { id: callLogId },
+    select: { id: true, dispositionCodeId: true },
+  });
   if (!callLog) throw Object.assign(new Error('Call log not found'), { code: 'NOT_FOUND' });
 
   const dc = await getDispositionCodeById(dispositionCodeId);
@@ -108,16 +119,30 @@ export async function setCallDisposition(
     where: { id: callLogId },
     data: {
       dispositionCodeId,
-      ...(notes !== undefined && { notes }),
+      dispositionSetByUserId: userId,
+      dispositionSetAt: new Date(),
     },
     select: {
       id: true,
       callUuid: true,
       dispositionCode: { select: { id: true, code: true, label: true } },
-      notes: true,
+      dispositionSetAt: true,
+      dispositionSetBy: { select: { id: true, fullName: true } },
     },
   });
 
-  logAudit(userId, 'update', 'call_logs', callLogId, { dispositionCodeId, notes }, req);
+  logAudit(
+    userId,
+    'update',
+    'call_logs',
+    callLogId,
+    {
+      field: 'dispositionCodeId',
+      previous: callLog.dispositionCodeId,
+      next: dispositionCodeId,
+      ...(notes ? { reason: notes } : {}),
+    },
+    req,
+  );
   return { ...updated, dispositionCode: dc };
 }

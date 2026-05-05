@@ -148,11 +148,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         end={to === '/'}
         className={({ isActive }) =>
           cn(
-            'group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
-            'hover:bg-white/10 hover:text-white',
+            'group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150',
+            'hover:bg-[var(--sidebar-accent)]',
             isActive
-              ? 'bg-[var(--sidebar-accent)] text-white shadow-sm'
-              : 'text-[var(--sidebar-foreground)]',
+              ? 'bg-[var(--sidebar-accent)] text-[var(--sidebar-accent-foreground)] font-semibold'
+              : 'text-[var(--sidebar-foreground)] hover:text-[var(--sidebar-accent-foreground)]',
             collapsed && 'justify-center px-2',
           )
         }
@@ -177,7 +177,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       return (
         <Tooltip key={to} delayDuration={0}>
           <TooltipTrigger asChild>{link}</TooltipTrigger>
-          <TooltipContent side="right" className="bg-slate-800 text-white border-slate-700">{label}</TooltipContent>
+          <TooltipContent side="right">{label}</TooltipContent>
         </Tooltip>
       );
     }
@@ -191,7 +191,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     <motion.aside
       animate={{ width: collapsed ? 64 : 224 }}
       transition={{ duration: 0.2, ease: 'easeInOut' }}
-      className="flex flex-col bg-[var(--sidebar)] text-[var(--sidebar-foreground)] shadow-xl overflow-hidden"
+      className="flex flex-col bg-[var(--sidebar)] text-[var(--sidebar-foreground)] border-r border-[var(--sidebar-border)] overflow-hidden"
     >
       {/* Logo + collapse toggle */}
       <div className="flex h-12 items-center px-3 border-b border-[var(--sidebar-border)] shrink-0">
@@ -239,7 +239,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {bottomItems.length > 0 && (
         <div className="border-t border-[var(--sidebar-border)] p-2 space-y-0.5">
           {!collapsed && (
-            <p className="px-3 py-1.5 text-[10px] font-mono font-semibold uppercase tracking-widest text-white/35">
+            <p className="px-3 py-1.5 text-[10px] font-mono font-semibold uppercase tracking-widest text-[var(--muted-foreground)]">
               HỆ THỐNG
             </p>
           )}
@@ -251,10 +251,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       <div className="border-t border-[var(--sidebar-border)] px-3 py-2.5 shrink-0">
         {collapsed ? (
           <div className="flex justify-center">
-            <span className="text-[10px] font-mono text-white/30 uppercase">{ext ?? '—'}</span>
+            <span className="text-[10px] font-mono text-[var(--muted-foreground)] uppercase">{ext ?? '—'}</span>
           </div>
         ) : (
-          <p className="text-[10px] font-mono text-white/40 truncate">
+          <p className="text-[10px] font-mono text-[var(--muted-foreground)] truncate">
             {roleName} · {ext ? `ext.${ext}` : '—'}
           </p>
         )}

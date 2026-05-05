@@ -42,6 +42,15 @@ export interface DuplicateEntry {
   action: DuplicateAction;
 }
 
+/** Phone repeats earlier in the same upload. Default action: skip. */
+export interface InternalDuplicateEntry {
+  rowNumber: number;
+  new: ContactImportRow;
+  firstOccurrenceRow: number;
+  /** Only 'create' or 'skip' are meaningful here (no DB row to merge with). */
+  action: 'skip' | 'create';
+}
+
 export interface Agent {
   id: string;
   fullName: string;

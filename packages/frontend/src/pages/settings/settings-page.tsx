@@ -1,17 +1,15 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Loader2, Phone } from 'lucide-react';
+import { Loader2, Phone, ChevronRight, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { VI } from '@/lib/vi-text';
 import { useAuthStore } from '@/stores/auth-store';
 import api from '@/services/api-client';
 import { DottedCard } from '@/components/ops/dotted-card';
-import { SectionHeader } from '@/components/ops/section-header';
 
 const ADMIN_ROLES = ['admin', 'super_admin'];
 
@@ -68,7 +66,21 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <SectionHeader label={VI.settings.title} />
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1.5 text-sm">
+        <Settings className="h-3.5 w-3.5 text-muted-foreground" />
+        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-primary font-semibold">{VI.settings.title}</span>
+      </nav>
+
+      {/* Page heading */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">{VI.settings.title}</h1>
+        <p className="text-sm text-muted-foreground mt-1">Quản lý tài khoản và cấu hình hệ thống</p>
+      </div>
+
+      {/* Dashed divider */}
+      <div className="border-b border-dashed border-border" />
 
       {/* Profile */}
       <DottedCard header={VI.settings.profileTitle}>
@@ -79,7 +91,7 @@ export default function SettingsPage() {
         </div>
       </DottedCard>
 
-      <Separator />
+      <div className="border-b border-dashed border-border" />
 
       {/* SIP Configuration */}
       <DottedCard header="Cấu hình SIP">
@@ -95,6 +107,7 @@ export default function SettingsPage() {
               value={sipInput}
               onChange={(e) => setSipInput(e.target.value)}
               placeholder="VD: 1001"
+              className="font-mono"
             />
           </div>
           <Button
@@ -109,7 +122,7 @@ export default function SettingsPage() {
 
       {isAdmin && (
         <>
-          <Separator />
+          <div className="border-b border-dashed border-border" />
           <DottedCard header="Quản trị hệ thống">
             <div className="flex gap-4">
               <Link to="/settings/extensions">
@@ -123,7 +136,7 @@ export default function SettingsPage() {
         </>
       )}
 
-      <Separator />
+      <div className="border-b border-dashed border-border" />
 
       {/* Change password */}
       <DottedCard header={VI.settings.passwordTitle}>
@@ -159,7 +172,7 @@ export default function SettingsPage() {
             />
           </div>
           {pwError && <p className="text-xs text-destructive">{pwError}</p>}
-          <Button type="submit" disabled={passwordMutation.isPending}>
+          <Button type="submit" disabled={passwordMutation.isPending} className="bg-primary hover:bg-primary/90">
             {passwordMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {VI.settings.passwordTitle}
           </Button>

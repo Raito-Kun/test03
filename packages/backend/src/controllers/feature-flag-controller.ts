@@ -47,7 +47,7 @@ export async function bulkUpdateFlags(req: Request, res: Response) {
 /** GET /api/v1/feature-flags/effective — returns effective flags for current user's cluster */
 export async function getEffectiveFlags(req: Request, res: Response) {
   try {
-    const flags = await featureFlagService.getEffectiveFlags(req.user?.clusterId);
+    const flags = await featureFlagService.getEffectiveFlags(req.user?.clusterId, req.user?.role);
     res.json({ success: true, data: flags });
   } catch (err: any) {
     res.status(500).json({ success: false, error: { code: 'INTERNAL', message: err.message } });

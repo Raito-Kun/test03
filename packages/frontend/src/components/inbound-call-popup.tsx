@@ -1,120 +1,134 @@
-import { useCallStore } from '@/stores/call-store';
-import { useQuery } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Phone, PhoneOff, X, UserPlus, Users, RefreshCw, Copy, FolderSync } from 'lucide-react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Phone, PhoneOff, Clock, Ticket } from 'lucide-react';
-import { fmtPhone, formatDuration } from '@/lib/format';
-import { format } from 'date-fns';
-import api from '@/services/api-client';
-import { VI } from '@/lib/vi-text';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useInboundCallStore } from '@/stores/inbound-call-store';
+import { useCallStore } from '@/stores/call-store';
 
-interface RecentCall {
-  id: string;
-  direction: string;
-  duration: number;
-  startTime: string;
-  hangupCause?: string;
+const ACTION_ITEMS = [
+  { icon: UserPlus, label: 'Thêm khách hàng' },
+  { icon: Users, label: 'Phân bổ công việc chuyên viên trong hàng đợi' },
+  { icon: RefreshCw, label: 'Tự động phân bổ lại chuyên viên' },
+  { icon: Copy, label: 'Sao chép liên hệ từ chiến dịch khác' },
+  { icon: FolderSync, label: 'Cập nhật nhóm khách hàng' },
+];
+
+function InboundCallCard({
+  callerName,
+  phone,
+  onAnswer,
+  onEnd,
+}: {
+  callerName: string;
+  phone: string;
+  onAnswer: () => void;
+  onEnd: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 40 }}
+      transition={{ duration: 0.22, ease: 'easeOut' }}
+      className="fixed bottom-4 right-4 z-50 w-72"
+    >
+      <Card className="shadow-xl border-border">
+        <CardHeader className="pb-2 pt-3 px-4 flex-row items-center justify-between space-y-0">
+          <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <Phone className="h-4 w-4 animate-pulse text-green-600" />
+            Cuộc gọi đến
+          </div>
+          <button
+            onClick={onEnd}
+            className="rounded p-0.5 text-muted-foreground hover:text-muted-foreground hover:bg-muted transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </CardHeader>
+
+        <CardContent className="px-4 pb-4 space-y-3">
+          {/* Caller info */}
+          <div>
+            <p className="font-semibold text-foreground">{callerName}</p>
+            <p className="text-sm text-muted-foreground">Mobile: {phone}</p>
+          </div>
+
+          {/* Answer / End buttons */}
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+              onClick={onAnswer}
+            >
+              <Phone className="mr-1.5 h-3.5 w-3.5" />
+              Trả lời
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 border-red-300 text-red-600 hover:bg-red-50"
+              onClick={onEnd}
+            >
+              <PhoneOff className="mr-1.5 h-3.5 w-3.5" />
+              Kết thúc
+            </Button>
+          </div>
+
+          {/* Action menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="ghost" className="w-full text-xs text-muted-foreground">
+                Thao tác khác
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              {ACTION_ITEMS.map(({ icon: Icon, label }) => (
+                <DropdownMenuItem key={label} className="text-xs gap-2">
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                  {label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
 }
 
 export function InboundCallPopup() {
-  const popup = useCallStore((s) => s.inboundPopup);
-  const dismiss = useCallStore((s) => s.dismissInboundPopup);
+  const { call, showPopup, answerCall, endCall } = useInboundCallStore();
 
-  const { data: recentCalls } = useQuery({
-    queryKey: ['inbound-popup-calls', popup?.phone],
-    queryFn: async () => {
-      const { data } = await api.get('/call-logs', { params: { search: popup!.phone, limit: 5 } });
-      return (data.data as RecentCall[]) ?? [];
-    },
-    enabled: !!popup?.phone,
-  });
-
-  const { data: contactInfo } = useQuery({
-    queryKey: ['inbound-popup-contact', popup?.phone],
-    queryFn: async () => {
-      const { data } = await api.get('/contacts', { params: { search: popup!.phone, limit: 1 } });
-      const contacts = data.data as { id: string; fullName: string; tags?: string[] }[];
-      return contacts[0] ?? null;
-    },
-    enabled: !!popup?.phone,
-  });
-
-  const { data: ticketCount } = useQuery({
-    queryKey: ['inbound-popup-tickets', contactInfo?.id],
-    queryFn: async () => {
-      const { data } = await api.get('/tickets', { params: { contactId: contactInfo!.id, status: 'open', limit: 1 } });
-      return (data.data as { total?: number })?.total ?? 0;
-    },
-    enabled: !!contactInfo?.id,
-  });
-
-  if (!popup) return null;
+  // Backward-compat: also show for WebSocket-triggered inbound calls from call-store
+  const legacyPopup = useCallStore((s) => s.inboundPopup);
+  const dismissLegacy = useCallStore((s) => s.dismissInboundPopup);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40">
-      <Card className="w-96 animate-in zoom-in-95 shadow-xl">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Phone className="h-5 w-5 animate-pulse text-green-600" />
-            Cuộc gọi đến
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Caller info */}
-          <div className="text-center">
-            <p className="text-xl font-semibold">{popup.contactName || fmtPhone(popup.phone)}</p>
-            <p className="text-muted-foreground">{fmtPhone(popup.phone)}</p>
-            {contactInfo?.tags && contactInfo.tags.length > 0 && (
-              <div className="flex justify-center gap-1 mt-1">
-                {contactInfo.tags.map((t) => <Badge key={t} variant="secondary" className="text-xs">{t}</Badge>)}
-              </div>
-            )}
-          </div>
-
-          {/* Quick stats */}
-          <div className="flex gap-3 justify-center">
-            {ticketCount !== undefined && ticketCount > 0 && (
-              <div className="flex items-center gap-1 text-sm text-orange-600">
-                <Ticket className="h-4 w-4" />
-                <span>{ticketCount} phiếu mở</span>
-              </div>
-            )}
-            {recentCalls && recentCalls.length > 0 && (
-              <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Clock className="h-4 w-4" />
-                <span>{recentCalls.length} cuộc gần đây</span>
-              </div>
-            )}
-          </div>
-
-          {/* Recent calls */}
-          {recentCalls && recentCalls.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Lịch sử cuộc gọi gần đây</p>
-              {recentCalls.slice(0, 5).map((c) => (
-                <div key={c.id} className="flex items-center justify-between text-xs bg-muted/50 rounded px-2 py-1">
-                  <Badge variant={c.direction === 'inbound' ? 'default' : 'secondary'} className="text-[10px]">
-                    {c.direction === 'inbound' ? VI.callLog.inbound : VI.callLog.outbound}
-                  </Badge>
-                  <span>{formatDuration(c.duration)}</span>
-                  <span className="text-muted-foreground">{format(new Date(c.startTime), 'dd/MM/yy HH:mm')}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex justify-center gap-3">
-            <Button variant="destructive" size="sm" onClick={dismiss}>
-              <PhoneOff className="mr-1 h-4 w-4" /> Từ chối
-            </Button>
-            <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700" onClick={dismiss}>
-              <Phone className="mr-1 h-4 w-4" /> Nghe
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    <AnimatePresence>
+      {showPopup && call && (
+        <InboundCallCard
+          key="inbound-new"
+          callerName={call.callerName}
+          phone={call.phone}
+          onAnswer={answerCall}
+          onEnd={endCall}
+        />
+      )}
+      {!showPopup && legacyPopup && (
+        <InboundCallCard
+          key="inbound-legacy"
+          callerName={legacyPopup.contactName}
+          phone={legacyPopup.phone}
+          onAnswer={dismissLegacy}
+          onEnd={dismissLegacy}
+        />
+      )}
+    </AnimatePresence>
   );
 }

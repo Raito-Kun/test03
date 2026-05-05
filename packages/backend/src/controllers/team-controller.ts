@@ -7,6 +7,7 @@ const createTeamSchema = z.object({
   name: z.string().min(1).max(255),
   leaderId: z.string().uuid().optional(),
   type: z.enum(['telesale', 'collection']),
+  memberIds: z.array(z.string().uuid()).optional(),
 });
 
 const updateTeamSchema = z.object({
@@ -14,6 +15,7 @@ const updateTeamSchema = z.object({
   leaderId: z.string().uuid().nullable().optional(),
   type: z.enum(['telesale', 'collection']).optional(),
   isActive: z.boolean().optional(),
+  memberIds: z.array(z.string().uuid()).optional(),
 });
 
 /** GET /teams */
@@ -57,12 +59,13 @@ export async function updateTeam(req: Request, res: Response, next: NextFunction
 /** DELETE /teams/:id */
 export async function deleteTeam(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const team = await teamService.deactivateTeam(req.params.id as string);
-    res.json({ success: true, data: team });
+    await teamService.deleteTeam(req.params.id as string);
+    res.json({ success: true, message: 'Đã xóa team' });
   } catch (err: unknown) {
     const error = err as Error & { code?: string };
-    if (error.code === 'NOT_FOUND') {
-      res.status(404).json({ success: false, error: { code: error.code, message: error.message } });
+    if (error.code === 'NOT_FOUND' || error.code === 'HAS_MEMBERS') {
+      const status = error.code === 'NOT_FOUND' ? 404 : 422;
+      res.status(status).json({ success: false, error: { code: error.code, message: error.message } });
       return;
     }
     next(err);

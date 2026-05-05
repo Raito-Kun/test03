@@ -38,11 +38,12 @@ export function TopbarActions({ onToggleAI }: TopbarActionsProps) {
           variant="outline"
           size="sm"
           onClick={onToggleAI}
-          className="h-7 gap-1.5 bg-white/8 border-white/20 text-white/80
-            hover:bg-white/15 hover:text-white"
+          className="h-7 gap-1.5 bg-emerald-50 border-emerald-200 text-emerald-700
+            hover:bg-emerald-100 hover:text-emerald-800
+            dark:bg-emerald-900/25 dark:border-emerald-800 dark:text-emerald-400"
         >
           <Bot className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline text-xs">AI Assist</span>
+          <span className="hidden sm:inline text-xs font-medium">AI Assist</span>
         </Button>
       )}
 
@@ -52,7 +53,7 @@ export function TopbarActions({ onToggleAI }: TopbarActionsProps) {
         size="sm"
         title="Demo cuộc gọi đến"
         onClick={() => showCall({ callerName: 'Nguyễn Ngọc Minh', phone: '0562717867' })}
-        className="h-7 w-7 p-0 text-white/40 hover:text-green-400"
+        className="h-7 w-7 p-0 text-muted-foreground hover:text-emerald-600"
       >
         <PhoneIncoming className="h-4 w-4" />
       </Button>
@@ -64,17 +65,17 @@ export function TopbarActions({ onToggleAI }: TopbarActionsProps) {
       {/* User avatar dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-1.5 rounded-lg px-2 py-1 hover:bg-white/10 transition-colors">
+          <button className="flex items-center gap-1.5 rounded-md px-2 py-1 hover:bg-muted transition-colors">
             <span className="relative flex h-2 w-2 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
             <Avatar className="h-7 w-7 bg-gradient-to-br from-violet-500 to-indigo-600 text-white">
               <AvatarFallback className="text-xs bg-transparent text-white">
                 {initials}
               </AvatarFallback>
             </Avatar>
-            <span className="hidden md:block text-xs font-medium text-white/80">
+            <span className="hidden md:block text-xs font-medium text-foreground">
               {user?.fullName}
             </span>
           </button>

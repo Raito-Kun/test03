@@ -17,10 +17,10 @@ export function LogoPill({ collapsed, onToggle }: LogoPillProps) {
         />
         {!collapsed && (
           <div className="flex flex-col leading-none">
-            <span className="text-xs font-bold text-[var(--color-violet-soft)] whitespace-nowrap tracking-wide">
-              CRM·PLS
+            <span className="text-sm font-bold text-[var(--sidebar-primary)] whitespace-nowrap tracking-tight">
+              CRM Ops
             </span>
-            <span className="text-[9px] text-white/40 font-mono tracking-wider">
+            <span className="text-[9px] text-[var(--muted-foreground)] font-mono tracking-wider">
               v{import.meta.env.VITE_APP_VERSION ?? '1.0.0'}
             </span>
           </div>
@@ -31,7 +31,7 @@ export function LogoPill({ collapsed, onToggle }: LogoPillProps) {
         title={collapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
         className={cn(
           'flex h-6 w-6 items-center justify-center rounded-md',
-          'text-white/40 hover:bg-white/10 hover:text-white transition-colors',
+          'text-[var(--muted-foreground)] hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-accent-foreground)] transition-colors',
           collapsed && 'ml-0',
         )}
       >

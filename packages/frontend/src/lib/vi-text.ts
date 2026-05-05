@@ -2,7 +2,7 @@
 
 export const VI = {
   // App
-  appName: 'CRM PLS',
+  appName: 'CRM AI',
 
   // Auth
   login: 'Đăng nhập',
@@ -17,8 +17,8 @@ export const VI = {
   // Sidebar nav
   nav: {
     dashboard: 'Tổng quan',
-    contacts: 'Danh bạ',
-    leads: 'Khách hàng tiềm năng',
+    contacts: 'Danh sách khách hàng',
+    leads: 'Nhóm khách hàng',
     debtCases: 'Công nợ',
     callLogs: 'Lịch sử cuộc gọi',
     campaigns: 'Chiến dịch',
@@ -96,7 +96,7 @@ export const VI = {
 
   // Contacts
   contact: {
-    title: 'Danh bạ',
+    title: 'Danh sách khách hàng',
     fullName: 'Họ tên',
     phone: 'Số điện thoại',
     phoneAlt: 'Số điện thoại phụ',
@@ -135,7 +135,7 @@ export const VI = {
 
   // Leads
   lead: {
-    title: 'Khách hàng tiềm năng',
+    title: 'Nhóm khách hàng',
     status: 'Trạng thái',
     score: 'Điểm',
     leadScore: 'Điểm lead',
@@ -226,8 +226,23 @@ export const VI = {
     startDate: 'Ngày bắt đầu',
     endDate: 'Ngày kết thúc',
     script: 'Kịch bản',
+    category: 'Loại chiến dịch',
+    queue: 'Hàng đợi',
+    dialMode: 'Hình thức',
+    callbackUrl: 'Callback URL',
+    workSchedule: 'Lịch làm việc',
+    workStartTime: 'Thời gian bắt đầu',
+    workEndTime: 'Thời gian kết thúc',
     types: { telesale: 'Telesale', collection: 'Thu nợ' },
+    categories: { telesale: 'Gọi điện', collection: 'Thu nợ', customer_service: 'CSKH' },
+    dialModes: { manual: 'Thủ công', auto_dialer: 'Auto-dialer', power_dialer: 'Power-dialer' },
+    schedules: { all_day: 'Cả ngày', business_hours: 'Giờ hành chính', custom: 'Tùy chỉnh' },
+    queues: { campaign_call: 'Call chiến dịch', inbound: 'Gọi đến', outbound: 'Gọi ra' },
     statuses: { draft: 'Nháp', active: 'Hoạt động', paused: 'Tạm dừng', completed: 'Hoàn thành' },
+    contactList: 'Danh sách liên hệ',
+    agentList: 'Chuyên viên',
+    addAgent: 'Thêm chuyên viên',
+    detailTitle: 'Chi tiết chiến dịch',
   },
 
   // Settings
@@ -249,9 +264,71 @@ export const VI = {
     collectionReport: 'Báo cáo Thu nợ',
   },
 
-  // Roles
+  // Roles — super_admin kept as English by product decision (2026-04-21)
   roles: {
-    admin: 'Quản trị viên', manager: 'Quản lý', qa: 'QA',
-    leader: 'Trưởng nhóm', agent_telesale: 'NV Telesale', agent_collection: 'NV Thu nợ',
+    super_admin: 'Super Admin',
+    admin: 'Quản trị viên',
+    manager: 'Quản lý',
+    supervisor: 'Giám sát viên',
+    qa: 'QA',
+    leader: 'Trưởng nhóm',
+    agent: 'Nhân viên',
+    agent_telesale: 'Nhân viên Telesale',
+    agent_collection: 'Nhân viên Thu nợ',
   },
+
+  // FreeSWITCH hangup causes → Vietnamese (single source of truth; used by tables, charts, exports)
+  hangupCause: {
+    NORMAL_CLEARING: 'Thành công',
+    ORIGINATOR_CANCEL: 'Hủy',
+    NO_ANSWER: 'Không trả lời',
+    USER_BUSY: 'Máy bận',
+    CALL_REJECTED: 'Từ chối cuộc gọi',
+    UNALLOCATED_NUMBER: 'Số không tồn tại',
+    NO_ROUTE_DESTINATION: 'Không tìm thấy đích',
+    RECOVERY_ON_TIMER_EXPIRE: 'Hết thời gian',
+    SUBSCRIBER_ABSENT: 'Thuê bao không liên lạc được',
+    NORMAL_TEMPORARY_FAILURE: 'Lỗi tạm thời',
+    NORMAL_UNSPECIFIED: 'Bình thường',
+    DESTINATION_OUT_OF_ORDER: 'Đích không khả dụng',
+    NETWORK_OUT_OF_ORDER: 'Mạng không khả dụng',
+    SWITCH_CONGESTION: 'Tổng đài nghẽn',
+    REQUESTED_CHAN_UNAVAIL: 'Kênh không khả dụng',
+    EXCHANGE_ROUTING_ERROR: 'Lỗi định tuyến',
+    SERVICE_UNAVAILABLE: 'Dịch vụ không khả dụng',
+    INVALID_NUMBER_FORMAT: 'Số sai định dạng',
+    INCOMPATIBLE_DESTINATION: 'Đích không tương thích',
+    MEDIA_TIMEOUT: 'Hết thời gian media',
+    ALLOTTED_TIMEOUT: 'Hết thời gian cho phép',
+    BEARERCAPABILITY_NOTAVAIL: 'Dung lượng mang không sẵn',
+    LOSE_RACE: 'Cuộc gọi khác nhấc trước',
+  } as Record<string, string>,
+
+  // SIP reason phrases commonly returned by proxies/carriers → Vietnamese
+  sipReason: {
+    Answer: 'Nghe máy',
+    OK: 'Thành công',
+    Ringing: 'Đang đổ chuông',
+    'Session Progress': 'Đang xử lý',
+    Voicemail: 'Hộp thư thoại',
+    Busy: 'Máy bận',
+    'Busy Here': 'Máy bận',
+    'Temporarily Unavailable': 'Tạm thời không liên lạc được',
+    'Not Found': 'Không tìm thấy số',
+    Forbidden: 'Bị chặn',
+    Unauthorized: 'Chưa xác thực',
+    'Request Timeout': 'Hết thời gian',
+    'Request Terminated': 'Cuộc gọi bị hủy',
+    'Call/Transaction Does Not Exist': 'Cuộc gọi không tồn tại',
+    'Service Unavailable': 'Dịch vụ không khả dụng',
+    'Internal Server Error': 'Lỗi tổng đài',
+    Decline: 'Từ chối',
+    'Address Incomplete': 'Số không đầy đủ',
+  } as Record<string, string>,
+
+  // Call direction → Vietnamese (mirrors callLog.inbound/outbound for compact usage)
+  direction: {
+    inbound: 'Gọi vào',
+    outbound: 'Gọi ra',
+  } as Record<string, string>,
 } as const;

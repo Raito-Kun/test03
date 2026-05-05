@@ -42,7 +42,7 @@ export function QuickDialInline() {
   }
 
   return (
-    <div className="flex items-center h-7 rounded-md border border-white/15 bg-white/8 overflow-hidden shrink-0">
+    <div className="flex items-center h-7 rounded-md border border-border bg-muted/60 overflow-hidden shrink-0">
       <input
         type="tel"
         value={phone}
@@ -50,15 +50,15 @@ export function QuickDialInline() {
         onKeyDown={handleKeyDown}
         placeholder="Gọi nhanh ⌘G"
         aria-label="Gọi nhanh"
-        className="h-full px-2.5 text-xs bg-transparent text-white/80 placeholder:text-white/35
+        className="h-full px-2.5 text-xs bg-transparent text-foreground placeholder:text-muted-foreground
           outline-none w-32 min-w-0"
       />
       <button
         onClick={handleDial}
         disabled={calling || !phone.trim()}
         title="Gọi ngay"
-        className="flex items-center justify-center h-full px-2 border-l border-white/15
-          text-white/50 hover:text-green-400 hover:bg-white/10 transition-colors
+        className="flex items-center justify-center h-full px-2 border-l border-border
+          text-muted-foreground hover:text-emerald-600 hover:bg-muted transition-colors
           disabled:opacity-30 disabled:cursor-not-allowed"
       >
         {calling

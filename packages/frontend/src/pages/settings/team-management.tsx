@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Users2, Plus, Loader2, Pencil, Trash2, RefreshCw, Search, X } from 'lucide-react';
+import { Plus, Loader2, Pencil, Trash2, RefreshCw, Search, X, ChevronRight, Users2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,7 +10,6 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import api from '@/services/api-client';
-import { SectionHeader } from '@/components/ops/section-header';
 
 const TEAM_TYPES = [
   { value: 'telesale', label: 'Telesale' },
@@ -37,6 +36,30 @@ interface UserOption {
 function typeLabel(type: string): string {
   return TEAM_TYPES.find((t) => t.value === type)?.label ?? type;
 }
+
+// Derive two-letter initials
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+const AVATAR_COLORS = [
+  'bg-indigo-100 text-indigo-700',
+  'bg-pink-100 text-pink-700',
+  'bg-amber-100 text-amber-700',
+  'bg-emerald-100 text-emerald-700',
+  'bg-violet-100 text-violet-700',
+  'bg-cyan-100 text-cyan-700',
+];
+function avatarColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+const fieldLabel = 'text-[12px] uppercase tracking-wider font-mono text-muted-foreground';
+const inputHeight = 'h-[42px]';
 
 export default function TeamManagement() {
   const queryClient = useQueryClient();
@@ -103,9 +126,8 @@ export default function TeamManagement() {
     setFormName(team.name);
     setFormType(team.type);
     setFormLeaderId(team.leaderId || '');
-    setFormMemberIds([]); // Will be loaded from team members query
+    setFormMemberIds([]);
     setEditTeam(team);
-    // Fetch current members
     api.get(`/teams/${team.id}/members`).then((r) => {
       const ids = (r.data.data ?? []).map((m: { id: string }) => m.id).filter((id: string) => id !== team.leaderId);
       setFormMemberIds(ids);
@@ -141,28 +163,45 @@ export default function TeamManagement() {
 
   return (
     <div className="flex flex-col gap-4">
-      <SectionHeader
-        label="Quản lý team"
-        hint={`${allRows.length} nhóm`}
-        actions={
-          <>
-            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-              <RefreshCw className={`h-4 w-4 mr-1 ${isFetching ? 'animate-spin' : ''}`} />
-              Làm mới
-            </Button>
-            <Button size="sm" onClick={openCreate}>
-              <Plus className="h-4 w-4 mr-1" />
-              Tạo team
-            </Button>
-          </>
-        }
-      />
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1.5 text-sm">
+        <span className="text-muted-foreground">Trang chủ</span>
+        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-muted-foreground">Hệ thống</span>
+        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-primary font-semibold">Quản lý team</span>
+      </nav>
 
-      <div className="relative max-w-xs">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Tìm team..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
+      {/* Action bar */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Users2 className="h-5 w-5 text-primary" />
+          <span className="font-mono text-sm text-muted-foreground">{allRows.length} nhóm</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={`h-4 w-4 mr-1 ${isFetching ? 'animate-spin' : ''}`} />
+            Làm mới
+          </Button>
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-1" />
+            Tạo team
+          </Button>
+        </div>
       </div>
 
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Tìm team..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9 rounded-xl bg-muted/40 border-border"
+        />
+      </div>
+
+      {/* Table */}
       <div className="rounded-sm border-dotted-2 bg-card overflow-hidden">
         {isLoading ? (
           <div className="flex h-40 items-center justify-center">
@@ -176,6 +215,7 @@ export default function TeamManagement() {
                 <th className="py-3 px-4 text-left font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Loại</th>
                 <th className="py-3 px-4 text-left font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Trưởng nhóm</th>
                 <th className="py-3 px-4 text-center font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Thành viên</th>
+                <th className="py-3 px-4 text-left font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Trạng thái</th>
                 <th className="py-3 px-4 text-left font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Ngày tạo</th>
                 <th className="py-3 px-4 w-[80px]" />
               </tr>
@@ -183,17 +223,40 @@ export default function TeamManagement() {
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-10 text-center text-muted-foreground">
+                  <td colSpan={7} className="py-10 text-center text-muted-foreground">
                     {search ? 'Không tìm thấy team phù hợp.' : 'Chưa có team nào.'}
                   </td>
                 </tr>
               ) : rows.map((team) => (
                 <tr key={team.id} className="border-b last:border-0 hover:bg-muted/10 transition-colors">
-                  <td className="py-3 px-4 font-medium">{team.name}</td>
-                  <td className="py-3 px-4"><Badge variant="outline" className="text-xs">{typeLabel(team.type)}</Badge></td>
-                  <td className="py-3 px-4">{team.leader?.fullName ?? <span className="text-muted-foreground">—</span>}</td>
-                  <td className="py-3 px-4 text-center">{team._count?.members ?? 0}</td>
-                  <td className="py-3 px-4 text-muted-foreground text-xs">{new Date(team.createdAt).toLocaleDateString('vi-VN')}</td>
+                  <td className="py-3 px-4 font-semibold">{team.name}</td>
+                  <td className="py-3 px-4">
+                    <Badge variant="outline" className="text-xs font-mono">{typeLabel(team.type)}</Badge>
+                  </td>
+                  <td className="py-3 px-4">
+                    {team.leader ? (
+                      <div className="flex items-center gap-2">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${avatarColor(team.leader.fullName)}`}>
+                          {getInitials(team.leader.fullName)}
+                        </div>
+                        <span className="text-sm">{team.leader.fullName}</span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  <td className="py-3 px-4 text-center">
+                    <span className="font-mono text-sm">{team._count?.members ?? 0}</span>
+                  </td>
+                  <td className="py-3 px-4">
+                    <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${team.isActive ? 'text-emerald-700' : 'text-slate-500'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${team.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                      {team.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 font-mono text-xs text-muted-foreground">
+                    {new Date(team.createdAt).toLocaleDateString('vi-VN')}
+                  </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-1 justify-end">
                       <button title="Chỉnh sửa" onClick={() => openEdit(team)} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-blue-600 transition-colors">
@@ -213,7 +276,7 @@ export default function TeamManagement() {
 
       {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="sm:max-w-[450px]">
+        <DialogContent className="sm:max-w-[450px] rounded-xl">
           <DialogHeader><DialogTitle>Tạo team</DialogTitle></DialogHeader>
           <TeamForm
             name={formName} onNameChange={setFormName}
@@ -234,7 +297,7 @@ export default function TeamManagement() {
 
       {/* Edit dialog */}
       <Dialog open={!!editTeam} onOpenChange={(v) => { if (!v) setEditTeam(null); }}>
-        <DialogContent className="sm:max-w-[450px]">
+        <DialogContent className="sm:max-w-[450px] rounded-xl">
           <DialogHeader><DialogTitle>Chỉnh sửa team</DialogTitle></DialogHeader>
           <TeamForm
             name={formName} onNameChange={setFormName}
@@ -247,7 +310,7 @@ export default function TeamManagement() {
             <Button variant="outline" onClick={() => setEditTeam(null)}>Hủy</Button>
             <Button onClick={handleUpdate} disabled={updateMutation.isPending}>
               {updateMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-              Lưu
+              Lưu thay đổi
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -255,7 +318,7 @@ export default function TeamManagement() {
 
       {/* Delete confirm */}
       <Dialog open={!!deleteTeam} onOpenChange={(v) => { if (!v) setDeleteTeam(null); }}>
-        <DialogContent>
+        <DialogContent className="rounded-xl">
           <DialogHeader><DialogTitle>Xác nhận xóa team</DialogTitle></DialogHeader>
           {(deleteTeam?._count?.members ?? 0) > 0 ? (
             <p className="text-sm text-orange-600">
@@ -288,7 +351,6 @@ function TeamForm({ name, onNameChange, type, onTypeChange, leaderId, onLeaderCh
 }) {
   const [memberSearch, setMemberSearch] = useState('');
 
-  // Users available as members (exclude the leader)
   const availableMembers = useMemo(() => {
     return users.filter((u) => u.id !== leaderId && !memberIds.includes(u.id));
   }, [users, leaderId, memberIds]);
@@ -312,33 +374,45 @@ function TeamForm({ name, onNameChange, type, onTypeChange, leaderId, onLeaderCh
   return (
     <div className="flex flex-col gap-4 py-2">
       <div className="flex flex-col gap-1.5">
-        <Label>Tên team <span className="text-destructive">*</span></Label>
-        <Input placeholder="Nhập tên team..." value={name} onChange={(e) => onNameChange(e.target.value)} />
+        <Label className="text-[12px] uppercase tracking-wider font-mono text-muted-foreground">
+          Tên team <span className="text-destructive">*</span>
+        </Label>
+        <Input className="h-[42px]" placeholder="Nhập tên team..." value={name} onChange={(e) => onNameChange(e.target.value)} />
       </div>
+
+      <div className="dashed-divider" />
+
       <div className="flex flex-col gap-1.5">
-        <Label>Loại <span className="text-destructive">*</span></Label>
-        <select value={type} onChange={(e) => onTypeChange(e.target.value)} className="w-full border rounded-md px-3 py-2 text-sm bg-background">
+        <Label className="text-[12px] uppercase tracking-wider font-mono text-muted-foreground">
+          Loại <span className="text-destructive">*</span>
+        </Label>
+        <select value={type} onChange={(e) => onTypeChange(e.target.value)} className="w-full border rounded-md px-3 text-sm bg-background h-[42px]">
           <option value="">— Chọn loại team —</option>
           {TEAM_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
       </div>
+
       <div className="flex flex-col gap-1.5">
-        <Label>Trưởng nhóm</Label>
-        <select value={leaderId} onChange={(e) => onLeaderChange(e.target.value)} className="w-full border rounded-md px-3 py-2 text-sm bg-background">
+        <Label className="text-[12px] uppercase tracking-wider font-mono text-muted-foreground">Trưởng nhóm</Label>
+        <select value={leaderId} onChange={(e) => onLeaderChange(e.target.value)} className="w-full border rounded-md px-3 text-sm bg-background h-[42px]">
           <option value="">— Chưa chọn —</option>
           {users.map((u) => <option key={u.id} value={u.id}>{u.fullName} ({u.email})</option>)}
         </select>
         {leaderId && leaderUser && (
-          <p className="text-xs text-muted-foreground">Đã chọn: {leaderUser.fullName}</p>
+          <p className="font-mono text-[11px] text-muted-foreground">Đã chọn: {leaderUser.fullName}</p>
         )}
       </div>
+
+      <div className="dashed-divider" />
+
       <div className="flex flex-col gap-1.5">
-        <Label>Thành viên {selectedMembers.length > 0 && <span className="text-muted-foreground font-normal">({selectedMembers.length})</span>}</Label>
-        {/* Selected members chips */}
+        <Label className="text-[12px] uppercase tracking-wider font-mono text-muted-foreground">
+          Thành viên {selectedMembers.length > 0 && <span className="normal-case font-normal">({selectedMembers.length})</span>}
+        </Label>
         {selectedMembers.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {selectedMembers.map((u) => (
-              <span key={u.id} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-md border border-blue-200">
+              <span key={u.id} className="inline-flex items-center gap-1 bg-accent text-accent-foreground text-xs px-2 py-1 rounded-md border border-border">
                 {u.fullName}
                 <button type="button" onClick={() => removeMember(u.id)} className="hover:text-destructive">
                   <X className="h-3 w-3" />
@@ -347,7 +421,6 @@ function TeamForm({ name, onNameChange, type, onTypeChange, leaderId, onLeaderCh
             ))}
           </div>
         )}
-        {/* Member search + dropdown */}
         <div className="relative">
           <Input
             placeholder="Tìm và thêm thành viên..."

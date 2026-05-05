@@ -1,12 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { X, Loader2, PhoneCall } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { X, Loader2, ChevronRight, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import api from '@/services/api-client';
 import { DottedCard } from '@/components/ops/dotted-card';
-import { SectionHeader } from '@/components/ops/section-header';
 
 interface ExtensionInfo {
   extension: string;
@@ -24,9 +22,24 @@ interface UserOption {
 }
 
 function StatusBadge({ status }: { status: ExtensionInfo['status'] }) {
-  if (status === 'Registered') return <Badge className="bg-[var(--color-status-ok)]/10 text-[var(--color-status-ok)] border-[var(--color-status-ok)]/30">Đã đăng ký</Badge>;
-  if (status === 'Unregistered') return <Badge className="bg-[var(--color-status-err)]/10 text-[var(--color-status-err)] border-[var(--color-status-err)]/30">Chưa đăng ký</Badge>;
-  return <Badge variant="secondary">Không rõ</Badge>;
+  if (status === 'Registered') return (
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+      Đã đăng ký
+    </span>
+  );
+  if (status === 'Unregistered') return (
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
+      <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+      Chưa đăng ký
+    </span>
+  );
+  return (
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground bg-muted border border-border px-2 py-0.5 rounded-full">
+      <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
+      Không rõ
+    </span>
+  );
 }
 
 export default function ExtensionConfig() {
@@ -70,7 +83,22 @@ export default function ExtensionConfig() {
 
   return (
     <div className="space-y-6">
-      <SectionHeader label="Cấu hình máy nhánh" />
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1.5 text-sm">
+        <Settings className="h-3.5 w-3.5 text-muted-foreground" />
+        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-muted-foreground">Cài đặt</span>
+        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-primary font-semibold">Cấu hình máy nhánh</span>
+      </nav>
+
+      {/* Page heading */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Cấu hình máy nhánh</h1>
+        <p className="text-sm text-muted-foreground mt-1">Gán và quản lý extension SIP cho từng nhân viên</p>
+      </div>
+
+      <div className="border-b border-dashed border-border" />
 
       <DottedCard header="Danh sách máy nhánh">
         <div className="overflow-x-auto">
@@ -89,10 +117,10 @@ export default function ExtensionConfig() {
               <tbody className="divide-y">
                 {extensions.map((ext) => (
                   <tr key={ext.extension} className="hover:bg-muted/30">
-                    <td className="py-3 font-mono font-semibold">{ext.extension}</td>
+                    <td className="py-3 font-mono font-semibold text-primary">{ext.extension}</td>
                     <td className="py-3">{ext.userFullName ?? <span className="text-muted-foreground">—</span>}</td>
-                    <td className="py-3 text-muted-foreground">{ext.userEmail ?? '—'}</td>
-                    <td className="py-3 text-muted-foreground">{ext.domain}</td>
+                    <td className="py-3 text-muted-foreground font-mono text-xs">{ext.userEmail ?? '—'}</td>
+                    <td className="py-3 text-muted-foreground font-mono text-xs">{ext.domain}</td>
                     <td className="py-3"><StatusBadge status={ext.status} /></td>
                     <td className="py-3 min-w-[200px]">
                       <Select

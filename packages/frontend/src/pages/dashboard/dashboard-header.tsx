@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, Download, Plus, ChevronDown } from "lucide-react";
+import { RefreshCw, Download, Plus, ChevronDown, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getSocket } from "@/lib/socket";
+import { useAuthStore } from "@/stores/auth-store";
 
 // Generates a cosmetic session code on mount, e.g. "6FC4·E33C"
 function makeSessionCode(): string {
@@ -36,6 +37,10 @@ export function DashboardHeader({ sessionDate }: DashboardHeaderProps) {
   const [live, setLive] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const clock = useSessionClock();
+  const user = useAuthStore((s) => s.user);
+
+  // sipExtension from authenticated user; branch is not in User model so we use a static label
+  const ext = user?.sipExtension ?? "---";
 
   useEffect(() => {
     const socket = getSocket();
@@ -58,31 +63,60 @@ export function DashboardHeader({ sessionDate }: DashboardHeaderProps) {
 
   return (
     <div className="flex items-center justify-between gap-3 flex-wrap">
-      {/* Left: session code + title + clock */}
-      <div className="flex items-center gap-3 min-w-0">
-        <span className="font-mono text-[11px] tracking-widest text-muted-foreground select-none">
-          § DASH · {sessionCode}
+      {/* Left: branding + meta chips */}
+      <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
+        {/* Brand */}
+        <span className="font-mono text-sm font-bold text-primary tracking-wide">
+          Call CRM
         </span>
-        <span className="font-mono text-[11px] text-muted-foreground">|</span>
-        <h1 className="font-mono text-sm font-semibold uppercase tracking-wider text-foreground">
-          Tổng quan
-        </h1>
-        <span className="font-mono text-[11px] text-muted-foreground hidden sm:inline">
-          Phiên làm việc {sessionDate} · {clock}
+
+        <span className="text-border select-none">|</span>
+
+        {/* Session code — subtle mono hint */}
+        <span className="font-mono text-[10px] tracking-widest text-muted-foreground/60 hidden md:inline select-none">
+          § {sessionCode}
+        </span>
+
+        {/* Ext chip — from authenticated user's sipExtension */}
+        {ext !== "---" && (
+          <span className="inline-flex items-center gap-1 font-mono text-[11px] border border-border rounded-full px-2.5 py-0.5 text-muted-foreground bg-muted/50">
+            Ext: {ext}
+          </span>
+        )}
+
+        {/* ACTIVE CLUSTER pulse pill */}
+        <span
+          className={`inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider rounded-full px-2.5 py-0.5 border ${
+            live
+              ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+              : "bg-rose-50 text-rose-600 border-rose-300"
+          }`}
+        >
+          <span
+            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+              live ? "bg-emerald-500 animate-pulse" : "bg-rose-500"
+            }`}
+          />
+          {live ? "ACTIVE CLUSTER" : "OFFLINE"}
+        </span>
+
+        {/* Clock — hidden on small screens */}
+        <span className="font-mono text-[10px] text-muted-foreground hidden lg:inline">
+          {sessionDate} · {clock}
         </span>
       </div>
 
-      {/* Right: LIVE + actions */}
-      <div className="flex items-center gap-2 shrink-0">
-        {/* LIVE indicator */}
-        <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider">
-          <span
-            className={`w-1.5 h-1.5 rounded-full ${live ? "bg-green-500 animate-pulse" : "bg-rose-500"}`}
-          />
-          <span className={live ? "text-green-600" : "text-rose-500"}>
-            {live ? "LIVE" : "OFFLINE"}
-          </span>
-        </div>
+      {/* Right: bell + actions */}
+      <div className="flex items-center gap-1.5 shrink-0">
+        {/* Bell notifications */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+          aria-label="Thông báo"
+        >
+          <Bell className="h-4 w-4" />
+        </Button>
 
         <Button
           variant="ghost"
@@ -107,7 +141,7 @@ export function DashboardHeader({ sessionDate }: DashboardHeaderProps) {
         <div className="relative">
           <Button
             size="sm"
-            className="font-mono text-[10px] uppercase tracking-wider h-7 px-2 bg-violet-600 hover:bg-violet-700 text-white"
+            className="font-mono text-[10px] uppercase tracking-wider h-7 px-2 bg-primary hover:bg-primary/90 text-primary-foreground"
             onClick={() => setAddOpen((v) => !v)}
           >
             <Plus className="h-3 w-3 mr-1" />

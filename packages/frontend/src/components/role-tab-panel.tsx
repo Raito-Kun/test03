@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import api from '@/services/api-client';
 import { ROLE_LABELS, ROLE_COLORS } from '@/components/permission-matrix-table';
 import type { PermissionRow } from '@/components/permission-matrix-table';
+import { isSuperAdminOptIn } from '@/lib/permission-constants';
 
 interface User {
   id: string;
@@ -17,23 +18,23 @@ const ROLE_DESCRIPTIONS: Record<string, string> = {
   super_admin: 'Toàn quyền hệ thống, không giới hạn truy cập.',
   admin: 'Quản lý người dùng, cấu hình hệ thống và chiến dịch.',
   manager: 'Quản lý nhóm, theo dõi hiệu suất và phân công công việc.',
+  supervisor: 'Giám sát hoạt động nhóm, hỗ trợ xử lý tình huống thực tế.',
   qa: 'Đánh giá chất lượng cuộc gọi và phiếu ghi.',
   leader: 'Dẫn dắt nhóm agent, xem báo cáo nhóm.',
-  agent_telesale: 'Thực hiện cuộc gọi telesale, quản lý lead.',
-  agent_collection: 'Thực hiện cuộc gọi thu hồi nợ, quản lý hồ sơ nợ.',
+  agent: 'Thực hiện cuộc gọi, quản lý khách hàng và công việc được phân công.',
 };
 
 const ROLE_VI_NAMES: Record<string, string> = {
   super_admin: 'Quản trị viên cao cấp',
   admin: 'Quản trị viên',
   manager: 'Quản lý',
+  supervisor: 'Giám sát viên',
   qa: 'QA',
   leader: 'Trưởng nhóm',
-  agent_telesale: 'Nhân viên Telesale',
-  agent_collection: 'Nhân viên Thu hồi nợ',
+  agent: 'Agent',
 };
 
-const ALL_ROLES = ['super_admin', 'admin', 'manager', 'qa', 'leader', 'agent_telesale', 'agent_collection'];
+const ALL_ROLES = ['super_admin', 'admin', 'manager', 'supervisor', 'qa', 'leader', 'agent'];
 
 interface Props {
   permissions: PermissionRow[];
@@ -52,12 +53,14 @@ export default function RoleTabPanel({ permissions }: Props) {
     return (users ?? []).filter((u) => u.role === role).length;
   }
 
+  function isGranted(p: PermissionRow, role: string): boolean {
+    if (role === 'super_admin' && !isSuperAdminOptIn(p.key)) return true;
+    return p.grants[role] === true;
+  }
+
   function getTopPermissions(role: string): string[] {
-    if (role === 'super_admin') {
-      return permissions.slice(0, 5).map((p) => p.label);
-    }
     return permissions
-      .filter((p) => p.grants[role] === true)
+      .filter((p) => isGranted(p, role))
       .slice(0, 5)
       .map((p) => p.label);
   }
@@ -67,9 +70,7 @@ export default function RoleTabPanel({ permissions }: Props) {
       {ALL_ROLES.map((role) => {
         const count = getMemberCount(role);
         const topPerms = getTopPermissions(role);
-        const totalPerms = role === 'super_admin'
-          ? permissions.length
-          : permissions.filter((p) => p.grants[role] === true).length;
+        const totalPerms = permissions.filter((p) => isGranted(p, role)).length;
 
         return (
           <Card key={role} className="flex flex-col">

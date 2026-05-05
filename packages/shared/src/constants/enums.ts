@@ -1,6 +1,6 @@
 /** Mirror of Prisma enums for frontend use (no Prisma dependency needed) */
 
-export const ROLES = ['super_admin', 'admin', 'manager', 'qa', 'leader', 'agent_telesale', 'agent_collection'] as const;
+export const ROLES = ['super_admin', 'admin', 'manager', 'qa', 'leader', 'agent'] as const;
 export type Role = (typeof ROLES)[number];
 
 export const LEAD_STATUSES = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'] as const;
@@ -14,6 +14,15 @@ export type DebtStatus = (typeof DEBT_STATUSES)[number];
 
 export const CAMPAIGN_TYPES = ['telesale', 'collection'] as const;
 export type CampaignType = (typeof CAMPAIGN_TYPES)[number];
+
+export const CAMPAIGN_CATEGORIES = ['telesale', 'collection', 'customer_service'] as const;
+export type CampaignCategory = (typeof CAMPAIGN_CATEGORIES)[number];
+
+export const DIAL_MODES = ['manual', 'auto_dialer', 'power_dialer'] as const;
+export type DialMode = (typeof DIAL_MODES)[number];
+
+export const WORK_SCHEDULES = ['all_day', 'business_hours', 'custom'] as const;
+export type WorkSchedule = (typeof WORK_SCHEDULES)[number];
 
 export const CAMPAIGN_STATUSES = ['draft', 'active', 'paused', 'completed'] as const;
 export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];

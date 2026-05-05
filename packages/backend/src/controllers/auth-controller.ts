@@ -33,12 +33,20 @@ export async function loginHandler(req: Request, res: Response, next: NextFuncti
       },
     });
   } catch (err: unknown) {
-    const error = err as Error & { code?: string };
+    const error = err as Error & { code?: string; issues?: unknown[] };
     if (error.code === 'INVALID_CREDENTIALS' || error.code === 'ACCOUNT_INACTIVE') {
       const status = error.code === 'ACCOUNT_INACTIVE' ? 403 : 401;
       res.status(status).json({
         success: false,
         error: { code: error.code, message: error.message },
+      });
+      return;
+    }
+    // Zod validation error
+    if (error.name === 'ZodError') {
+      res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: error.message },
       });
       return;
     }

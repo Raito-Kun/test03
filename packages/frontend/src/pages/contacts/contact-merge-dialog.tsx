@@ -55,54 +55,76 @@ export function ContactMergeButton() {
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setSelectedGroup(null); setKeepId(''); } }}>
         <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Gộp liên hệ trùng lặp</DialogTitle>
+            <DialogTitle className="text-primary font-bold">Gộp liên hệ trùng lặp</DialogTitle>
           </DialogHeader>
 
           {!selectedGroup ? (
             /* Duplicate groups list */
             <div className="space-y-2">
               {isLoading && <p className="text-muted-foreground text-sm">Đang tìm...</p>}
-              {groups && groups.length === 0 && <p className="text-muted-foreground text-sm">Không có liên hệ trùng lặp</p>}
+              {groups && groups.length === 0 && (
+                <p className="text-muted-foreground text-sm text-center py-6">Không có liên hệ trùng lặp</p>
+              )}
               {groups?.map((g) => (
                 <div
                   key={g.phone}
-                  className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted/50"
+                  className="flex items-center justify-between p-3 border border-dashed border-border rounded-xl cursor-pointer hover:bg-accent/30 transition-colors"
                   onClick={() => { setSelectedGroup(g); setKeepId(g.contacts[0].id); }}
                 >
                   <div>
-                    <span className="font-medium">{g.phone}</span>
-                    <span className="text-muted-foreground text-sm ml-2">
+                    <span className="font-bold text-sm font-mono">{g.phone}</span>
+                    <span className="text-muted-foreground text-xs ml-2">
                       {g.contacts.map((c) => c.fullName).join(', ')}
                     </span>
                   </div>
-                  <Badge variant="secondary">{g.count} trùng</Badge>
+                  <Badge className="bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold">
+                    {g.count} trùng
+                  </Badge>
                 </div>
               ))}
             </div>
           ) : (
             /* Merge detail: pick which to keep */
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">Chọn liên hệ giữ lại (các liên hệ còn lại sẽ được gộp vào):</p>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest font-mono">
+                Chọn liên hệ giữ lại — các liên hệ còn lại sẽ được gộp vào
+              </p>
               {selectedGroup.contacts.map((c) => (
                 <div
                   key={c.id}
-                  className={`p-3 border rounded-lg cursor-pointer ${keepId === c.id ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}
+                  className={`p-4 border border-dashed rounded-xl cursor-pointer transition-colors ${
+                    keepId === c.id
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:bg-muted/30'
+                  }`}
                   onClick={() => setKeepId(c.id)}
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium">{c.fullName}</p>
-                      <p className="text-sm text-muted-foreground">{c.phone} {c.email ? `· ${c.email}` : ''}</p>
-                      <p className="text-xs text-muted-foreground">Tạo: {new Date(c.createdAt).toLocaleDateString('vi-VN')}</p>
+                      <p className="font-bold text-sm">{c.fullName}</p>
+                      <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                        {c.phone}{c.email ? ` · ${c.email}` : ''}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Tạo: {new Date(c.createdAt).toLocaleDateString('vi-VN')}
+                      </p>
                     </div>
-                    {keepId === c.id && <Badge>Giữ lại</Badge>}
+                    {keepId === c.id && (
+                      <Badge className="bg-primary text-primary-foreground text-xs font-bold">Giữ lại</Badge>
+                    )}
                   </div>
                 </div>
               ))}
 
-              <DialogFooter>
-                <Button variant="ghost" onClick={() => setSelectedGroup(null)}>Quay lại</Button>
-                <Button onClick={() => mergeMutation.mutate()} disabled={!keepId || mergeMutation.isPending}>
+              <DialogFooter className="pt-2 border-t border-dashed border-border">
+                <Button variant="outline" className="border-dashed" onClick={() => setSelectedGroup(null)}>
+                  Quay lại
+                </Button>
+                <Button
+                  onClick={() => mergeMutation.mutate()}
+                  disabled={!keepId || mergeMutation.isPending}
+                  className="bg-primary hover:bg-primary/90"
+                >
                   {mergeMutation.isPending ? 'Đang gộp...' : `Gộp ${selectedGroup.contacts.length - 1} liên hệ`}
                 </Button>
               </DialogFooter>

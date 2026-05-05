@@ -68,11 +68,22 @@ export function CallLogTicketDialog({ open, call, onClose, onSuccess }: Props) {
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
       if (!call) throw new Error('No call context');
-      if (!call.contactId) {
-        throw new Error('Cuộc gọi này chưa gắn với khách hàng — tạo liên hệ trước.');
+      // If the call isn't linked to a contact yet, auto-create a minimal contact
+      // from the customer phone so the agent can ticket it in one click.
+      let contactId = call.contactId;
+      if (!contactId) {
+        if (!call.customerPhone) {
+          throw new Error('Cuộc gọi không có số khách hàng — không tự tạo được liên hệ.');
+        }
+        const res = await api.post('/contacts', {
+          fullName: call.customerPhone,
+          phone: call.customerPhone,
+          source: 'call_log',
+        });
+        contactId = res.data.data.id as string;
       }
       await api.post('/tickets', {
-        contactId: call.contactId,
+        contactId,
         callLogId: call.callLogId,
         categoryId: categoryId || undefined,
         subject,
@@ -107,7 +118,11 @@ export function CallLogTicketDialog({ open, call, onClose, onSuccess }: Props) {
             <div className="space-y-1">
               <Label className="text-xs">Phân loại</Label>
               <Select value={categoryId || undefined} onValueChange={(v) => setCategoryId(v === '_none' || !v ? '' : v)}>
-                <SelectTrigger><SelectValue placeholder="— Chọn —" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="— Chọn —">
+                    {categoryId ? categories.find((c) => c.id === categoryId)?.name ?? '— Chọn —' : null}
+                  </SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none">— Không chọn —</SelectItem>
                   {categories.map((c) => (
@@ -119,7 +134,9 @@ export function CallLogTicketDialog({ open, call, onClose, onSuccess }: Props) {
             <div className="space-y-1">
               <Label className="text-xs">Mức ưu tiên</Label>
               <Select value={priority} onValueChange={(v) => setPriority(v as typeof PRIORITIES[number])}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue>{PRIORITY_VI[priority]}</SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   {PRIORITIES.map((p) => (
                     <SelectItem key={p} value={p}>{PRIORITY_VI[p]}</SelectItem>

@@ -26,12 +26,12 @@ export function CustomerSummaryCard({ customerData, contactId }: CustomerSummary
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-slate-500">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-3 w-3 animate-spin" />
             Đang phân tích...
           </div>
         ) : (
-          <div className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">
+          <div className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
             {summary || 'Không có dữ liệu để phân tích.'}
           </div>
         )}

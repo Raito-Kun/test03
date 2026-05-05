@@ -202,6 +202,10 @@ export async function deleteClusterAccount(req: Request, res: Response, next: Ne
       res.status(404).json({ success: false, error: { code: error.code, message: error.message } });
       return;
     }
+    if (error.code === 'USER_HAS_REFERENCES') {
+      res.status(409).json({ success: false, error: { code: error.code, message: error.message } });
+      return;
+    }
     next(err);
   }
 }

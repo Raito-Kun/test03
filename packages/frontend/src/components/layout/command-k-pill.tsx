@@ -10,8 +10,8 @@ export function CommandKPill({ onClick }: CommandKPillProps) {
       onClick={onClick}
       title="Tìm kiếm / lệnh (⌘K)"
       className="inline-flex items-center gap-2 h-7 px-3 rounded-md text-xs
-        bg-white/8 border border-white/15 text-white/60
-        hover:bg-white/15 hover:text-white/90 transition-colors shrink-0"
+        bg-muted/60 border border-border text-muted-foreground
+        hover:bg-muted hover:text-foreground transition-colors shrink-0"
     >
       <Search className="h-3 w-3" />
       <span className="hidden sm:inline">Tìm kiếm</span>

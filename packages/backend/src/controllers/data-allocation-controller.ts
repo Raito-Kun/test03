@@ -1,7 +1,11 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { getAllAgentStatuses } from '../services/agent-status-service';
 
 const prisma = new PrismaClient();
+
+/** Statuses that indicate an agent is online and available for new work. */
+const AVAILABLE_STATUSES = new Set(['ready']);
 
 type EntityType = 'contact' | 'lead' | 'debt_case' | 'campaign';
 
@@ -121,19 +125,35 @@ export async function allocateEntities(req: Request, res: Response): Promise<voi
 /**
  * GET /api/v1/data-allocation/agents
  * Returns list of agents that can be assigned data.
+ * Query params:
+ *   - onlineOnly=true → only return agents whose Redis-tracked status is "ready"
+ *     (used by the import wizard so leaders only assign to available agents)
  */
 export async function getAssignableAgents(req: Request, res: Response): Promise<void> {
   try {
+    const onlineOnly = req.query.onlineOnly === 'true' || req.query.status === 'ready';
+
     const users = await prisma.user.findMany({
       where: {
         status: 'active',
-        role: { in: ['agent_telesale', 'agent_collection', 'leader'] },
+        role: { in: ['agent', 'agent_telesale', 'agent_collection', 'leader'] },
       },
       select: { id: true, fullName: true, role: true, teamId: true },
       orderBy: { fullName: 'asc' },
     });
 
-    res.json({ success: true, data: users });
+    if (!onlineOnly) {
+      res.json({ success: true, data: users });
+      return;
+    }
+
+    const statuses = await getAllAgentStatuses();
+    const statusByUser = new Map(statuses.map((s) => [s.userId, s.status]));
+    const filtered = users
+      .filter((u) => AVAILABLE_STATUSES.has(statusByUser.get(u.id) ?? 'offline'))
+      .map((u) => ({ ...u, agentStatus: statusByUser.get(u.id) ?? 'offline' }));
+
+    res.json({ success: true, data: filtered });
   } catch (err) {
     console.error('getAssignableAgents error:', err);
     res.status(500).json({

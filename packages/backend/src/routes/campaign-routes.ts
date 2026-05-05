@@ -4,15 +4,30 @@ import { authMiddleware } from '../middleware/auth-middleware';
 import { requireRole } from '../middleware/rbac-middleware';
 import * as campaignCtrl from '../controllers/campaign-controller';
 import { importCampaigns } from '../services/campaign-import-service';
+import { checkFeatureEnabled } from '../middleware/feature-flag-middleware';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.use(authMiddleware);
+router.use(checkFeatureEnabled('campaigns'));
 
 router.get('/', campaignCtrl.listCampaigns);
+router.get('/:id', campaignCtrl.getCampaignById);
 router.post('/', requireRole('super_admin', 'admin', 'manager'), campaignCtrl.createCampaign);
 router.patch('/:id', requireRole('super_admin', 'admin', 'manager'), campaignCtrl.updateCampaign);
+
+router.post(
+  '/:id/agents',
+  requireRole('super_admin', 'admin', 'manager'),
+  campaignCtrl.addCampaignAgents,
+);
+
+router.delete(
+  '/:id/agents/:userId',
+  requireRole('super_admin', 'admin', 'manager'),
+  campaignCtrl.removeCampaignAgent,
+);
 
 router.post(
   '/import',

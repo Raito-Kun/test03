@@ -9,8 +9,9 @@ export function checkFeatureEnabled(...featureKeys: string[]) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       const clusterId = req.user?.clusterId;
+      const role = req.user?.role;
       for (const key of featureKeys) {
-        const enabled = await isFeatureEnabled(key, clusterId);
+        const enabled = await isFeatureEnabled(key, clusterId, role);
         if (!enabled) {
           res.status(403).json({
             success: false,

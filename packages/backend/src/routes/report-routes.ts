@@ -3,10 +3,12 @@ import { authMiddleware } from '../middleware/auth-middleware';
 import { requireRole } from '../middleware/rbac-middleware';
 import { applyDataScope } from '../middleware/data-scope-middleware';
 import * as ctrl from '../controllers/report-controller';
+import { checkFeatureEnabled } from '../middleware/feature-flag-middleware';
 
 const router = Router();
 
 router.use(authMiddleware);
+router.use(checkFeatureEnabled('reports_summary'));
 router.use(requireRole('super_admin', 'admin', 'manager', 'leader', 'qa'));
 router.use(applyDataScope('userId'));
 
@@ -21,5 +23,6 @@ router.get('/calls/summary', ctrl.getCallSummary);
 router.get('/calls/summary-by-team', ctrl.getCallSummaryByTeam);
 router.get('/calls/detail', ctrl.getCallDetail);
 router.get('/calls/charts', ctrl.getCallCharts);
+router.get('/tickets/summary', ctrl.getTicketSummary);
 
 export default router;

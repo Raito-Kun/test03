@@ -14,14 +14,16 @@ const teamSelect = {
 };
 
 export async function listTeams(pagination: PaginationParams) {
+  const where = { isActive: true };
   const [teams, total] = await Promise.all([
     prisma.team.findMany({
+      where,
       select: teamSelect,
       skip: pagination.skip,
       take: pagination.limit,
       orderBy: pagination.orderBy,
     }),
-    prisma.team.count(),
+    prisma.team.count({ where }),
   ]);
 
   return paginatedResponse(teams, total, pagination.page, pagination.limit);
@@ -31,10 +33,11 @@ interface CreateTeamInput {
   name: string;
   leaderId?: string | null;
   type: string;
+  memberIds?: string[];
 }
 
 export async function createTeam(input: CreateTeamInput) {
-  return prisma.team.create({
+  const team = await prisma.team.create({
     data: {
       name: input.name,
       leaderId: input.leaderId || null,
@@ -42,6 +45,18 @@ export async function createTeam(input: CreateTeamInput) {
     },
     select: teamSelect,
   });
+
+  // Assign members if provided
+  if (input.memberIds?.length) {
+    await prisma.user.updateMany({
+      where: { id: { in: input.memberIds } },
+      data: { teamId: team.id },
+    });
+    // Re-fetch to get updated member count
+    return prisma.team.findUnique({ where: { id: team.id }, select: teamSelect });
+  }
+
+  return team;
 }
 
 export async function getTeamById(id: string) {
@@ -52,9 +67,9 @@ export async function getTeamById(id: string) {
   return team;
 }
 
-export async function updateTeam(id: string, input: Partial<CreateTeamInput> & { isActive?: boolean; leaderId?: string | null }) {
+export async function updateTeam(id: string, input: Partial<CreateTeamInput> & { isActive?: boolean; leaderId?: string | null; memberIds?: string[] }) {
   await getTeamById(id);
-  return prisma.team.update({
+  const team = await prisma.team.update({
     where: { id },
     data: {
       ...(input.name && { name: input.name }),
@@ -64,8 +79,36 @@ export async function updateTeam(id: string, input: Partial<CreateTeamInput> & {
     },
     select: teamSelect,
   });
+
+  // Replace members if provided
+  if (input.memberIds !== undefined) {
+    // Remove all current members
+    await prisma.user.updateMany({ where: { teamId: id }, data: { teamId: null } });
+    // Assign new members
+    if (input.memberIds.length > 0) {
+      await prisma.user.updateMany({ where: { id: { in: input.memberIds } }, data: { teamId: id } });
+    }
+    return prisma.team.findUnique({ where: { id }, select: teamSelect });
+  }
+
+  return team;
 }
 
+export async function deleteTeam(id: string) {
+  const team = await getTeamById(id);
+  const memberCount = team._count?.members ?? 0;
+
+  if (memberCount > 0) {
+    throw Object.assign(
+      new Error(`Không thể xóa team đang có ${memberCount} thành viên. Vui lòng chuyển thành viên sang team khác trước.`),
+      { code: 'HAS_MEMBERS' },
+    );
+  }
+
+  await prisma.team.delete({ where: { id } });
+}
+
+// Keep for backward compat
 export async function deactivateTeam(id: string) {
   await getTeamById(id);
   return prisma.team.update({

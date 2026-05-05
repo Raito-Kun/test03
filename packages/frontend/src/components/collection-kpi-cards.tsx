@@ -81,7 +81,7 @@ export function CollectionKpiCards({ dateRange }: CollectionKpiCardsProps) {
       icon: Clock,
       iconBg: 'bg-amber-100',
       iconColor: 'text-amber-600',
-      valueColor: 'text-slate-800',
+      valueColor: 'text-foreground',
       trend: null,
       sub: 'Avg Wrap-up Time',
     },
@@ -91,7 +91,7 @@ export function CollectionKpiCards({ dateRange }: CollectionKpiCardsProps) {
       icon: Phone,
       iconBg: 'bg-blue-100',
       iconColor: 'text-blue-600',
-      valueColor: 'text-slate-800',
+      valueColor: 'text-foreground',
       trend: null,
       sub: 'Calls Today',
     },
@@ -100,7 +100,7 @@ export function CollectionKpiCards({ dateRange }: CollectionKpiCardsProps) {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {cards.map(({ label, value, icon: Icon, iconBg, iconColor, valueColor, trend, sub }) => (
-        <Card key={label} className="border shadow-sm bg-white">
+        <Card key={label} className="border shadow-sm bg-card">
           <CardContent className="p-4">
             <div className="flex items-start justify-between gap-2">
               <div className={`flex h-9 w-9 items-center justify-center rounded-lg shrink-0 ${iconBg}`}>
@@ -114,8 +114,8 @@ export function CollectionKpiCards({ dateRange }: CollectionKpiCardsProps) {
               ) : (
                 <p className={`text-2xl font-bold ${valueColor}`}>{value}</p>
               )}
-              <p className="text-xs font-medium text-slate-600 mt-0.5">{label}</p>
-              <p className="text-[10px] text-slate-400">{sub}</p>
+              <p className="text-xs font-medium text-muted-foreground mt-0.5">{label}</p>
+              <p className="text-[10px] text-muted-foreground/70 font-mono uppercase tracking-wider">{sub}</p>
             </div>
           </CardContent>
         </Card>

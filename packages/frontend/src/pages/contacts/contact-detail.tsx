@@ -3,11 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useCustomerTabStore } from '@/stores/customer-tab-store';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Edit2 } from 'lucide-react';
+import { Edit2, FileText, Phone, PhoneCall, PhoneMissed } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ClickToCallButton } from '@/components/click-to-call-button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { DottedCard } from '@/components/ops/dotted-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AudioPlayer } from '@/components/audio-player';
@@ -16,7 +15,6 @@ import api, { getAccessToken } from '@/services/api-client';
 import { formatDuration, fmtPhone } from '@/lib/format';
 import { CustomerSummaryCard } from '@/components/ai/customer-summary-card';
 import { ContactForm } from './contact-form';
-import { cn } from '@/lib/utils';
 
 interface Contact {
   id: string;
@@ -54,19 +52,28 @@ interface TimelineEntry {
   createdAt: string;
 }
 
-type ActivePanel = 'info' | 'calls' | 'tickets';
+type ActiveTab = 'info' | 'calls' | 'tickets' | 'attachments';
 
-const NAV_ITEMS: { key: ActivePanel; label: string }[] = [
-  { key: 'info', label: 'Thông tin' },
-  { key: 'calls', label: 'Cuộc gọi' },
-  { key: 'tickets', label: 'Ticket' },
-];
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function segmentPillClass(tag: string) {
+  const lower = tag.toLowerCase();
+  if (lower === 'vip')
+    return 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-violet-100 text-violet-800 text-xs font-bold uppercase border border-violet-200';
+  if (lower === 'tiềm năng' || lower === 'tiem nang')
+    return 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold uppercase border border-amber-200';
+  return 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-bold uppercase';
+}
 
 export default function ContactDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [editOpen, setEditOpen] = useState(false);
-  const [activePanel, setActivePanel] = useState<ActivePanel>('info');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('info');
 
   const { data: contact, isLoading } = useQuery({
     queryKey: ['contact', id],
@@ -99,16 +106,9 @@ export default function ContactDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full gap-0">
-        <div className="w-60 shrink-0 border-r bg-white p-4 space-y-3">
-          <Skeleton className="h-20 w-20 rounded-full mx-auto" />
-          <Skeleton className="h-5 w-36 mx-auto" />
-          <Skeleton className="h-4 w-24 mx-auto" />
-        </div>
-        <div className="flex-1 p-6 space-y-4">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-64 w-full" />
-        </div>
+      <div className="space-y-4">
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
@@ -117,181 +117,305 @@ export default function ContactDetailPage() {
     return <p className="text-muted-foreground">{VI.actions.noData}</p>;
   }
 
-  const initials = contact.fullName
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
+  const firstTag = contact.tags?.[0];
 
   return (
-    <div className="flex h-full gap-0">
-      {/* Left Panel */}
-      <div className="w-60 shrink-0 border-r border-dashed bg-background p-4 flex flex-col items-center overflow-y-auto">
-        {/* Avatar */}
-        <div className="h-20 w-20 rounded-full bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center text-white text-2xl font-bold mb-3 shrink-0">
-          {initials}
-        </div>
+    <div className="space-y-4">
+      {/* ── Header card ── */}
+      <div className="bg-card rounded-xl shadow-sm p-6 border border-dashed border-border">
+        <div className="flex items-start justify-between gap-4">
+          {/* Left: avatar + name + segment */}
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-accent/30 border border-dashed border-border flex items-center justify-center font-bold text-xl text-primary font-mono">
+              {initials(contact.fullName)}
+            </div>
+            <div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h2 className="text-xl font-semibold text-foreground">{contact.fullName}</h2>
+                {firstTag && (
+                  <span className={segmentPillClass(firstTag)}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                    {firstTag}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1 font-mono">
+                ID: {contact.id.slice(0, 12).toUpperCase()} •&nbsp;
+                Tạo lúc: {format(new Date(contact.createdAt), 'HH:mm, dd/MM/yyyy')}
+              </p>
+            </div>
+          </div>
 
-        {/* Name & Phone */}
-        <h2 className="text-base font-bold text-center leading-tight">{contact.fullName}</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">{fmtPhone(contact.phone)}</p>
-
-        {/* Action buttons */}
-        <div className="flex gap-2 mt-3">
-          <ClickToCallButton phone={contact.phone} contactName={contact.fullName} />
-          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-            <Edit2 className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {/* Mini nav */}
-        <div className="w-full mt-6 space-y-1">
-          {NAV_ITEMS.map((item) => (
-            <button
-              key={item.key}
-              onClick={() => setActivePanel(item.key)}
-              className={cn(
-                'w-full text-left px-3 py-2 rounded-lg font-mono text-[11px] uppercase tracking-wider transition-colors',
-                activePanel === item.key
-                  ? 'bg-[var(--color-primary,hsl(var(--primary)))]/10 text-[hsl(var(--primary))] font-medium'
-                  : 'text-muted-foreground hover:bg-muted/50'
-              )}
+          {/* Right: action stack */}
+          <div className="flex items-center gap-2 shrink-0">
+            <ClickToCallButton phone={contact.phone} contactName={contact.fullName} />
+            <Button
+              variant="outline"
+              className="h-9 border-dashed font-bold text-sm gap-2"
+              onClick={() => navigate('/tickets')}
             >
-              {item.label}
-            </button>
-          ))}
+              <FileText className="h-4 w-4" />
+              Tạo phiếu
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+              <Edit2 className="mr-1.5 h-3.5 w-3.5" /> Sửa
+            </Button>
+          </div>
         </div>
+      </div>
 
-        {/* Contact details summary */}
-        <div className="w-full mt-5 space-y-2 text-sm border-t border-dashed pt-4">
-          <div className="flex flex-col gap-0.5">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{VI.contact.email}</span>
-            <span className="font-medium truncate">{contact.email || '—'}</span>
+      {/* ── 8/4 grid ── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+        {/* Left column (8 cols) */}
+        <div className="lg:col-span-8 flex flex-col gap-4">
+          {/* Tabbed info card */}
+          <div className="bg-card rounded-xl shadow-sm border border-dashed border-border overflow-hidden">
+            {/* Tab strip */}
+            <div className="flex border-b border-dashed border-border px-6">
+              {(
+                [
+                  { key: 'info', label: 'Thông tin' },
+                  { key: 'calls', label: 'Lịch sử cuộc gọi' },
+                  { key: 'tickets', label: 'Phiếu ghi' },
+                  { key: 'attachments', label: 'Tệp đính kèm' },
+                ] as { key: ActiveTab; label: string }[]
+              ).map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setActiveTab(t.key)}
+                  className={`px-4 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === t.key
+                      ? 'font-bold text-primary border-primary'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab body */}
+            <div className="p-6">
+              {activeTab === 'info' && (
+                <div className="space-y-6">
+                  <CustomerSummaryCard
+                    contactId={contact.id}
+                    customerData={JSON.stringify({ name: contact.fullName, phone: contact.phone, email: contact.email, tags: contact.tags, notes: contact.notes })}
+                  />
+                  <div className="grid grid-cols-2 gap-y-6 gap-x-10">
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Số điện thoại</p>
+                      <p className="text-sm font-medium text-primary">{fmtPhone(contact.phone)}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{VI.contact.email}</p>
+                      <p className="text-sm font-medium text-foreground">{contact.email || '—'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{VI.contact.source}</p>
+                      <p className="text-sm font-medium text-foreground">{contact.source || '—'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{VI.contact.assignedTo}</p>
+                      <p className="text-sm font-medium text-foreground">{contact.assignedTo?.fullName || '—'}</p>
+                    </div>
+                    {contact.tags && contact.tags.length > 0 && (
+                      <div className="col-span-2 space-y-1">
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{VI.contact.tags}</p>
+                        <div className="flex flex-wrap gap-1">
+                          {contact.tags.map((t) => (
+                            <Badge key={t} variant="secondary" className="text-xs">{t}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {contact.notes && (
+                      <div className="col-span-2 space-y-1">
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{VI.lead.notes}</p>
+                        <p className="text-sm text-muted-foreground bg-muted/40 p-3 rounded-lg border border-dashed border-border">
+                          {contact.notes}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'calls' && (
+                <div className="space-y-2">
+                  {(!calls || calls.length === 0) && (
+                    <p className="text-sm text-muted-foreground text-center py-6">Không có lịch sử cuộc gọi</p>
+                  )}
+                  {calls?.map((c) => (
+                    <div
+                      key={c.id}
+                      className="flex items-center justify-between p-3 rounded-lg border border-dashed border-border hover:bg-muted/30 cursor-pointer"
+                      onClick={() => navigate(`/call-logs/${c.id}`)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+                          c.disposition === 'ANSWERED'
+                            ? 'bg-green-100 text-green-600'
+                            : 'bg-red-100 text-red-600'
+                        }`}>
+                          {c.disposition === 'ANSWERED'
+                            ? <PhoneCall className="h-4 w-4" />
+                            : <PhoneMissed className="h-4 w-4" />}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">
+                            {c.direction === 'inbound' ? VI.callLog.inbound : VI.callLog.outbound}
+                          </p>
+                          <p className="text-xs text-muted-foreground font-mono">
+                            {formatDuration(c.duration)} • {format(new Date(c.startTime), 'HH:mm, dd/MM/yyyy')}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge
+                        className={c.disposition === 'ANSWERED'
+                          ? 'bg-[var(--color-status-ok)]/10 text-[var(--color-status-ok)] text-[10px] uppercase'
+                          : 'bg-[var(--color-status-err)]/10 text-[var(--color-status-err)] text-[10px] uppercase'
+                        }
+                      >
+                        {c.disposition === 'ANSWERED' ? 'Đã trả lời' : 'Nhỡ'}
+                      </Badge>
+                      {c.recordingUrl && (
+                        <div className="mt-2 w-full">
+                          <AudioPlayer src={`${c.recordingUrl.startsWith('http') ? c.recordingUrl : window.location.origin + c.recordingUrl}?token=${getAccessToken()}`} />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeTab === 'tickets' && (
+                <div className="space-y-2">
+                  {(!tickets || tickets.length === 0) && (
+                    <p className="text-sm text-muted-foreground text-center py-6">Không có phiếu ghi</p>
+                  )}
+                  {tickets?.map((t) => (
+                    <div
+                      key={t.id}
+                      className="flex items-center justify-between p-3 rounded-lg border border-dashed border-border hover:bg-muted/30 cursor-pointer"
+                      onClick={() => navigate(`/tickets/${t.id}`)}
+                    >
+                      <div>
+                        <span className="font-medium text-sm">{t.category}</span>
+                        <span className="ml-2 text-xs text-muted-foreground font-mono">
+                          {format(new Date(t.createdAt), 'dd/MM/yyyy')}
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <Badge variant="outline">{VI.ticket.priorities[t.priority as keyof typeof VI.ticket.priorities] || t.priority}</Badge>
+                        <Badge>{VI.ticket.statuses[t.status as keyof typeof VI.ticket.statuses] || t.status}</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeTab === 'attachments' && (
+                <p className="text-sm text-muted-foreground text-center py-6">Không có tệp đính kèm</p>
+              )}
+            </div>
           </div>
-          <div className="flex flex-col gap-0.5">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{VI.contact.source}</span>
-            <span className="font-medium">{contact.source || '—'}</span>
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{VI.contact.assignedTo}</span>
-            <span className="font-medium">{contact.assignedTo?.fullName || '—'}</span>
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{VI.contact.createdAt}</span>
-            <span className="font-medium">{format(new Date(contact.createdAt), 'dd/MM/yyyy')}</span>
-          </div>
-          {contact.tags && contact.tags.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-muted-foreground">{VI.contact.tags}</span>
-              <div className="flex flex-wrap gap-1">
-                {contact.tags.map((t) => (
-                  <Badge key={t} variant="secondary" className="text-xs">{t}</Badge>
+
+          {/* Timeline */}
+          {timeline && timeline.length > 0 && (
+            <div className="bg-card rounded-xl shadow-sm border border-dashed border-border p-6">
+              <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">
+                {VI.contact.tabs.timeline}
+              </h3>
+              <div className="relative space-y-6 before:content-[''] before:absolute before:left-3 before:top-2 before:bottom-0 before:w-px before:border-l before:border-dashed before:border-border">
+                {timeline.map((entry) => (
+                  <div key={entry.id} className="relative pl-9">
+                    <div className="absolute left-0.5 top-1 w-5 h-5 rounded-full bg-accent border border-dashed border-border flex items-center justify-center ring-2 ring-background">
+                      <Phone className="h-2.5 w-2.5 text-primary" />
+                    </div>
+                    <p className="text-xs font-bold text-foreground">{entry.description}</p>
+                    <p className="text-[10px] text-muted-foreground font-mono mt-1">
+                      {format(new Date(entry.createdAt), 'HH:mm - dd/MM/yyyy')}
+                    </p>
+                  </div>
                 ))}
               </div>
             </div>
           )}
         </div>
-      </div>
 
-      {/* Right Panel */}
-      <div className="flex-1 overflow-auto p-6">
-        {activePanel === 'info' && (
-          <div className="space-y-6">
-            {/* AI Customer Summary */}
-            <CustomerSummaryCard
-              contactId={contact.id}
-              customerData={JSON.stringify({ name: contact.fullName, phone: contact.phone, email: contact.email, tags: contact.tags, notes: contact.notes })}
-            />
-
-            {/* Info card */}
-            <DottedCard header="Thông tin liên hệ">
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.contact.email}</p><p className="font-medium">{contact.email || '—'}</p></div>
-                <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.contact.source}</p><p className="font-medium">{contact.source || '—'}</p></div>
-                <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.contact.assignedTo}</p><p className="font-medium">{contact.assignedTo?.fullName || '—'}</p></div>
-                <div><p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.contact.createdAt}</p><p className="font-medium">{format(new Date(contact.createdAt), 'dd/MM/yyyy HH:mm')}</p></div>
-                {contact.tags && contact.tags.length > 0 && (
-                  <div className="col-span-full">
-                    <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground mb-1">{VI.contact.tags}</p>
-                    <div className="flex gap-1">{contact.tags.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}</div>
-                  </div>
-                )}
-                {contact.notes && (
-                  <div className="col-span-full">
-                    <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{VI.lead.notes}</p>
-                    <p>{contact.notes}</p>
-                  </div>
-                )}
+        {/* Right rail (4 cols) */}
+        <div className="lg:col-span-4 flex flex-col gap-4">
+          <DottedCard>
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">
+              Thao tác nhanh
+            </h3>
+            <div className="space-y-2.5">
+              <div className="w-full">
+                <ClickToCallButton phone={contact.phone} contactName={contact.fullName} />
               </div>
-            </DottedCard>
-
-            {/* Timeline */}
-            <div>
-              <h3 className="font-mono text-[11px] uppercase tracking-wider mb-3 text-muted-foreground">{VI.contact.tabs.timeline}</h3>
-              {(!timeline || timeline.length === 0) && <p className="text-sm text-muted-foreground">{VI.actions.noData}</p>}
-              <div className="space-y-2">
-                {timeline?.map((entry) => (
-                  <div key={entry.id} className="flex gap-3 border-l-2 border-muted pl-4 py-2">
-                    <div>
-                      <p className="text-sm">{entry.description}</p>
-                      <p className="text-xs text-muted-foreground">{format(new Date(entry.createdAt), 'dd/MM/yyyy HH:mm')}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <Button
+                variant="outline"
+                className="w-full h-11 border-dashed font-bold text-sm gap-2"
+                onClick={() => navigate('/tickets')}
+              >
+                <FileText className="h-4 w-4" />
+                Tạo phiếu ghi
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full h-11 border-dashed font-bold text-sm gap-2"
+                onClick={() => setEditOpen(true)}
+              >
+                <Edit2 className="h-4 w-4" />
+                Sửa thông tin
+              </Button>
             </div>
-          </div>
-        )}
+          </DottedCard>
 
-        {activePanel === 'calls' && (
-          <div className="space-y-2">
-            <h3 className="font-mono text-[11px] uppercase tracking-wider mb-3 text-muted-foreground">{VI.contact.tabs.calls}</h3>
-            {(!calls || calls.length === 0) && <p className="text-sm text-muted-foreground">{VI.actions.noData}</p>}
-            {calls?.map((c) => (
-              <Card key={c.id} className="cursor-pointer hover:bg-accent/50" onClick={() => navigate(`/call-logs/${c.id}`)}>
-                <CardContent className="py-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Badge variant={c.direction === 'inbound' ? 'default' : 'secondary'}>
-                        {c.direction === 'inbound' ? VI.callLog.inbound : VI.callLog.outbound}
-                      </Badge>
-                      <span className="text-sm">{formatDuration(c.duration)}</span>
-                      <span className="text-sm text-muted-foreground">{format(new Date(c.startTime), 'dd/MM/yyyy HH:mm')}</span>
+          {/* Recent calls mini-card */}
+          <DottedCard className="flex-1">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                Cuộc gọi gần nhất
+              </h3>
+              <button
+                onClick={() => setActiveTab('calls')}
+                className="text-xs font-bold text-primary hover:underline uppercase"
+              >
+                Xem tất cả
+              </button>
+            </div>
+            <div className="space-y-3">
+              {(!calls || calls.length === 0) && (
+                <p className="text-xs text-muted-foreground text-center py-4">Chưa có cuộc gọi</p>
+              )}
+              {calls?.slice(0, 3).map((c) => (
+                <div key={c.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                      c.disposition === 'ANSWERED' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                    }`}>
+                      {c.disposition === 'ANSWERED'
+                        ? <PhoneCall className="h-3 w-3" />
+                        : <PhoneMissed className="h-3 w-3" />}
                     </div>
-                    {c.disposition && <Badge variant="outline">{c.disposition}</Badge>}
+                    <p className="text-xs text-muted-foreground font-mono">
+                      {format(new Date(c.startTime), 'dd/MM/yy HH:mm')}
+                    </p>
                   </div>
-                  {c.recordingUrl && (
-                    <div className="mt-2">
-                      <AudioPlayer src={`${c.recordingUrl.startsWith('http') ? c.recordingUrl : window.location.origin + c.recordingUrl}?token=${getAccessToken()}`} />
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {activePanel === 'tickets' && (
-          <div className="space-y-2">
-            <h3 className="font-mono text-[11px] uppercase tracking-wider mb-3 text-muted-foreground">{VI.contact.tabs.tickets}</h3>
-            {(!tickets || tickets.length === 0) && <p className="text-sm text-muted-foreground">{VI.actions.noData}</p>}
-            {tickets?.map((t) => (
-              <Card key={t.id} className="cursor-pointer hover:bg-accent/50" onClick={() => navigate(`/tickets/${t.id}`)}>
-                <CardContent className="flex items-center justify-between py-3">
-                  <div>
-                    <span className="font-medium">{t.category}</span>
-                    <span className="ml-2 text-sm text-muted-foreground">{format(new Date(t.createdAt), 'dd/MM/yyyy')}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Badge variant="outline">{VI.ticket.priorities[t.priority as keyof typeof VI.ticket.priorities] || t.priority}</Badge>
-                    <Badge>{VI.ticket.statuses[t.status as keyof typeof VI.ticket.statuses] || t.status}</Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+                  <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
+                    c.disposition === 'ANSWERED'
+                      ? 'bg-[var(--color-status-ok)]/10 text-[var(--color-status-ok)]'
+                      : 'bg-[var(--color-status-err)]/10 text-[var(--color-status-err)]'
+                  }`}>
+                    {c.disposition === 'ANSWERED' ? '✓' : '✗'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </DottedCard>
+        </div>
       </div>
 
       <ContactForm open={editOpen} onClose={() => setEditOpen(false)} contact={contact} />

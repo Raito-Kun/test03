@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   Loader2, ShieldCheck, Phone, BarChart2, Megaphone,
-  FileText, Star, Settings, Radio,
+  FileText, Star, Settings, Radio, ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -14,7 +14,6 @@ import PermissionMatrixTable from '@/components/permission-matrix-table';
 import type { PermissionRow, EditableRole } from '@/components/permission-matrix-table';
 import RoleTabPanel from '@/components/role-tab-panel';
 import { ClusterSelect } from '@/components/cluster-select';
-import { SectionHeader } from '@/components/ops/section-header';
 
 interface ClusterOption { id: string; name: string; isActive: boolean }
 
@@ -55,7 +54,6 @@ export default function PermissionManager() {
   const [isDirty, setIsDirty] = useState(false);
   const [selectedClusterId, setSelectedClusterId] = useState<string>('');
 
-  // Load clusters for super_admin to pick which tenant to edit.
   const { data: clusters } = useQuery<ClusterOption[]>({
     queryKey: ['clusters-for-perm-matrix'],
     queryFn: async () => {
@@ -65,7 +63,6 @@ export default function PermissionManager() {
     enabled: isSuperAdmin,
   });
 
-  // Default cluster: super_admin → first cluster; others → their own.
   useEffect(() => {
     if (selectedClusterId) return;
     if (isSuperAdmin && clusters && clusters.length > 0) {
@@ -73,8 +70,6 @@ export default function PermissionManager() {
     }
   }, [isSuperAdmin, clusters, selectedClusterId]);
 
-  // Effective cluster for API calls: super_admin passes their pick,
-  // non-super always targets their own (server ignores query for them).
   const effectiveClusterId = isSuperAdmin ? selectedClusterId : '';
 
   const { data: permissions, isLoading } = useQuery<PermissionRow[]>({
@@ -89,7 +84,6 @@ export default function PermissionManager() {
     enabled: hasPermission('system.permissions') && (!isSuperAdmin || !!effectiveClusterId),
   });
 
-  // Set the first group as active once data loads
   useEffect(() => {
     if (permissions && permissions.length > 0 && activeGroup === null) {
       setActiveGroup(permissions[0].group);
@@ -142,34 +136,62 @@ export default function PermissionManager() {
   const currentGroup = activeGroup ?? allGroups[0] ?? null;
   const filteredRows = currentGroup ? rows.filter((r) => r.group === currentGroup) : rows;
 
+  const pendingChangeCount = Object.values(localGrants).reduce(
+    (n, m) => n + Object.keys(m).length,
+    0,
+  );
+
   return (
-    <div className="flex flex-col gap-0 relative">
-      <div className="flex items-center gap-2 mb-4">
-        <SectionHeader
-          label="Quản lý phân quyền"
-          actions={isSuperAdmin && clusters && clusters.length > 0 ? (
-            <ClusterSelect
-              clusters={clusters}
-              value={selectedClusterId}
-              onChange={setSelectedClusterId}
-            />
-          ) : undefined}
-          className="flex-1"
-        />
+    <div className="flex flex-col gap-4 relative">
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1.5 text-sm">
+        <span className="text-muted-foreground">Trang chủ</span>
+        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-muted-foreground">Hệ thống</span>
+        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-primary font-semibold">Phân quyền</span>
+      </nav>
+
+      {/* Page heading */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl font-bold text-foreground">Phân quyền</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Thiết lập ma trận quyền hạn chi tiết cho từng vai trò trong hệ thống.
+          </p>
+        </div>
+        {isSuperAdmin && clusters && clusters.length > 0 && (
+          <ClusterSelect
+            clusters={clusters}
+            value={selectedClusterId}
+            onChange={setSelectedClusterId}
+          />
+        )}
       </div>
 
+      {/* Role tabs at top — border-b-2 border-primary active */}
       <Tabs defaultValue="matrix" className="flex flex-col gap-4">
-        <TabsList className="w-fit">
-          <TabsTrigger value="matrix">Ma trận quyền</TabsTrigger>
-          <TabsTrigger value="roles">Vai trò</TabsTrigger>
+        <TabsList className="w-fit border-b-0">
+          <TabsTrigger
+            value="matrix"
+            className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:rounded-none"
+          >
+            Ma trận quyền
+          </TabsTrigger>
+          <TabsTrigger
+            value="roles"
+            className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:rounded-none"
+          >
+            Vai trò
+          </TabsTrigger>
         </TabsList>
 
         {/* Permission Matrix Tab */}
         <TabsContent value="matrix" className="m-0">
           <div className="flex gap-4">
-            {/* Left sidebar */}
+            {/* Left sidebar — group nav */}
             <div className="w-[220px] shrink-0">
-              <ScrollArea className="h-[calc(100vh-220px)] rounded-sm border-dotted-2 bg-card">
+              <ScrollArea className="h-[calc(100vh-280px)] rounded-sm border-dotted-2 bg-card">
                 <div className="p-2 space-y-0.5">
                   <p className="px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
                     Nhóm quyền
@@ -205,12 +227,13 @@ export default function PermissionManager() {
               </ScrollArea>
             </div>
 
-            {/* Right panel */}
+            {/* Right panel — permission matrix table */}
             <div className="flex-1 min-w-0 rounded-sm border-dotted-2 bg-card overflow-hidden">
-              <div className="p-3 border-b flex items-center gap-2">
+              {/* Sticky table header */}
+              <div className="p-3 border-b flex items-center gap-2 bg-muted/50 sticky top-0 z-10">
                 {currentGroup && <GroupIcon group={currentGroup} />}
                 <span className="font-medium text-sm">{currentGroup ? (GROUP_LABEL_MAP[currentGroup] ?? currentGroup) : 'Tất cả quyền'}</span>
-                <span className="text-xs text-muted-foreground ml-auto">
+                <span className="text-xs text-muted-foreground ml-auto font-mono">
                   {filteredRows.length} quyền
                 </span>
               </div>
@@ -229,13 +252,16 @@ export default function PermissionManager() {
         </TabsContent>
       </Tabs>
 
-      {/* Fixed save button — only shown when there are unsaved changes */}
+      {/* Sticky save bar — bottom-right */}
       {isDirty && (
-        <div className="fixed bottom-6 right-6 z-50">
+        <div className="fixed bottom-10 right-6 z-50 flex items-center gap-3 rounded-xl border border-border bg-card/95 backdrop-blur shadow-lg pl-4 pr-2 py-2">
+          <span className="text-xs font-medium text-foreground">
+            Bạn có <span className="font-bold text-primary">{pendingChangeCount}</span> thay đổi chưa lưu
+          </span>
           <Button
             onClick={() => saveMutation.mutate()}
             disabled={saveMutation.isPending}
-            className="shadow-lg"
+            size="sm"
           >
             {saveMutation.isPending
               ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Đang lưu...</>

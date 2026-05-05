@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import type { AgentStatus } from '@shared/constants/enums';
 
 const statusColors: Record<string, string> = {
-  offline: 'bg-gray-400',
+  offline: 'bg-muted-foreground/60',
   ready: 'bg-green-500',
   break: 'bg-yellow-500',
   ringing: 'bg-blue-500 animate-pulse',
@@ -39,7 +39,7 @@ export function AgentStatusSelector() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
-          <span className={`h-2 w-2 rounded-full ${statusColors[myStatus] || 'bg-gray-400'}`} />
+          <span className={`h-2 w-2 rounded-full ${statusColors[myStatus] || 'bg-muted-foreground/60'}`} />
           {VI.agentStatus[myStatus]}
         </Button>
       </DropdownMenuTrigger>

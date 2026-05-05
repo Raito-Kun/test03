@@ -30,8 +30,8 @@ function TabItem({ tab, isActive }: { tab: CustomerTab; isActive: boolean }) {
         'group inline-flex items-center gap-1.5 px-3 h-8 rounded-t-md text-xs font-medium',
         'shrink-0 transition-colors relative',
         isActive
-          ? 'bg-white dark:bg-slate-900 text-blue-600 border border-b-0 border-slate-200 dark:border-slate-700'
-          : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700',
+          ? 'bg-card text-primary border border-b-0 border-border'
+          : 'text-muted-foreground hover:text-foreground hover:bg-muted',
       ].join(' ')}
     >
       <Icon className="h-3 w-3 shrink-0" />
@@ -42,8 +42,8 @@ function TabItem({ tab, isActive }: { tab: CustomerTab; isActive: boolean }) {
         className={[
           'ml-0.5 rounded p-0.5 transition-colors',
           isActive
-            ? 'opacity-60 hover:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800'
-            : 'opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:bg-slate-300 dark:hover:bg-slate-600',
+            ? 'opacity-60 hover:opacity-100 hover:bg-muted'
+            : 'opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:bg-muted',
         ].join(' ')}
       >
         <X className="h-3 w-3" />
@@ -59,7 +59,7 @@ export function CustomerTabBar() {
   if (tabs.length === 0) return null;
 
   return (
-    <div className="flex h-9 items-end bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-2">
+    <div className="flex h-9 items-end bg-muted border-b border-border px-2">
       <div className="flex items-end gap-0.5 overflow-x-auto scrollbar-hide scroll-smooth flex-1">
         {tabs.map((tab) => (
           <TabItem key={tab.id} tab={tab} isActive={tab.id === activeTabId} />
@@ -69,7 +69,7 @@ export function CustomerTabBar() {
       {/* Add button */}
       <button
         onClick={() => navigate('/contacts')}
-        className="ml-1 shrink-0 inline-flex items-center gap-1 px-2 h-7 rounded text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+        className="ml-1 shrink-0 inline-flex items-center gap-1 px-2 h-7 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
       >
         <Plus className="h-3.5 w-3.5" />
         <span>Thêm</span>

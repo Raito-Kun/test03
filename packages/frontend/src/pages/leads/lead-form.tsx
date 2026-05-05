@@ -77,84 +77,130 @@ export default function LeadForm({ open, onClose, onSuccess, initialData }: Lead
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? VI.lead.editTitle : VI.lead.createTitle}</DialogTitle>
+          <DialogTitle className="text-primary font-bold">
+            {isEdit ? VI.lead.editTitle : VI.lead.createTitle}
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="space-y-1">
-            <Label>Mã liên hệ</Label>
-            <Input
-              value={contactId}
-              onChange={(e) => setContactId(e.target.value)}
-              placeholder="Mã liên hệ"
-            />
+        <div className="space-y-5 pt-1">
+          {/* Thông tin cơ bản */}
+          <div>
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-mono border-b border-dashed border-border pb-2 mb-3">
+              Thông tin lead
+            </h3>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase tracking-widest font-mono text-muted-foreground">
+                  Mã liên hệ
+                </Label>
+                <Input
+                  value={contactId}
+                  onChange={(e) => setContactId(e.target.value)}
+                  placeholder="Mã liên hệ"
+                  className="h-[42px]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase tracking-widest font-mono text-muted-foreground">
+                  {VI.lead.status}
+                </Label>
+                <Select value={status} onValueChange={(v) => setStatus(v as LeadStatus)}>
+                  <SelectTrigger className="h-[42px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LEAD_STATUSES.map((s) => (
+                      <SelectItem key={s} value={s}>{VI.lead.statuses[s]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase tracking-widest font-mono text-muted-foreground">
+                  Nguồn
+                </Label>
+                <Select value={source || undefined} onValueChange={(v) => setSource(v === '_none' ? '' : v || '')}>
+                  <SelectTrigger className="h-[42px]">
+                    {source
+                      ? <span>{LEAD_SOURCES.find((s) => s.value === source)?.label || source}</span>
+                      : <SelectValue placeholder="Chọn nguồn" />}
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">— Không có —</SelectItem>
+                    {LEAD_SOURCES.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-1">
-            <Label>{VI.lead.status}</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v as LeadStatus)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {LEAD_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>{VI.lead.statuses[s]}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Đánh giá */}
+          <div>
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-mono border-b border-dashed border-border pb-2 mb-3">
+              Đánh giá &amp; theo dõi
+            </h3>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase tracking-widest font-mono text-muted-foreground">
+                  {VI.lead.score} (0–100)
+                </Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={score}
+                  onChange={(e) => setScore(e.target.value)}
+                  placeholder="0"
+                  className="h-[42px]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase tracking-widest font-mono text-muted-foreground">
+                  {VI.lead.followUp}
+                </Label>
+                <Input
+                  type="date"
+                  value={followUpDate}
+                  onChange={(e) => setFollowUpDate(e.target.value)}
+                  className="h-[42px]"
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-1">
-            <Label>{VI.lead.score} (0-100)</Label>
-            <Input
-              type="number"
-              min={0}
-              max={100}
-              value={score}
-              onChange={(e) => setScore(e.target.value)}
-              placeholder="0"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <Label>Nguồn</Label>
-            <Select value={source || undefined} onValueChange={(v) => setSource(v === '_none' ? '' : v || '')}>
-              <SelectTrigger>
-                {source
-                  ? <span>{LEAD_SOURCES.find((s) => s.value === source)?.label || source}</span>
-                  : <SelectValue placeholder="Chọn nguồn" />}
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_none">— Không có —</SelectItem>
-                {LEAD_SOURCES.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1">
-            <Label>{VI.lead.notes}</Label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-            />
-          </div>
-
-          <div className="space-y-1">
-            <Label>{VI.lead.followUp}</Label>
-            <Input
-              type="date"
-              value={followUpDate}
-              onChange={(e) => setFollowUpDate(e.target.value)}
-            />
+          {/* Ghi chú */}
+          <div>
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-mono border-b border-dashed border-border pb-2 mb-3">
+              Ghi chú
+            </h3>
+            <div className="space-y-1">
+              <Label className="text-[10px] font-bold uppercase tracking-widest font-mono text-muted-foreground">
+                {VI.lead.notes}
+              </Label>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+                className="resize-none"
+              />
+            </div>
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{VI.actions.cancel}</Button>
-          <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+        <DialogFooter className="pt-2 border-t border-dashed border-border">
+          <Button variant="outline" className="border-dashed" onClick={onClose}>
+            {VI.actions.cancel}
+          </Button>
+          <Button
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending}
+            className="bg-primary hover:bg-primary/90"
+          >
             {mutation.isPending ? VI.actions.loading : VI.actions.save}
           </Button>
         </DialogFooter>

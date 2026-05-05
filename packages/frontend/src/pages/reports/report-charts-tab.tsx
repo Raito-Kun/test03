@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import api from '@/services/api-client';
 import type { FilterState } from './report-filters';
 import { DottedCard } from '@/components/ops/dotted-card';
+import { VI } from '@/lib/vi-text';
 
 interface CallsByDayItem { date: string; total: number; answered: number; missed: number }
 interface AgentCompItem { agentName: string; answered: number; missed: number }
@@ -112,14 +113,17 @@ export function ReportChartsTab({ filters, searched, queryKey }: Props) {
         </ResponsiveContainer>
       </DottedCard>
 
-      {/* Chart 4: Result distribution pie */}
+      {/* Chart 4: Result distribution pie — map raw FS hangup codes to Vietnamese */}
       <DottedCard header="Tỷ lệ kết quả cuộc gọi">
         <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
           <PieChart>
             <Pie
-              data={data?.resultDistribution ?? []}
+              data={(data?.resultDistribution ?? []).map((r) => ({
+                ...r,
+                hangupCauseVi: VI.hangupCause[r.hangupCause] ?? r.hangupCause,
+              }))}
               dataKey="count"
-              nameKey="hangupCause"
+              nameKey="hangupCauseVi"
               cx="50%"
               cy="50%"
               outerRadius={100}

@@ -13,13 +13,14 @@ import { ContactImportStepDedup as ImportStepDedup } from './contact-import-step
 import { ContactImportStepAssign as ImportStepAssign } from './contact-import-step-assign';
 import type {
   ContactImportRow, DuplicateEntry, ExistingContactSnapshot, CommitRow, DuplicateAction,
+  InternalDuplicateEntry,
 } from './contact-import-wizard-types';
 
 type AssignmentPlan = Map<number, string | null>;
 type ImportError = { row: number; error: string };
 
 const ALLOWED_ROLES = ['super_admin', 'admin', 'manager', 'leader'] as const;
-const STEP_LABELS = ['1 Xem trước', '2 Kiểm tra trùng', '3 Phân công'];
+const STEP_LABELS = ['Xem trước', 'Kiểm tra trùng', 'Phân công'];
 
 // ---- state shape ----
 interface WizardState {
@@ -31,6 +32,7 @@ interface WizardState {
   // step 2 — duplicates carry their own chosen action (step 2 component mutates via onActionsChange)
   uniques: ContactImportRow[];
   duplicates: DuplicateEntry[];
+  internalDuplicates: InternalDuplicateEntry[];
   // step 3
   assignmentPlan: AssignmentPlan;
 }
@@ -43,6 +45,7 @@ function initialState(): WizardState {
     errors: [],
     uniques: [],
     duplicates: [],
+    internalDuplicates: [],
     assignmentPlan: new Map(),
   };
 }
@@ -50,23 +53,34 @@ function initialState(): WizardState {
 // ---- Stepper ----
 function Stepper({ current }: { current: 1 | 2 | 3 }) {
   return (
-    <div className="flex items-center gap-2 mb-4">
+    <div className="flex items-center gap-0 mb-4">
       {STEP_LABELS.map((label, i) => {
         const stepNum = (i + 1) as 1 | 2 | 3;
         const active = stepNum === current;
         const done = stepNum < current;
         return (
-          <div key={label} className="flex items-center gap-1.5">
-            {i > 0 && <div className="h-px w-6 bg-border" />}
-            <span
-              className={`text-xs font-medium px-2 py-0.5 rounded-full transition-colors ${
-                active ? 'bg-primary text-primary-foreground' :
-                done ? 'bg-muted text-muted-foreground line-through' :
-                'text-muted-foreground'
-              }`}
-            >
-              {label}
-            </span>
+          <div key={label} className="flex items-center">
+            {i > 0 && (
+              <div className="h-px w-10 border-t border-dashed border-border mx-1" />
+            )}
+            <div className="flex flex-col items-center gap-1">
+              <div
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors ${
+                  active
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : done
+                    ? 'bg-primary/20 text-primary border-primary/40'
+                    : 'bg-background text-muted-foreground border-border'
+                }`}
+              >
+                {done ? '✓' : stepNum}
+              </div>
+              <span className={`text-[9px] font-bold uppercase tracking-wider font-mono whitespace-nowrap ${
+                active ? 'text-primary' : done ? 'text-primary/60' : 'text-muted-foreground'
+              }`}>
+                {label}
+              </span>
+            </div>
           </div>
         );
       })}
@@ -121,6 +135,7 @@ export function ContactImportWizard({ open, onClose }: ContactImportWizardProps)
         data: {
           uniques: ContactImportRow[];
           duplicates: Array<{ rowNumber: number; new: ContactImportRow; existing: ExistingContactSnapshot }>;
+          internalDuplicates?: Array<{ rowNumber: number; new: ContactImportRow; firstOccurrenceRow: number }>;
         };
       }>('/contacts/import/check-dedup', { rows });
       return data.data;
@@ -130,7 +145,11 @@ export function ContactImportWizard({ open, onClose }: ContactImportWizardProps)
         ...d,
         action: 'merge' as DuplicateAction,
       }));
-      setState((s) => ({ ...s, step: 2, uniques: result.uniques, duplicates }));
+      const internalDuplicates: InternalDuplicateEntry[] = (result.internalDuplicates ?? []).map((d) => ({
+        ...d,
+        action: 'skip' as const,
+      }));
+      setState((s) => ({ ...s, step: 2, uniques: result.uniques, duplicates, internalDuplicates }));
     },
     onError: (err: { response?: { data?: { error?: { message?: string } } }; message?: string }) => {
       toast.error(err?.response?.data?.error?.message || err?.message || 'Kiểm tra trùng thất bại');
@@ -180,7 +199,12 @@ export function ContactImportWizard({ open, onClose }: ContactImportWizardProps)
         existingId: d.existing.id,
         assignToUserId: state.assignmentPlan.get(d.rowNumber) ?? null,
       }));
-      commitMutation.mutate([...uniquesOut, ...duplicatesOut]);
+      const internalOut: CommitRow[] = state.internalDuplicates.map((d) => ({
+        row: d.new,
+        action: d.action, // 'skip' (default) or 'create' if user opts in
+        assignToUserId: state.assignmentPlan.get(d.rowNumber) ?? null,
+      }));
+      commitMutation.mutate([...uniquesOut, ...duplicatesOut, ...internalOut]);
     }
   }
 
@@ -210,7 +234,9 @@ export function ContactImportWizard({ open, onClose }: ContactImportWizardProps)
           <ImportStepDedup
             duplicates={state.duplicates}
             uniqueCount={state.uniques.length}
+            internalDuplicates={state.internalDuplicates}
             onActionsChange={(updated) => setState((s) => ({ ...s, duplicates: updated }))}
+            onInternalActionsChange={(updated) => setState((s) => ({ ...s, internalDuplicates: updated }))}
           />
         )}
 

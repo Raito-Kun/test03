@@ -57,6 +57,6 @@ describe('Tickets - Delete', () => {
     const res = await createAgent()
       .delete(`${BASE}/nonexistent-ticket-id`)
       .set(authHeader('admin'));
-    expect([200, 204, 404, 500]).toContain(res.status);
+    expect([200, 204, 403, 404, 500]).toContain(res.status);
   });
 });

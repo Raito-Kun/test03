@@ -16,6 +16,14 @@ import { Loader2 } from 'lucide-react';
 const TICKET_PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
 type TicketPriority = typeof TICKET_PRIORITIES[number];
 
+// Priority dot colors matching ticket-card.tsx
+const PRIORITY_DOTS: Record<TicketPriority, string> = {
+  low: 'bg-muted-foreground/40',
+  medium: 'bg-primary',
+  high: 'bg-amber-500',
+  urgent: 'bg-destructive',
+};
+
 interface TicketFormData {
   contactId: string;
   categoryId: string;
@@ -33,6 +41,15 @@ interface TicketFormProps {
 
 interface Category { id: string; name: string; }
 interface Macro { id: string; name: string; content: string; }
+
+/** Mono uppercase field label — consistent with M3 lavender design system */
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <Label className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+      {children}
+    </Label>
+  );
+}
 
 export default function TicketForm({ open, onClose, onSuccess, ticketId, initialData }: TicketFormProps) {
   const isEdit = Boolean(ticketId);
@@ -97,74 +114,106 @@ export default function TicketForm({ open, onClose, onSuccess, ticketId, initial
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? VI.ticket.editTitle : VI.ticket.createTitle}</DialogTitle>
+        <DialogHeader className="border-b border-dashed border-border pb-4">
+          <DialogTitle className="font-mono text-base">
+            {isEdit ? VI.ticket.editTitle : VI.ticket.createTitle}
+          </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>{VI.contact.fullName} (ID)</Label>
+
+        <form onSubmit={handleSubmit} className="space-y-5 pt-1">
+          {/* ── Contact ID section ── */}
+          <div className="space-y-1.5">
+            <FieldLabel>{VI.contact.fullName} (ID)</FieldLabel>
             <Input
+              className="h-[42px]"
               value={form.contactId}
               onChange={(e) => setForm((f) => ({ ...f, contactId: e.target.value }))}
               required
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>{VI.ticket.category}</Label>
-            <Select value={form.categoryId} onValueChange={(v) => setForm((f) => ({ ...f, categoryId: v ?? '' }))}>
-              <SelectTrigger>
-                <SelectValue placeholder={VI.ticket.category} />
-              </SelectTrigger>
-              <SelectContent>
-                {categories?.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="border-t border-dashed border-border" />
+
+          {/* ── Classification section ── */}
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <FieldLabel>{VI.ticket.category}</FieldLabel>
+              <Select value={form.categoryId} onValueChange={(v) => setForm((f) => ({ ...f, categoryId: v ?? '' }))}>
+                <SelectTrigger className="h-[42px] font-mono text-sm">
+                  <SelectValue placeholder={VI.ticket.category} />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories?.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id} className="font-mono text-sm">
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <FieldLabel>{VI.ticket.priority}</FieldLabel>
+              <Select value={form.priority} onValueChange={(v) => setForm((f) => ({ ...f, priority: v as TicketPriority }))}>
+                <SelectTrigger className="h-[42px]">
+                  <SelectValue>
+                    <span className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${PRIORITY_DOTS[form.priority]}`} />
+                      {VI.ticket.priorities[form.priority]}
+                    </span>
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {TICKET_PRIORITIES.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      <span className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${PRIORITY_DOTS[p]}`} />
+                        {VI.ticket.priorities[p]}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>{VI.ticket.priority}</Label>
-            <Select value={form.priority} onValueChange={(v) => setForm((f) => ({ ...f, priority: v as TicketPriority }))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TICKET_PRIORITIES.map((p) => (
-                  <SelectItem key={p} value={p}>{VI.ticket.priorities[p]}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="border-t border-dashed border-border" />
+
+          {/* ── Content section ── */}
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <FieldLabel>{VI.ticket.macro}</FieldLabel>
+              <Select onValueChange={(v: string | null) => { if (v) handleMacroSelect(v); }}>
+                <SelectTrigger className="h-[42px] font-mono text-sm">
+                  <SelectValue placeholder={VI.ticket.macro} />
+                </SelectTrigger>
+                <SelectContent>
+                  {macros?.map((m) => (
+                    <SelectItem key={m.id} value={m.id} className="font-mono text-sm">
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <FieldLabel>{VI.ticket.content}</FieldLabel>
+              <Textarea
+                rows={4}
+                value={form.content}
+                onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
+                required
+                className="border-dashed resize-none"
+              />
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>{VI.ticket.macro}</Label>
-            <Select onValueChange={(v: string | null) => { if (v) handleMacroSelect(v); }}>
-              <SelectTrigger>
-                <SelectValue placeholder={VI.ticket.macro} />
-              </SelectTrigger>
-              <SelectContent>
-                {macros?.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>{VI.ticket.content}</Label>
-            <Textarea
-              rows={4}
-              value={form.content}
-              onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
-              required
-            />
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>{VI.actions.cancel}</Button>
-            <Button type="submit" disabled={isPending}>
+          <DialogFooter className="border-t border-dashed border-border pt-4 gap-2">
+            <Button type="button" variant="outline" className="border-dashed" onClick={onClose}>
+              {VI.actions.cancel}
+            </Button>
+            <Button type="submit" disabled={isPending} className="bg-primary text-primary-foreground shadow-md shadow-primary/20 min-w-[80px]">
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {VI.actions.save}
             </Button>

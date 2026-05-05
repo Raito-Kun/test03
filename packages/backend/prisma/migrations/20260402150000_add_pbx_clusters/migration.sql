@@ -1,0 +1,27 @@
+CREATE TABLE "pbx_clusters" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "esl_host" TEXT NOT NULL,
+    "esl_port" INTEGER NOT NULL DEFAULT 8021,
+    "esl_password" TEXT NOT NULL,
+    "sip_domain" TEXT NOT NULL,
+    "sip_wss_url" TEXT,
+    "pbx_ip" TEXT NOT NULL,
+    "gateway_name" TEXT NOT NULL,
+    "recording_path" TEXT,
+    "recording_url_prefix" TEXT,
+    "cdr_report_url" TEXT,
+    "ai_api_endpoint" TEXT,
+    "ai_api_key" TEXT,
+    "smtp_host" TEXT,
+    "smtp_port" INTEGER,
+    "smtp_user" TEXT,
+    "smtp_password" TEXT,
+    "smtp_from" TEXT,
+    "is_active" BOOLEAN NOT NULL DEFAULT false,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ NOT NULL,
+
+    CONSTRAINT "pbx_clusters_pkey" PRIMARY KEY ("id")
+);

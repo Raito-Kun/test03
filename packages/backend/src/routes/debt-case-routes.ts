@@ -3,10 +3,12 @@ import { authMiddleware } from '../middleware/auth-middleware';
 import { requireRole } from '../middleware/rbac-middleware';
 import { applyDataScope } from '../middleware/data-scope-middleware';
 import * as debtCaseCtrl from '../controllers/debt-case-controller';
+import { checkFeatureEnabled } from '../middleware/feature-flag-middleware';
 
 const router = Router();
 
 router.use(authMiddleware);
+router.use(checkFeatureEnabled('debt'));
 router.use(applyDataScope('assignedTo'));
 
 router.get('/', debtCaseCtrl.listDebtCases);

@@ -16,6 +16,29 @@ const LOCAL_RECORDING_DIR = process.env.LOCAL_RECORDING_DIR || '';
 const BULK_DOWNLOAD_LIMIT = 50;
 
 /**
+ * Build a human-friendly filename for a recording download:
+ *   {direction}_{caller}_{destination}_{dd-mm-yyyy_HH-MM-SS}.{ext}
+ * Mirrors frontend buildRecordingFilename so the name is consistent
+ * whether the user uses the <a download> link or the audio player's
+ * "Save audio as..." (which honors the server's Content-Disposition).
+ */
+function buildRecordingFilename(
+  direction: string,
+  callerNumber: string,
+  destinationNumber: string,
+  startTime: Date,
+  ext: string,
+): string {
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const stamp =
+    `${pad(startTime.getDate())}-${pad(startTime.getMonth() + 1)}-${startTime.getFullYear()}` +
+    `_${pad(startTime.getHours())}-${pad(startTime.getMinutes())}-${pad(startTime.getSeconds())}`;
+  const sanitize = (s: string) => (s || '').replace(/[^A-Za-z0-9_+-]/g, '') || 'unknown';
+  const cleanExt = ext.replace(/^\./, '') || 'mp3';
+  return `${sanitize(direction)}_${sanitize(callerNumber)}_${sanitize(destinationNumber)}_${stamp}.${cleanExt}`;
+}
+
+/**
  * Bulk download recordings as a zip archive.
  * Accepts array of callLogIds (max 50).
  */
@@ -40,7 +63,15 @@ export async function bulkDownloadRecordings(
 
   const callLogs = await prisma.callLog.findMany({
     where: { id: { in: callLogIds }, recordingStatus: 'available', recordingPath: { not: null } },
-    select: { id: true, recordingPath: true, callUuid: true },
+    select: {
+      id: true,
+      recordingPath: true,
+      callUuid: true,
+      direction: true,
+      callerNumber: true,
+      destinationNumber: true,
+      startTime: true,
+    },
   });
 
   if (callLogs.length === 0) {
@@ -62,7 +93,13 @@ export async function bulkDownloadRecordings(
     if (!ALLOWED_EXTENSIONS.includes(ext)) continue;
 
     const relativePath = recordingPath.replace(/^\/var\/lib\/freeswitch\/recordings\/?/, '');
-    const fileName = `${log.callUuid}${ext}`;
+    const fileName = buildRecordingFilename(
+      log.direction,
+      log.callerNumber,
+      log.destinationNumber,
+      log.startTime,
+      ext,
+    );
 
     if (LOCAL_RECORDING_DIR) {
       const localFile = path.join(LOCAL_RECORDING_DIR, relativePath);
@@ -107,7 +144,17 @@ export async function proxyRecording(
 ): Promise<void> {
   const callLog = await prisma.callLog.findUnique({
     where: { id: callLogId },
-    select: { id: true, recordingPath: true, recordingStatus: true, userId: true },
+    select: {
+      id: true,
+      recordingPath: true,
+      recordingStatus: true,
+      userId: true,
+      direction: true,
+      callerNumber: true,
+      destinationNumber: true,
+      startTime: true,
+      cluster: { select: { recordingUrlPrefix: true } },
+    },
   });
 
   if (!callLog) {
@@ -136,6 +183,14 @@ export async function proxyRecording(
   // Strip absolute filesystem prefix to get relative path
   const relativePath = recordingPath.replace(/^\/var\/lib\/freeswitch\/recordings\/?/, '');
 
+  const downloadName = buildRecordingFilename(
+    callLog.direction,
+    callLog.callerNumber,
+    callLog.destinationNumber,
+    callLog.startTime,
+    ext,
+  );
+
   logger.info('Recording lookup', {
     callLogId,
     recordingPath,
@@ -150,21 +205,32 @@ export async function proxyRecording(
     const resolved = path.resolve(localFile);
     if (resolved.startsWith(path.resolve(LOCAL_RECORDING_DIR)) && fs.existsSync(resolved)) {
       logger.info('Serving recording from local', { callLogId, resolved });
-      serveLocalFile(resolved, ext, callLogId, userId, req, res);
+      serveLocalFile(resolved, ext, downloadName, callLogId, userId, req, res);
       return;
     }
     logger.warn('Local recording not found', { callLogId, localFile: resolved });
   }
 
-  // Fallback: proxy from upstream FusionPBX
-  logger.info('Proxying recording from upstream', { callLogId, relativePath });
-  await proxyFromUpstream(relativePath, ext, callLogId, userId, req, res);
+  // Fallback: proxy from upstream FusionPBX (prefer cluster-specific URL when set)
+  const baseUrl = callLog.cluster?.recordingUrlPrefix
+    || process.env.FUSIONPBX_RECORDING_URL
+    || 'http://localhost:8080/recordings';
+  logger.info('Proxying recording from upstream', { callLogId, relativePath, baseUrl });
+  await proxyFromUpstream(baseUrl, relativePath, ext, downloadName, callLogId, userId, req, res);
+}
+
+/** Format a Content-Disposition header safely for ASCII + UTF-8 filenames (RFC 5987). */
+function contentDisposition(kind: 'inline' | 'attachment', filename: string): string {
+  const asciiFallback = filename.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '');
+  const encoded = encodeURIComponent(filename);
+  return `${kind}; filename="${asciiFallback}"; filename*=UTF-8''${encoded}`;
 }
 
 /** Serve recording from local filesystem with range request support */
 function serveLocalFile(
   filePath: string,
   ext: string,
+  downloadName: string,
   callLogId: string,
   userId: string,
   req: Request,
@@ -172,11 +238,10 @@ function serveLocalFile(
 ): void {
   const stat = fs.statSync(filePath);
   const mimeType = MIME_MAP[ext] || 'application/octet-stream';
-  const fileName = path.basename(filePath);
 
   res.setHeader('Content-Type', mimeType);
   res.setHeader('Accept-Ranges', 'bytes');
-  res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+  res.setHeader('Content-Disposition', contentDisposition('inline', downloadName));
 
   const rangeHeader = req.headers['range'];
   if (rangeHeader) {
@@ -198,14 +263,15 @@ function serveLocalFile(
 
 /** Proxy recording from upstream FusionPBX HTTP server */
 async function proxyFromUpstream(
+  baseUrl: string,
   relativePath: string,
   ext: string,
+  downloadName: string,
   callLogId: string,
   userId: string,
   req: Request,
   res: Response,
 ): Promise<void> {
-  const baseUrl = process.env.FUSIONPBX_RECORDING_URL || 'http://localhost:8080/recordings';
   const safePath = relativePath.split('/').map((seg) => encodeURIComponent(seg)).join('/');
   const fileUrl = `${baseUrl}/${safePath}`;
 
@@ -238,8 +304,7 @@ async function proxyFromUpstream(
     if (contentRange) res.setHeader('Content-Range', contentRange);
     res.setHeader('Accept-Ranges', 'bytes');
 
-    const fileName = path.basename(relativePath);
-    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+    res.setHeader('Content-Disposition', contentDisposition('inline', downloadName));
     res.status(upstream.status);
 
     (upstream.data as NodeJS.ReadableStream).pipe(res);

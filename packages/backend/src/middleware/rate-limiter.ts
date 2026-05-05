@@ -25,13 +25,25 @@ export const globalLimiter = rateLimit({
   store: createRedisStore('rl:global:'),
 });
 
-/** Login rate limit: configurable via LOGIN_RATE_LIMIT env (default 10/min) */
+/**
+ * Login rate limit — configurable via LOGIN_RATE_LIMIT env (default 30/min).
+ *
+ * Keyed by normalized email when present so offices behind NAT don't share
+ * one bucket (the previous per-IP default of 10 throttled entire teams).
+ * Falls back to IP for unparseable bodies. Malicious brute-force is still
+ * limited per-email, and the global limiter + express body size caps keep
+ * the endpoint bounded overall.
+ */
 export const loginLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: isTest ? 1000 : parseInt(process.env.LOGIN_RATE_LIMIT || '10', 10),
+  max: isTest ? 1000 : parseInt(process.env.LOGIN_RATE_LIMIT || '30', 10),
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip || 'unknown',
+  keyGenerator: (req) => {
+    const email = (req.body as { email?: string } | undefined)?.email;
+    if (email && typeof email === 'string') return `email:${email.trim().toLowerCase()}`;
+    return `ip:${req.ip || 'unknown'}`;
+  },
   message: {
     success: false,
     error: { code: 'RATE_LIMITED', message: 'Too many login attempts' },

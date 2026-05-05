@@ -1,153 +1,144 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { format } from 'date-fns';
-import { RefreshCw } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Plus, RefreshCw, User, Flag, Tag, X } from 'lucide-react';
 import { VI } from '@/lib/vi-text';
-import api from '@/services/api-client';
-import { usePagination } from '@/hooks/use-pagination';
-import { PageWrapper } from '@/components/page-wrapper';
-import { DataTable, type Column } from '@/components/data-table/data-table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import TicketForm from './ticket-form';
 import { ExportButton } from '@/components/export-button';
+import { TicketKanban } from './ticket-kanban';
 
-const TICKET_STATUSES = ['open', 'in_progress', 'resolved', 'closed'] as const;
 const TICKET_PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
-
-type TicketStatus = typeof TICKET_STATUSES[number];
 type TicketPriority = typeof TICKET_PRIORITIES[number];
 
-const PRIORITY_COLORS: Record<TicketPriority, string> = {
-  low: 'bg-muted text-muted-foreground',
-  medium: 'bg-primary/10 text-primary',
-  high: 'bg-[var(--color-status-warn)]/10 text-[var(--color-status-warn)]',
-  urgent: 'bg-[var(--color-status-err)]/10 text-[var(--color-status-err)]',
-};
-
-const STATUS_COLORS: Record<TicketStatus, string> = {
-  open: 'bg-primary/10 text-primary',
-  in_progress: 'bg-[var(--color-status-warn)]/10 text-[var(--color-status-warn)]',
-  resolved: 'bg-[var(--color-status-ok)]/10 text-[var(--color-status-ok)]',
-  closed: 'bg-muted text-muted-foreground',
-};
-
-interface Ticket {
-  id: string;
-  contactName: string;
-  category: string;
-  priority: TicketPriority;
-  status: TicketStatus;
-  createdAt: string;
+// Deterministic avatar bg from string
+const AVATAR_BG = ['bg-violet-200 text-violet-800', 'bg-pink-200 text-pink-800', 'bg-amber-200 text-amber-800', 'bg-emerald-200 text-emerald-800'];
+function avatarBg(s: string) {
+  let h = 0; for (let i = 0; i < s.length; i++) h = s.charCodeAt(i) + ((h << 5) - h);
+  return AVATAR_BG[Math.abs(h) % AVATAR_BG.length];
 }
 
+// Placeholder assignee avatars (pulled from current user pool in UI — no real API needed for display)
+const MOCK_AGENTS = ['LM', 'PM', 'QT', 'TH'];
+
 export default function TicketListPage() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const { page, setPage, limit, setLimit, search, setSearch, queryParams } = usePagination(20);
 
-  const { data, isLoading, refetch } = useQuery({
-    queryKey: ['tickets', queryParams, statusFilter, priorityFilter],
-    queryFn: async () => {
-      const params: Record<string, string | number> = { ...queryParams };
-      if (statusFilter) params.status = statusFilter;
-      if (priorityFilter) params.priority = priorityFilter;
-      const { data } = await api.get('/tickets', { params });
-      return data.data as { items: Ticket[]; total: number };
-    },
-  });
-
-  const columns: Column<Ticket>[] = [
-    { key: 'contactName', label: VI.contact.fullName },
-    { key: 'category', label: VI.ticket.category },
-    {
-      key: 'priority',
-      label: VI.ticket.priority,
-      render: (row) => (
-        <Badge className={PRIORITY_COLORS[row.priority]}>
-          {VI.ticket.priorities[row.priority]}
-        </Badge>
-      ),
-    },
-    {
-      key: 'status',
-      label: VI.ticket.status,
-      render: (row) => (
-        <Badge className={STATUS_COLORS[row.status]}>
-          {VI.ticket.statuses[row.status]}
-        </Badge>
-      ),
-    },
-    {
-      key: 'createdAt',
-      label: VI.contact.createdAt,
-      render: (row) => format(new Date(row.createdAt), 'dd/MM/yyyy'),
-    },
-  ];
-
-  const toolbar = (
-    <div className="flex gap-2">
-      <Select value={statusFilter || undefined} onValueChange={(v) => setStatusFilter(v === '_all' ? '' : v || '')}>
-        <SelectTrigger className="w-40">
-          {statusFilter
-            ? <span>{VI.ticket.statuses[statusFilter as TicketStatus]}</span>
-            : <span className="text-muted-foreground">Tất cả trạng thái</span>}
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="_all">Tất cả trạng thái</SelectItem>
-          {TICKET_STATUSES.map((s) => (
-            <SelectItem key={s} value={s}>{VI.ticket.statuses[s]}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select value={priorityFilter || undefined} onValueChange={(v) => setPriorityFilter(v === '_all' ? '' : v || '')}>
-        <SelectTrigger className="w-40">
-          {priorityFilter
-            ? <span>{VI.ticket.priorities[priorityFilter as TicketPriority]}</span>
-            : <span className="text-muted-foreground">Tất cả mức độ</span>}
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="_all">Tất cả mức độ</SelectItem>
-          {TICKET_PRIORITIES.map((p) => (
-            <SelectItem key={p} value={p}>{VI.ticket.priorities[p]}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
+  const hasFilter = !!(priorityFilter || categoryFilter);
 
   return (
-    <PageWrapper title={VI.ticket.title} onCreate={() => setShowForm(true)} actions={
-      <><Button variant="outline" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ['tickets'] })} title={VI.actions.refresh}>
-        <RefreshCw className="h-4 w-4" />
-      </Button><ExportButton entity="tickets" filters={{ search: search || '', status: statusFilter, priority: priorityFilter }} /></>
-    }>
-      <DataTable
-        columns={columns}
-        data={data?.items ?? []}
-        total={data?.total ?? 0}
-        page={page}
-        limit={limit}
-        isLoading={isLoading}
-        searchValue={search}
-        onSearchChange={setSearch}
-        onPageChange={setPage}
-        onLimitChange={setLimit}
-        onRowClick={(row) => navigate(`/tickets/${row.id}`)}
-        toolbar={toolbar}
-      />
+    <div className="space-y-0">
+      {/* Page header section */}
+      <div className="border-b border-dashed border-border bg-background/60 pb-6 mb-0">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Bảng Phiếu ghi</h1>
+            <p className="text-sm text-muted-foreground mt-1">Theo dõi và quản lý các yêu cầu hỗ trợ từ khách hàng.</p>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            {/* Assignee avatar stack */}
+            <div className="flex -space-x-2">
+              {MOCK_AGENTS.map((a) => (
+                <div
+                  key={a}
+                  className={`w-8 h-8 rounded-full border-2 border-background flex items-center justify-center text-[10px] font-bold ${avatarBg(a)}`}
+                  title={a}
+                >
+                  {a}
+                </div>
+              ))}
+              <div className="w-8 h-8 rounded-full border-2 border-background bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground">
+                +4
+              </div>
+            </div>
+            <Button onClick={() => setShowForm(true)} className="gap-2 rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
+              <Plus className="h-4 w-4" />
+              Tạo phiếu
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['tickets-kanban'] })}
+              title={VI.actions.refresh}
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <ExportButton entity="tickets" filters={{ search, priority: priorityFilter }} />
+          </div>
+        </div>
+
+        {/* Filter pills row */}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className="px-3 py-1.5 border border-dashed border-border rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-accent transition-colors"
+          >
+            <User className="h-3.5 w-3.5" />
+            Người phụ trách
+            <span className="text-muted-foreground">▾</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPriorityFilter(priorityFilter ? '' : 'high')}
+            className={`px-3 py-1.5 border border-dashed rounded-full text-sm font-medium flex items-center gap-1.5 transition-colors ${priorityFilter ? 'border-primary text-primary bg-primary/5' : 'border-border hover:bg-accent'}`}
+          >
+            <Flag className="h-3.5 w-3.5" />
+            {priorityFilter ? VI.ticket.priorities[priorityFilter as TicketPriority] : 'Mức độ ưu tiên'}
+            <span className="text-muted-foreground">▾</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setCategoryFilter(categoryFilter ? '' : 'support')}
+            className={`px-3 py-1.5 border border-dashed rounded-full text-sm font-medium flex items-center gap-1.5 transition-colors ${categoryFilter ? 'border-primary text-primary bg-primary/5' : 'border-border hover:bg-accent'}`}
+          >
+            <Tag className="h-3.5 w-3.5" />
+            Danh mục
+            <span className="text-muted-foreground">▾</span>
+          </button>
+          {hasFilter && (
+            <>
+              <div className="h-5 w-px bg-border" />
+              <button
+                type="button"
+                onClick={() => { setPriorityFilter(''); setCategoryFilter(''); }}
+                className="text-primary text-sm font-semibold hover:underline flex items-center gap-1"
+              >
+                <X className="h-3.5 w-3.5" />
+                Xóa bộ lọc
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Kanban board */}
+      <div className="pt-4">
+        <TicketKanban priorityFilter={priorityFilter} searchQuery={search} />
+      </div>
+
+      {/* FAB */}
+      <button
+        type="button"
+        onClick={() => setShowForm(true)}
+        className="fixed bottom-8 right-8 w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-90 transition-transform z-50"
+        aria-label="Tạo phiếu mới"
+      >
+        <Plus className="h-6 w-6" />
+      </button>
+
       {showForm && (
         <TicketForm
           open={showForm}
           onClose={() => setShowForm(false)}
-          onSuccess={() => { setShowForm(false); refetch(); }}
+          onSuccess={() => {
+            setShowForm(false);
+            queryClient.invalidateQueries({ queryKey: ['tickets-kanban'] });
+          }}
         />
       )}
-    </PageWrapper>
+    </div>
   );
 }

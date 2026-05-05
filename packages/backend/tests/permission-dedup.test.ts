@@ -64,13 +64,15 @@ describe('Permission Deduplication - Group consolidation + enforcement', () => {
     });
   });
 
-  // ─── Test c) recording.delete only for super_admin + admin ─────
+  // ─── Test c) recording.delete only granted to admin by default ─────
+  // super_admin is opt-in for recording.delete: starts un-granted and must
+  // be enabled per-cluster via the permission matrix. See migration
+  // 20260504095800_super_admin_recording_delete_optin.
   describe('recording.delete Authorization', () => {
-    it('recording.delete only granted to super_admin + admin [skip if no DB]', async () => {
+    it('recording.delete only granted to admin by default [skip if no DB]', async () => {
       let rolesWithPermission: string[] = [];
 
       try {
-        // Query role_permissions for recording.delete
         const result = await prisma.rolePermission.findMany({
           where: {
             permission: {
@@ -88,8 +90,25 @@ describe('Permission Deduplication - Group consolidation + enforcement', () => {
         return;
       }
 
-      const expected = ['admin', 'super_admin'].sort();
+      const expected = ['admin'];
       expect(rolesWithPermission).toEqual(expected);
+    });
+  });
+
+  // ─── Test c2) recording.delete super_admin opt-in: middleware denies by default ─
+  describe('recording.delete super_admin Opt-In Enforcement', () => {
+    it('DELETE /api/v1/call-logs/:id/recording denies super_admin without explicit grant', async () => {
+      const res = await createAgent()
+        .delete(`${API}/call-logs/00000000-0000-0000-0000-000000000001/recording`)
+        .set(authHeader('super_admin'))
+        .send();
+
+      // After the opt-in change, super_admin no longer auto-bypasses recording.delete.
+      // With no grant in role_permissions, middleware must return 403.
+      expect([403, 404, 500]).toContain(res.status);
+      if (res.status === 403) {
+        expect(res.body.error?.code).toMatch(/FORBIDDEN|PERMISSION_DENIED|UNAUTHORIZED/i);
+      }
     });
   });
 

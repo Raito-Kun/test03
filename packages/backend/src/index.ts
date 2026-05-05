@@ -13,6 +13,7 @@ import eslDaemon from './lib/esl-daemon';
 import { startReminderJob } from './jobs/reminder-job';
 import { startScheduledReportJob } from './jobs/scheduled-report-job';
 import { startDebtEscalationJob } from './jobs/debt-escalation-job';
+import { startSipPresenceJob } from './jobs/sip-presence-job';
 
 // Phase 02-03 routes
 import authRoutes from './routes/auth-routes';
@@ -71,6 +72,12 @@ import slaAlertRoutes from './routes/sla-alert-routes';
 
 // RBAC & data allocation routes
 import dataAllocationRoutes from './routes/data-allocation-routes';
+
+// PBX Cluster routes
+import clusterRoutes from './routes/cluster-routes';
+
+// Feature flag routes
+import featureFlagRoutes from './routes/feature-flag-routes';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '4000', 10);
@@ -157,6 +164,12 @@ app.use('/api/v1/sla-alerts', slaAlertRoutes);
 // RBAC & data allocation routes
 app.use('/api/v1/data-allocation', dataAllocationRoutes);
 
+// PBX Cluster routes
+app.use('/api/v1/clusters', clusterRoutes);
+
+// Feature flag routes
+app.use('/api/v1/feature-flags', featureFlagRoutes);
+
 // Error handler (must be after routes)
 app.use(errorHandler);
 
@@ -180,6 +193,9 @@ if (process.env.NODE_ENV !== 'test') {
     startReminderJob();
     startScheduledReportJob();
     startDebtEscalationJob();
+    if (process.env.SIP_PRESENCE_ENABLED !== 'false') {
+      startSipPresenceJob();
+    }
   });
 }
 

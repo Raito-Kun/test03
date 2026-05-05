@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import api, { setAccessToken } from '@/services/api-client';
 import type { Role } from '@shared/constants/enums';
+import { isSuperAdminOptIn } from '@/lib/permission-constants';
 
 interface User {
   id: string;
@@ -61,7 +62,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   hasPermission: (key: string): boolean => {
     const { user } = useAuthStore.getState();
     if (!user) return false;
-    if ((user.role as string) === 'super_admin') return true;
+    // super_admin auto-passes everything except opt-in destructive keys
+    // (e.g. recording.delete) which require an explicit grant.
+    if ((user.role as string) === 'super_admin' && !isSuperAdminOptIn(key)) return true;
     return user.permissions?.includes(key) ?? false;
   },
 }));

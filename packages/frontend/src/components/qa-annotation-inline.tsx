@@ -86,7 +86,7 @@ export function QaAnnotationInline({ callLogId, recordingDuration, onSeek }: QaA
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-slate-700">Ghi chú QA</p>
+        <p className="text-sm font-medium text-foreground">Ghi chú QA</p>
         <Button variant="outline" size="sm" onClick={() => setShowForm((v) => !v)}>
           <Plus className="h-4 w-4 mr-1" />
           Thêm ghi chú
@@ -95,7 +95,7 @@ export function QaAnnotationInline({ callLogId, recordingDuration, onSeek }: QaA
 
       {/* Timeline bar */}
       {recordingDuration > 0 && sorted.length > 0 && (
-        <div className="relative h-3 bg-slate-100 rounded-full overflow-visible">
+        <div className="relative h-3 bg-muted rounded-full overflow-visible">
           {sorted.map((ann) => {
             const pct = Math.min(100, (ann.timestampSeconds / recordingDuration) * 100);
             const cfg = CATEGORY_CONFIG[ann.category] ?? CATEGORY_CONFIG.neutral;
@@ -116,7 +116,7 @@ export function QaAnnotationInline({ callLogId, recordingDuration, onSeek }: QaA
       {isLoading ? (
         <p className="text-xs text-muted-foreground">Đang tải...</p>
       ) : sorted.length === 0 ? (
-        <p className="text-xs text-slate-400 text-center py-2">Chưa có ghi chú nào</p>
+        <p className="text-xs text-muted-foreground text-center py-2">Chưa có ghi chú nào</p>
       ) : (
         <div className="space-y-1 max-h-48 overflow-y-auto">
           {sorted.map((ann) => {
@@ -142,7 +142,7 @@ export function QaAnnotationInline({ callLogId, recordingDuration, onSeek }: QaA
                       <span className="text-xs text-muted-foreground">{ann.createdByName}</span>
                     )}
                   </div>
-                  <p className="text-sm mt-0.5 text-slate-700">{ann.comment}</p>
+                  <p className="text-sm mt-0.5 text-foreground">{ann.comment}</p>
                 </div>
                 <Button
                   variant="ghost"
@@ -161,8 +161,8 @@ export function QaAnnotationInline({ callLogId, recordingDuration, onSeek }: QaA
 
       {/* Add note form */}
       {showForm && (
-        <div className="p-3 border rounded-lg bg-slate-50 space-y-2">
-          <p className="text-xs font-medium text-slate-600">Thêm ghi chú mới</p>
+        <div className="p-3 border rounded-lg bg-muted space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">Thêm ghi chú mới</p>
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="text-xs text-muted-foreground mb-1 block">Thời điểm (giây)</label>

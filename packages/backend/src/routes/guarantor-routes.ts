@@ -5,7 +5,7 @@ import { listGuarantors, addGuarantor, removeGuarantor } from '../services/guara
 
 const router = Router();
 
-const ALLOWED_ROLES = ['super_admin', 'admin', 'manager', 'leader', 'agent_collection'] as const;
+const ALLOWED_ROLES = ['super_admin', 'admin', 'manager', 'leader', 'agent'] as const;
 
 router.use(authMiddleware, requireRole(...ALLOWED_ROLES));
 

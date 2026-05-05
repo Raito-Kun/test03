@@ -179,36 +179,39 @@ enum TeamType {
 // ─── Models ──────────────────────────────────────────────
 
 model User {
-  id            String     @id @default(uuid()) @db.Uuid
-  email         String     @unique
-  passwordHash  String     @map("password_hash")
-  fullName      String     @map("full_name")
-  role          Role
-  teamId        String?    @map("team_id") @db.Uuid
-  sipExtension  String?    @map("sip_extension")
-  callMode      CallMode   @default(softphone) @map("call_mode")
-  status        UserStatus @default(active)
-  mustChangePassword Boolean @default(false) @map("must_change_password")
-  clusterId     String?    @map("cluster_id") @db.Uuid
-  extension     String?    @db.VarChar(20)
-  createdAt     DateTime   @default(now()) @map("created_at")
-  updatedAt     DateTime   @updatedAt @map("updated_at")
+  id                 String     @id @default(uuid()) @db.Uuid
+  email              String     @unique
+  passwordHash       String     @map("password_hash")
+  fullName           String     @map("full_name")
+  role               Role
+  teamId             String?    @map("team_id") @db.Uuid
+  sipExtension       String?    @map("sip_extension")
+  callMode           CallMode   @default(softphone) @map("call_mode")
+  status             UserStatus @default(active)
+  mustChangePassword Boolean    @default(false) @map("must_change_password")
+  clusterId          String?    @map("cluster_id") @db.Uuid
+  extension          String?    @db.VarChar(20)
+  sipRegistered      Boolean    @default(false) @map("sip_registered")
+  sipRegisteredAt    DateTime?  @map("sip_registered_at")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
 
-  cluster           PbxCluster?        @relation(fields: [clusterId], references: [id])
-  team              Team?              @relation("TeamMembers", fields: [teamId], references: [id])
-  ledTeams          Team[]             @relation("TeamLeader")
-  contacts          Contact[]          @relation("AssignedContacts")
-  createdContacts   Contact[]          @relation("CreatedContacts")
-  leads             Lead[]
-  debtCases         DebtCase[]
-  callLogs          CallLog[]
-  qaAnnotations     QaAnnotation[]
-  tickets           Ticket[]
-  macros            Macro[]
-  notifications     Notification[]
-  auditLogs         AuditLog[]
-  agentStatusLogs   AgentStatusLog[]
-  campaignAgents    CampaignAgent[]
+  cluster                PbxCluster?      @relation(fields: [clusterId], references: [id])
+  team                   Team?            @relation("TeamMembers", fields: [teamId], references: [id])
+  ledTeams               Team[]           @relation("TeamLeader")
+  contacts               Contact[]        @relation("AssignedContacts")
+  createdContacts        Contact[]        @relation("CreatedContacts")
+  leads                  Lead[]
+  debtCases              DebtCase[]
+  callLogs               CallLog[]        @relation("CallLogAgent")
+  dispositionChangesMade CallLog[]        @relation("CallLogDispositionSetBy")
+  qaAnnotations          QaAnnotation[]
+  tickets                Ticket[]
+  macros                 Macro[]
+  notifications          Notification[]
+  auditLogs              AuditLog[]
+  agentStatusLogs        AgentStatusLog[]
+  campaignAgents         CampaignAgent[]
 
   @@map("users")
 }
@@ -229,46 +232,46 @@ model Team {
 }
 
 model Contact {
-  id           String   @id @default(uuid()) @db.Uuid
-  fullName     String   @map("full_name")
-  phone        String
-  phoneAlt     String?  @map("phone_alt")
-  email        String?
-  idNumber     String?  @map("id_number")
-  address      String?
-  dateOfBirth  DateTime? @map("date_of_birth") @db.Date
-  gender       Gender?
-  source       String?
-  tags         Json?    @db.JsonB
-  customFields Json?    @map("custom_fields") @db.JsonB
+  id            String    @id @default(uuid()) @db.Uuid
+  fullName      String    @map("full_name")
+  phone         String
+  phoneAlt      String?   @map("phone_alt")
+  email         String?
+  idNumber      String?   @map("id_number")
+  address       String?
+  dateOfBirth   DateTime? @map("date_of_birth") @db.Date
+  gender        Gender?
+  source        String?
+  tags          Json?     @db.JsonB
+  customFields  Json?     @map("custom_fields") @db.JsonB
   occupation    String?   @map("occupation")
-  income        Decimal?  @map("income") @db.Decimal(15,2)
+  income        Decimal?  @map("income") @db.Decimal(15, 2)
   province      String?   @map("province")
   district      String?   @map("district")
   fullAddress   String?   @map("full_address")
   company       String?   @map("company")
   jobTitle      String?   @map("job_title")
   companyEmail  String?   @map("company_email")
-  creditLimit   Decimal?  @map("credit_limit") @db.Decimal(15,2)
+  creditLimit   Decimal?  @map("credit_limit") @db.Decimal(15, 2)
   bankAccount   String?   @map("bank_account")
   bankName      String?   @map("bank_name")
   internalNotes String?   @map("internal_notes")
-  assignedTo   String?  @map("assigned_to") @db.Uuid
-  createdBy    String?  @map("created_by") @db.Uuid
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  assignedTo    String?   @map("assigned_to") @db.Uuid
+  createdBy     String?   @map("created_by") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  assignedUser   User?   @relation("AssignedContacts", fields: [assignedTo], references: [id])
-  createdByUser  User?   @relation("CreatedContacts", fields: [createdBy], references: [id])
-  leads          Lead[]
-  debtCases      DebtCase[]
-  callLogs       CallLog[]
-  tickets        Ticket[]
+  assignedUser      User?                 @relation("AssignedContacts", fields: [assignedTo], references: [id])
+  createdByUser     User?                 @relation("CreatedContacts", fields: [createdBy], references: [id])
+  leads             Lead[]
+  debtCases         DebtCase[]
+  callLogs          CallLog[]
+  tickets           Ticket[]
   relationshipsFrom ContactRelationship[] @relation("ContactFrom")
   relationshipsTo   ContactRelationship[] @relation("ContactTo")
 
-  clusterId    String?  @map("cluster_id") @db.Uuid
-  cluster      PbxCluster? @relation(fields: [clusterId], references: [id])
+  clusterId String?     @map("cluster_id") @db.Uuid
+  cluster   PbxCluster? @relation(fields: [clusterId], references: [id])
 
   @@index([phone])
   @@index([clusterId])
@@ -293,11 +296,11 @@ model Lead {
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
-  clusterId  String?    @map("cluster_id") @db.Uuid
-  contact    Contact   @relation(fields: [contactId], references: [id])
-  campaign   Campaign? @relation(fields: [campaignId], references: [id])
-  assignedUser User?   @relation(fields: [assignedTo], references: [id])
-  cluster    PbxCluster? @relation(fields: [clusterId], references: [id])
+  clusterId    String?     @map("cluster_id") @db.Uuid
+  contact      Contact     @relation(fields: [contactId], references: [id])
+  campaign     Campaign?   @relation(fields: [campaignId], references: [id])
+  assignedUser User?       @relation(fields: [assignedTo], references: [id])
+  cluster      PbxCluster? @relation(fields: [clusterId], references: [id])
 
   @@index([clusterId])
   @@map("leads")
@@ -325,50 +328,53 @@ model DebtCase {
   createdAt         DateTime   @default(now()) @map("created_at")
   updatedAt         DateTime   @updatedAt @map("updated_at")
 
-  clusterId  String?    @map("cluster_id") @db.Uuid
-  contact    Contact   @relation(fields: [contactId], references: [id])
-  campaign   Campaign? @relation(fields: [campaignId], references: [id])
-  assignedUser User?   @relation(fields: [assignedTo], references: [id])
-  cluster    PbxCluster? @relation(fields: [clusterId], references: [id])
+  clusterId    String?     @map("cluster_id") @db.Uuid
+  contact      Contact     @relation(fields: [contactId], references: [id])
+  campaign     Campaign?   @relation(fields: [campaignId], references: [id])
+  assignedUser User?       @relation(fields: [assignedTo], references: [id])
+  cluster      PbxCluster? @relation(fields: [clusterId], references: [id])
 
   @@index([clusterId])
   @@map("debt_cases")
 }
 
 model CallLog {
-  id                String          @id @default(uuid()) @db.Uuid
-  callUuid          String          @unique @map("call_uuid")
-  contactId         String?         @map("contact_id") @db.Uuid
-  userId            String?         @map("user_id") @db.Uuid
-  campaignId        String?         @map("campaign_id") @db.Uuid
-  direction         CallDirection
-  callerNumber      String          @map("caller_number")
-  destinationNumber String          @map("destination_number")
-  startTime         DateTime        @map("start_time")
-  answerTime        DateTime?       @map("answer_time")
-  endTime           DateTime?       @map("end_time")
-  duration          Int             @default(0)
-  billsec           Int             @default(0)
-  hangupCause       String?         @map("hangup_cause")
-  sipCode           String?         @map("sip_code")
-  sipReason         String?         @map("sip_reason")
-  dispositionCodeId String?         @map("disposition_code_id") @db.Uuid
-  recordingPath     String?         @map("recording_path")
-  recordingStatus   RecordingStatus @default(none) @map("recording_status")
-  notes             String?
-  aiTranscript      String?         @map("ai_transcript")
-  aiSummary         String?         @map("ai_summary")
-  aiScore           Json?           @map("ai_score") @db.JsonB
-  createdAt         DateTime        @default(now()) @map("created_at")
+  id                     String          @id @default(uuid()) @db.Uuid
+  callUuid               String          @unique @map("call_uuid")
+  contactId              String?         @map("contact_id") @db.Uuid
+  userId                 String?         @map("user_id") @db.Uuid
+  campaignId             String?         @map("campaign_id") @db.Uuid
+  direction              CallDirection
+  callerNumber           String          @map("caller_number")
+  destinationNumber      String          @map("destination_number")
+  startTime              DateTime        @map("start_time")
+  answerTime             DateTime?       @map("answer_time")
+  endTime                DateTime?       @map("end_time")
+  duration               Int             @default(0)
+  billsec                Int             @default(0)
+  hangupCause            String?         @map("hangup_cause")
+  sipCode                String?         @map("sip_code")
+  sipReason              String?         @map("sip_reason")
+  dispositionCodeId      String?         @map("disposition_code_id") @db.Uuid
+  dispositionSetByUserId String?         @map("disposition_set_by_user_id") @db.Uuid
+  dispositionSetAt       DateTime?       @map("disposition_set_at")
+  recordingPath          String?         @map("recording_path")
+  recordingStatus        RecordingStatus @default(none) @map("recording_status")
+  notes                  String?
+  aiTranscript           String?         @map("ai_transcript")
+  aiSummary              String?         @map("ai_summary")
+  aiScore                Json?           @map("ai_score") @db.JsonB
+  createdAt              DateTime        @default(now()) @map("created_at")
 
-  clusterId      String?         @map("cluster_id") @db.Uuid
-  contact        Contact?        @relation(fields: [contactId], references: [id])
-  user           User?           @relation(fields: [userId], references: [id])
-  campaign       Campaign?       @relation(fields: [campaignId], references: [id])
-  dispositionCode DispositionCode? @relation(fields: [dispositionCodeId], references: [id])
-  cluster        PbxCluster?     @relation(fields: [clusterId], references: [id])
-  qaAnnotations  QaAnnotation[]
-  tickets        Ticket[]
+  clusterId        String?          @map("cluster_id") @db.Uuid
+  contact          Contact?         @relation(fields: [contactId], references: [id])
+  user             User?            @relation("CallLogAgent", fields: [userId], references: [id])
+  campaign         Campaign?        @relation(fields: [campaignId], references: [id])
+  dispositionCode  DispositionCode? @relation(fields: [dispositionCodeId], references: [id])
+  dispositionSetBy User?            @relation("CallLogDispositionSetBy", fields: [dispositionSetByUserId], references: [id])
+  cluster          PbxCluster?      @relation(fields: [clusterId], references: [id])
+  qaAnnotations    QaAnnotation[]
+  tickets          Ticket[]
 
   @@index([callUuid])
   @@index([startTime])
@@ -388,19 +394,19 @@ model DispositionCode {
   isActive         Boolean             @default(true) @map("is_active")
   sortOrder        Int                 @default(0) @map("sort_order")
 
-  callLogs                  CallLog[]
-  campaignDispositionCodes  CampaignDispositionCode[]
+  callLogs                 CallLog[]
+  campaignDispositionCodes CampaignDispositionCode[]
 
   @@map("disposition_codes")
 }
 
 model Campaign {
-  id        String         @id @default(uuid()) @db.Uuid
-  name      String
-  type      CampaignType
-  status    CampaignStatus @default(draft)
-  startDate DateTime?      @map("start_date") @db.Date
-  endDate   DateTime?      @map("end_date") @db.Date
+  id            String            @id @default(uuid()) @db.Uuid
+  name          String
+  type          CampaignType
+  status        CampaignStatus    @default(draft)
+  startDate     DateTime?         @map("start_date") @db.Date
+  endDate       DateTime?         @map("end_date") @db.Date
   script        String?
   category      CampaignCategory? @map("category")
   queue         String?
@@ -413,13 +419,13 @@ model Campaign {
   createdAt     DateTime          @default(now()) @map("created_at")
   updatedAt     DateTime          @updatedAt @map("updated_at")
 
-  clusterId String?  @map("cluster_id") @db.Uuid
-  leads                     Lead[]
-  debtCases                 DebtCase[]
-  callLogs                  CallLog[]
-  campaignDispositionCodes  CampaignDispositionCode[]
-  agents                    CampaignAgent[]
-  cluster   PbxCluster? @relation(fields: [clusterId], references: [id])
+  clusterId                String?                   @map("cluster_id") @db.Uuid
+  leads                    Lead[]
+  debtCases                DebtCase[]
+  callLogs                 CallLog[]
+  campaignDispositionCodes CampaignDispositionCode[]
+  agents                   CampaignAgent[]
+  cluster                  PbxCluster?               @relation(fields: [clusterId], references: [id])
 
   @@index([clusterId])
   @@map("campaigns")
@@ -456,14 +462,14 @@ model QaAnnotation {
 }
 
 model Ticket {
-  id          String         @id @default(uuid()) @db.Uuid
-  contactId   String         @map("contact_id") @db.Uuid
-  callLogId   String?        @map("call_log_id") @db.Uuid
-  userId      String         @map("user_id") @db.Uuid
-  categoryId  String?        @map("category_id") @db.Uuid
-  subject     String
-  content     String?
-  resultCode  String?        @map("result_code")
+  id              String         @id @default(uuid()) @db.Uuid
+  contactId       String         @map("contact_id") @db.Uuid
+  callLogId       String?        @map("call_log_id") @db.Uuid
+  userId          String         @map("user_id") @db.Uuid
+  categoryId      String?        @map("category_id") @db.Uuid
+  subject         String
+  content         String?
+  resultCode      String?        @map("result_code")
   status          TicketStatus   @default(open)
   priority        TicketPriority @default(medium)
   firstResponseAt DateTime?      @map("first_response_at")
@@ -473,11 +479,11 @@ model Ticket {
   updatedAt       DateTime       @updatedAt @map("updated_at")
 
   clusterId String?         @map("cluster_id") @db.Uuid
-  contact  Contact         @relation(fields: [contactId], references: [id])
-  callLog  CallLog?        @relation(fields: [callLogId], references: [id])
-  user     User            @relation(fields: [userId], references: [id])
-  category TicketCategory? @relation(fields: [categoryId], references: [id])
-  cluster  PbxCluster?     @relation(fields: [clusterId], references: [id])
+  contact   Contact         @relation(fields: [contactId], references: [id])
+  callLog   CallLog?        @relation(fields: [callLogId], references: [id])
+  user      User            @relation(fields: [userId], references: [id])
+  category  TicketCategory? @relation(fields: [categoryId], references: [id])
+  cluster   PbxCluster?     @relation(fields: [clusterId], references: [id])
 
   @@index([clusterId])
   @@map("tickets")
@@ -561,14 +567,14 @@ model Notification {
 }
 
 model WebhookLog {
-  id          String        @id @default(uuid()) @db.Uuid
-  source      String
-  callUuid    String?       @map("call_uuid")
-  rawPayload  String        @map("raw_payload")
-  status      WebhookStatus @default(received)
-  errorMessage String?      @map("error_message")
-  processedAt DateTime?     @map("processed_at")
-  createdAt   DateTime      @default(now()) @map("created_at")
+  id           String        @id @default(uuid()) @db.Uuid
+  source       String
+  callUuid     String?       @map("call_uuid")
+  rawPayload   String        @map("raw_payload")
+  status       WebhookStatus @default(received)
+  errorMessage String?       @map("error_message")
+  processedAt  DateTime?     @map("processed_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
 
   @@map("webhook_logs")
 }
@@ -590,31 +596,36 @@ model AgentStatusLog {
 }
 
 model Permission {
-  id       String  @id @default(uuid()) @db.Uuid
-  key      String  @unique
-  label    String
-  group    String
-  parentId String? @map("parent_id") @db.Uuid
-  parent   Permission?  @relation("PermissionHierarchy", fields: [parentId], references: [id])
-  children Permission[] @relation("PermissionHierarchy")
+  id              String           @id @default(uuid()) @db.Uuid
+  key             String           @unique
+  label           String
+  group           String
+  parentId        String?          @map("parent_id") @db.Uuid
+  parent          Permission?      @relation("PermissionHierarchy", fields: [parentId], references: [id])
+  children        Permission[]     @relation("PermissionHierarchy")
   rolePermissions RolePermission[]
+
   @@map("permissions")
 }
 
 model RolePermission {
+  clusterId    String     @map("cluster_id") @db.Uuid
   role         Role
   permissionId String     @map("permission_id") @db.Uuid
   granted      Boolean    @default(true)
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-  @@id([role, permissionId])
+  cluster      PbxCluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+
+  @@id([clusterId, role, permissionId])
+  @@index([role, permissionId])
   @@map("role_permissions")
 }
 
 model CampaignDispositionCode {
-  campaignId       String @map("campaign_id") @db.Uuid
-  dispositionCodeId String @map("disposition_code_id") @db.Uuid
-  isActive         Boolean @default(true) @map("is_active")
-  sortOrder        Int     @default(0) @map("sort_order")
+  campaignId        String  @map("campaign_id") @db.Uuid
+  dispositionCodeId String  @map("disposition_code_id") @db.Uuid
+  isActive          Boolean @default(true) @map("is_active")
+  sortOrder         Int     @default(0) @map("sort_order")
 
   campaign        Campaign        @relation(fields: [campaignId], references: [id])
   dispositionCode DispositionCode @relation(fields: [dispositionCodeId], references: [id])
@@ -624,53 +635,68 @@ model CampaignDispositionCode {
 }
 
 model PbxCluster {
-  id                  String   @id @default(uuid()) @db.Uuid
-  name                String
-  description         String?
-  eslHost             String   @map("esl_host")
-  eslPort             Int      @default(8021) @map("esl_port")
-  eslPassword         String   @map("esl_password")
-  sipDomain           String   @map("sip_domain")
-  sipWssUrl           String?  @map("sip_wss_url")
-  pbxIp               String   @map("pbx_ip")
-  gatewayName         String   @map("gateway_name")
-  recordingPath       String?  @map("recording_path")
-  recordingUrlPrefix  String?  @map("recording_url_prefix")
-  cdrReportUrl        String?  @map("cdr_report_url")
-  aiApiEndpoint       String?  @map("ai_api_endpoint")
-  aiApiKey            String?  @map("ai_api_key")
-  smtpHost            String?  @map("smtp_host")
-  smtpPort            Int?     @map("smtp_port")
-  smtpUser            String?  @map("smtp_user")
-  smtpPassword        String?  @map("smtp_password")
-  smtpFrom            String?  @map("smtp_from")
-  sshUser             String?  @map("ssh_user")
-  sshPassword         String?  @map("ssh_password")
-  isActive            Boolean  @default(false) @map("is_active")
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime @updatedAt @map("updated_at")
+  id                    String   @id @default(uuid()) @db.Uuid
+  name                  String
+  description           String?
+  eslHost               String   @map("esl_host")
+  eslPort               Int      @default(8021) @map("esl_port")
+  eslPassword           String   @map("esl_password")
+  sipDomain             String   @map("sip_domain")
+  sipWssUrl             String?  @map("sip_wss_url")
+  pbxIp                 String   @map("pbx_ip")
+  gatewayName           String   @map("gateway_name")
+  recordingPath         String?  @map("recording_path")
+  recordingUrlPrefix    String?  @map("recording_url_prefix")
+  cdrReportUrl          String?  @map("cdr_report_url")
+  aiApiEndpoint         String?  @map("ai_api_endpoint")
+  aiApiKey              String?  @map("ai_api_key")
+  smtpHost              String?  @map("smtp_host")
+  smtpPort              Int?     @map("smtp_port")
+  smtpUser              String?  @map("smtp_user")
+  smtpPassword          String?  @map("smtp_password")
+  smtpFrom              String?  @map("smtp_from")
+  sshUser               String?  @map("ssh_user")
+  sshPassword           String?  @map("ssh_password")
+  // FusionPBX Postgres read-only access — used by preflight checks to inspect v_dialplans
+  fusionpbxPgHost       String?  @map("fusionpbx_pg_host")
+  fusionpbxPgPort       Int?     @map("fusionpbx_pg_port")
+  fusionpbxPgUser       String?  @map("fusionpbx_pg_user")
+  fusionpbxPgPassword   String?  @map("fusionpbx_pg_password")
+  fusionpbxPgDatabase   String?  @map("fusionpbx_pg_database")
+  // Multi-select list of outbound dialplan rule names (e.g. OUT-VIETTEL, OUT-MOBI)
+  // that should have recording actions. Preflight checks each independently.
+  outboundDialplanNames String[] @default([]) @map("outbound_dialplan_names")
+  isActive              Boolean  @default(false) @map("is_active")
+  // Extension-sync lifecycle (async auto-sync triggered on create/update)
+  extSyncStatus         String    @default("idle") @map("ext_sync_status") @db.VarChar(20)
+  extSyncError          String?   @map("ext_sync_error")
+  extSyncCount          Int?      @map("ext_sync_count")
+  extSyncFinishedAt     DateTime? @map("ext_sync_finished_at") @db.Timestamptz
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
 
-  contacts   Contact[]
-  leads      Lead[]
-  debtCases  DebtCase[]
-  callLogs   CallLog[]
-  campaigns  Campaign[]
-  tickets    Ticket[]
-  extensions   ClusterExtension[]
-  featureFlags ClusterFeatureFlag[]
-  users        User[]
+  contacts        Contact[]
+  leads           Lead[]
+  debtCases       DebtCase[]
+  callLogs        CallLog[]
+  campaigns       Campaign[]
+  tickets         Ticket[]
+  extensions      ClusterExtension[]
+  featureFlags    ClusterFeatureFlag[]
+  users           User[]
+  rolePermissions RolePermission[]
 
   @@map("pbx_clusters")
 }
 
 model ClusterFeatureFlag {
-  id          String   @id @default(uuid()) @db.Uuid
-  clusterId   String   @map("cluster_id") @db.Uuid
-  domainName  String   @default("") @map("domain_name") @db.VarChar(255)
-  featureKey  String   @map("feature_key") @db.VarChar(100)
-  isEnabled   Boolean  @default(true) @map("is_enabled")
-  updatedBy   String?  @map("updated_by") @db.Uuid
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id         String   @id @default(uuid()) @db.Uuid
+  clusterId  String   @map("cluster_id") @db.Uuid
+  domainName String   @default("") @map("domain_name") @db.VarChar(255)
+  featureKey String   @map("feature_key") @db.VarChar(100)
+  isEnabled  Boolean  @default(true) @map("is_enabled")
+  updatedBy  String?  @map("updated_by") @db.Uuid
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   cluster PbxCluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
 
@@ -681,13 +707,16 @@ model ClusterFeatureFlag {
 }
 
 model ClusterExtension {
-  id          String   @id @default(uuid()) @db.Uuid
-  clusterId   String   @map("cluster_id") @db.Uuid
-  extension   String   @db.VarChar(20)
-  password    String?  @db.VarChar(255)
-  callerName  String?  @map("caller_name") @db.VarChar(255)
-  accountcode String?  @db.VarChar(100)
-  syncedAt    DateTime @default(now()) @map("synced_at")
+  id              String    @id @default(uuid()) @db.Uuid
+  clusterId       String    @map("cluster_id") @db.Uuid
+  extension       String    @db.VarChar(20)
+  password        String?   @db.VarChar(255)
+  callerName      String?   @map("caller_name") @db.VarChar(255)
+  accountcode     String?   @db.VarChar(100)
+  syncedAt        DateTime  @default(now()) @map("synced_at")
+  sipRegistered   Boolean   @default(false) @map("sip_registered")
+  sipRegisteredAt DateTime? @map("sip_registered_at")
+  networkIp       String?   @map("network_ip") @db.VarChar(64)
 
   cluster PbxCluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
 

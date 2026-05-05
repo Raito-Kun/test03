@@ -153,15 +153,47 @@ export async function getOverview(
   return result;
 }
 
+/**
+ * Strict "see only roles below you" visibility rule (user decision 2026-04-21):
+ * - super_admin: sees everyone below (admin, manager, qa, leader, all agent variants)
+ * - admin: sees manager, qa, leader, all agents (NOT other admins, NOT super_admin)
+ * - manager: sees qa, leader, all agents
+ * - qa: sees all agents (peer roles manager/leader hidden)
+ * - leader: sees agents of their own team only
+ * - agent / agent_telesale / agent_collection: sees nothing
+ * Peers at the same rank are hidden from each other.
+ */
+const VISIBLE_ROLES_BELOW: Record<string, string[]> = {
+  super_admin: ['admin', 'manager', 'qa', 'leader', 'agent', 'agent_telesale', 'agent_collection'],
+  admin: ['manager', 'qa', 'leader', 'agent', 'agent_telesale', 'agent_collection'],
+  manager: ['qa', 'leader', 'agent', 'agent_telesale', 'agent_collection'],
+  qa: ['agent', 'agent_telesale', 'agent_collection'],
+  leader: ['agent', 'agent_telesale', 'agent_collection'],
+  agent: [],
+  agent_telesale: [],
+  agent_collection: [],
+};
+
 export async function getAgentsDashboard(role: string, teamId: string | null) {
   const key = agentsCacheKey(role, teamId);
   const cached = await redis.get(key);
   if (cached) return JSON.parse(cached);
 
-  const whereClause = teamId && role === 'leader' ? { teamId } : {};
+  const visibleRoles = VISIBLE_ROLES_BELOW[role] ?? [];
+  if (visibleRoles.length === 0) {
+    await redis.set(key, JSON.stringify([]), 'EX', CACHE_TTL);
+    return [];
+  }
+
+  // Leader is scoped to their own team on top of the role filter.
+  const whereClause: Record<string, unknown> = {
+    status: 'active',
+    role: { in: visibleRoles },
+  };
+  if (role === 'leader' && teamId) whereClause.teamId = teamId;
 
   const users = await prisma.user.findMany({
-    where: { status: 'active', ...whereClause },
+    where: whereClause,
     select: {
       id: true,
       fullName: true,

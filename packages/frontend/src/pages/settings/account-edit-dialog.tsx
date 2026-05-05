@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import api from '@/services/api-client';
+import { VI } from '@/lib/vi-text';
 
 interface Props {
   open: boolean;
@@ -17,12 +18,15 @@ interface Props {
 }
 
 const ROLES = [
-  { value: 'admin', label: 'Admin' },
-  { value: 'manager', label: 'Manager' },
-  { value: 'qa', label: 'QA' },
-  { value: 'leader', label: 'Leader' },
-  { value: 'agent', label: 'Agent' },
+  { value: 'admin', label: VI.roles.admin },
+  { value: 'manager', label: VI.roles.manager },
+  { value: 'qa', label: VI.roles.qa },
+  { value: 'leader', label: VI.roles.leader },
+  { value: 'agent', label: VI.roles.agent },
 ];
+
+const fieldLabel = 'text-[12px] uppercase tracking-wider font-mono text-muted-foreground';
+const inputHeight = 'h-[42px]';
 
 export function AccountEditDialog({ open, clusterId, user, onClose, onSaved }: Props) {
   const [form, setForm] = useState({ email: '', fullName: '', role: '', extension: '' });
@@ -55,44 +59,65 @@ export function AccountEditDialog({ open, clusterId, user, onClose, onSaved }: P
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md rounded-xl">
         <DialogHeader>
           <DialogTitle>Chỉnh sửa tài khoản</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label>Email</Label>
-            <Input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-              placeholder="user@example.com"
-            />
+        <div className="space-y-4">
+          {/* Basic info group */}
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className={fieldLabel}>Họ tên</Label>
+              <Input
+                className={inputHeight}
+                value={form.fullName}
+                onChange={(e) => setForm((p) => ({ ...p, fullName: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className={fieldLabel}>Email</Label>
+              <Input
+                className={inputHeight}
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+                placeholder="user@example.com"
+              />
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label>Họ tên</Label>
-            <Input value={form.fullName} onChange={(e) => setForm((p) => ({ ...p, fullName: e.target.value }))} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Role</Label>
-            <select
-              value={form.role}
-              onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}
-              className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-            >
-              {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Extension</Label>
-            <Input value={form.extension} onChange={(e) => setForm((p) => ({ ...p, extension: e.target.value }))} placeholder="VD: 101" />
+
+          {/* Dashed divider */}
+          <div className="dashed-divider" />
+
+          {/* Role & extension group */}
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className={fieldLabel}>Vai trò</Label>
+              <select
+                value={form.role}
+                onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}
+                className={`w-full border rounded-md px-3 text-sm bg-background ${inputHeight}`}
+              >
+                {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className={fieldLabel}>Số máy lẻ</Label>
+              <Input
+                className={inputHeight}
+                value={form.extension}
+                onChange={(e) => setForm((p) => ({ ...p, extension: e.target.value }))}
+                placeholder="VD: 101"
+              />
+            </div>
           </div>
         </div>
+
         <DialogFooter className="pt-2">
           <Button variant="outline" onClick={onClose}>Hủy</Button>
           <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
             {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Lưu
+            Lưu thay đổi
           </Button>
         </DialogFooter>
       </DialogContent>

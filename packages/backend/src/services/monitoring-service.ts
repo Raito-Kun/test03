@@ -1,6 +1,7 @@
 import eslDaemon from '../lib/esl-daemon';
 import prisma from '../lib/prisma';
 import logger from '../lib/logger';
+import { resolveListClusterFilter } from '../lib/active-cluster';
 
 /** Send ESL API command and return body */
 function eslApi(command: string): Promise<string> {
@@ -23,19 +24,48 @@ interface ActiveCall {
   direction: string;
 }
 
-/** Get currently active calls from FreeSWITCH (deduplicated by call_uuid) */
-export async function getActiveCalls(): Promise<ActiveCall[]> {
+/**
+ * Get currently active calls from FreeSWITCH (deduplicated by call_uuid).
+ *
+ * Cluster-aware: a single PBX can host multiple FusionPBX domains (e.g.
+ * 10.10.101.206 runs both `blueva` and `hoangthienfinance.vn`). `show channels`
+ * returns channels across ALL domains on that instance. Without domain
+ * filtering, one tenant sees the other tenant's live calls — the live-call
+ * twin of the 2026-04-17 CDR cross-tenant leak.
+ *
+ * We filter channels by the caller's cluster `sipDomain` using the FusionPBX
+ * `context` (set to domain name) and the `presence_id` (`ext@domain`).
+ */
+export async function getActiveCalls(userClusterId?: string | null, userRole?: string): Promise<ActiveCall[]> {
   try {
+    const clusterId = await resolveListClusterFilter(userRole, userClusterId);
+    if (!clusterId) return [];
+
+    const cluster = await prisma.pbxCluster.findUnique({
+      where: { id: clusterId },
+      select: { sipDomain: true },
+    });
+    if (!cluster) return [];
+    const domain = cluster.sipDomain;
+
     const body = await eslApi('show channels as json');
     const parsed = JSON.parse(body);
     const rows = parsed.rows || [];
 
-    // Map extensions to agent names
+    // Map extensions to agent names — scoped to this cluster only
     const agents = await prisma.user.findMany({
-      where: { sipExtension: { not: null }, status: 'active' },
-      select: { sipExtension: true, fullName: true },
+      where: {
+        clusterId,
+        status: 'active',
+        OR: [{ sipExtension: { not: null } }, { extension: { not: null } }],
+      },
+      select: { sipExtension: true, extension: true, fullName: true },
     });
-    const extMap = new Map(agents.map((a) => [a.sipExtension, a.fullName]));
+    const extMap = new Map<string, string>();
+    for (const a of agents) {
+      const ext = a.extension ?? a.sipExtension;
+      if (ext) extMap.set(ext, a.fullName);
+    }
     const knownExtensions = new Set(extMap.keys());
 
     // Group channels by call_uuid to deduplicate A-leg, B-leg, loopback legs
@@ -49,6 +79,16 @@ export async function getActiveCalls(): Promise<ActiveCall[]> {
 
     for (const ch of rows) {
       if (!ch.uuid || ch.callstate === 'DOWN') continue;
+
+      // Domain filter: drop channels that don't belong to this cluster's
+      // FusionPBX domain. FusionPBX sets `context` = domain_name on most legs,
+      // and `presence_id` = ext@domain on user-registered legs. We accept a
+      // channel only if we can confirm its domain matches.
+      const ctx = String(ch.context || '');
+      const presence = String(ch.presence_id || '');
+      const presenceDomain = presence.includes('@') ? presence.split('@')[1] : '';
+      const chDomain = presenceDomain || ctx;
+      if (chDomain && chDomain !== domain) continue;
 
       const callUuid = ch.call_uuid || ch.uuid;
       const callerNum = ch.cid_num || ch.caller_id_number || '';
@@ -119,38 +159,97 @@ interface AgentMonitor {
   fullName: string;
   extension: string;
   registered: boolean;
-  status: string; // from Redis agent status cache
+  status: string;
   teamId: string | null;
   teamName: string | null;
+  teamLeader: string | null;
 }
 
-/** Get all agents with registration + status info */
-export async function getAgentStatuses(teamId?: string): Promise<AgentMonitor[]> {
-  const where: Record<string, unknown> = {
-    sipExtension: { not: null },
-    status: 'active',
-    role: { in: ['agent_telesale', 'agent_collection', 'leader'] },
-  };
-  if (teamId) where.teamId = teamId;
+/**
+ * Get all extensions for the user's cluster with ESL registration status.
+ * Shows ALL synced extensions, matched to users if assigned.
+ */
+export async function getAgentStatuses(teamId?: string, userClusterId?: string | null, userRole?: string): Promise<AgentMonitor[]> {
+  const { resolveListClusterFilter } = await import('../lib/active-cluster');
+  const clusterId = await resolveListClusterFilter(userRole, userClusterId);
+  if (!clusterId) return [];
+  const activeCluster = { id: clusterId };
 
-  const agents = await prisma.user.findMany({
-    where,
-    select: { id: true, fullName: true, sipExtension: true, teamId: true, team: { select: { name: true } } },
+  // Get all synced extensions for this cluster (with cached presence state)
+  const clusterExts = await prisma.clusterExtension.findMany({
+    where: { clusterId: activeCluster.id },
+    select: { extension: true, callerName: true, sipRegistered: true },
+    orderBy: { extension: 'asc' },
   });
 
-  // Get registrations from FreeSWITCH
-  const { getSofiaRegistrations } = await import('./esl-service');
-  const regs = await getSofiaRegistrations();
+  // Role-hierarchy visibility (decision 2026-04-21): viewer sees only roles
+  // strictly below their own; peers at same rank are hidden from each other.
+  const VISIBLE_ROLES_BELOW: Record<string, string[]> = {
+    super_admin: ['admin', 'manager', 'qa', 'leader', 'agent', 'agent_telesale', 'agent_collection'],
+    admin: ['manager', 'qa', 'leader', 'agent', 'agent_telesale', 'agent_collection'],
+    manager: ['qa', 'leader', 'agent', 'agent_telesale', 'agent_collection'],
+    qa: ['agent', 'agent_telesale', 'agent_collection'],
+    leader: ['agent', 'agent_telesale', 'agent_collection'],
+    agent: [],
+    agent_telesale: [],
+    agent_collection: [],
+  };
+  const visibleRoles = userRole ? (VISIBLE_ROLES_BELOW[userRole] ?? []) : [];
+  if (userRole && visibleRoles.length === 0) return [];
 
-  return agents.map((a) => ({
-    id: a.id,
-    fullName: a.fullName,
-    extension: a.sipExtension || '',
-    registered: regs.has(a.sipExtension || ''),
-    status: regs.has(a.sipExtension || '') ? 'online' : 'offline',
-    teamId: a.teamId,
-    teamName: a.team?.name || null,
-  }));
+  // Get all users in this cluster that have extensions assigned
+  const userWhere: Record<string, unknown> = {
+    clusterId: activeCluster.id,
+    status: 'active',
+    OR: [
+      { sipExtension: { not: null } },
+      { extension: { not: null } },
+    ],
+  };
+  if (userRole) userWhere.role = { in: visibleRoles };
+  if (teamId) userWhere.teamId = teamId;
+
+  const users = await prisma.user.findMany({
+    where: userWhere,
+    select: {
+      id: true, fullName: true,
+      sipExtension: true, extension: true,
+      sipRegistered: true,
+      teamId: true,
+      team: { select: { name: true, leader: { select: { fullName: true } } } },
+    },
+  });
+
+  // Build ext→user map
+  const extUserMap = new Map<string, typeof users[0]>();
+  for (const u of users) {
+    const ext = u.extension || u.sipExtension;
+    if (ext) extUserMap.set(ext, u);
+  }
+
+  // Registration state is sourced from cluster_extensions.sip_registered (populated every 30s by
+  // sip-presence-job), which covers all extensions. users.sip_registered is kept in sync for
+  // per-agent queries elsewhere, but the dashboard uses the extension-level view.
+  const result: AgentMonitor[] = clusterExts.map((ce) => {
+    const user = extUserMap.get(ce.extension);
+    const isRegistered = ce.sipRegistered || !!user?.sipRegistered;
+    return {
+      id: user?.id || ce.extension,
+      fullName: user?.fullName || ce.callerName || `Ext ${ce.extension}`,
+      extension: ce.extension,
+      registered: isRegistered,
+      status: isRegistered ? 'online' : 'offline',
+      teamId: user?.teamId || null,
+      teamName: user?.team?.name || null,
+      teamLeader: user?.team?.leader?.fullName || null,
+    };
+  });
+
+  // If teamId filter, only show entries with matching team
+  if (teamId) {
+    return result.filter((r) => r.teamId === teamId);
+  }
+  return result;
 }
 
 /** Whisper to agent: manager speaks to agent only, customer cannot hear */

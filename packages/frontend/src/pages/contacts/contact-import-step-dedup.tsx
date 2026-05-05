@@ -3,12 +3,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import type { DuplicateEntry, DuplicateAction } from './contact-import-wizard-types';
+import type { DuplicateEntry, DuplicateAction, InternalDuplicateEntry } from './contact-import-wizard-types';
 
 interface Props {
   duplicates: DuplicateEntry[];
   uniqueCount: number;
+  internalDuplicates: InternalDuplicateEntry[];
   onActionsChange: (updated: DuplicateEntry[]) => void;
+  onInternalActionsChange: (updated: InternalDuplicateEntry[]) => void;
 }
 
 const ACTION_LABELS: Record<DuplicateAction, string> = {
@@ -49,14 +51,16 @@ function DuplicateCard({
     ((entry.new as unknown as Record<string, unknown>)[key] as string) ?? '—';
 
   return (
-    <div className="border rounded-lg p-3 space-y-2 bg-white">
+    <div className="border border-dashed border-border rounded-xl p-4 space-y-3 bg-card">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <span className="text-xs text-muted-foreground">Dòng #{entry.rowNumber}</span>
+        <span className="text-[10px] font-bold font-mono uppercase text-muted-foreground tracking-wider">
+          Dòng #{entry.rowNumber}
+        </span>
         <Select
           value={entry.action}
           onValueChange={(v) => onChange(v as DuplicateAction)}
         >
-          <SelectTrigger className="h-7 text-xs w-56">
+          <SelectTrigger className="h-7 text-xs w-56 border-dashed">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -69,18 +73,18 @@ function DuplicateCard({
         </Select>
       </div>
 
-      <div className="grid grid-cols-[80px_1fr_1fr] gap-x-2 gap-y-0.5 text-xs">
+      <div className="grid grid-cols-[80px_1fr_1fr] gap-x-3 gap-y-1 text-xs border-t border-dashed border-border pt-3">
         <span />
-        <span className="font-medium text-muted-foreground">Hiện có</span>
-        <span className="font-medium text-muted-foreground">Mới</span>
+        <span className="text-[10px] font-bold font-mono uppercase tracking-wider text-muted-foreground">Hiện có</span>
+        <span className="text-[10px] font-bold font-mono uppercase tracking-wider text-primary">Mới</span>
         {COMPARE_FIELDS.map(({ key, label }) => {
           const ev = existingVal(key);
           const nv = newVal(key);
           const differs = ev !== nv && nv !== '—';
           return [
-            <span key={`lbl-${key}`} className="text-muted-foreground py-0.5">{label}</span>,
-            <span key={`ex-${key}`} className={`py-0.5 truncate ${differs ? 'bg-amber-50 rounded px-1' : ''}`}>{ev}</span>,
-            <span key={`nw-${key}`} className={`py-0.5 truncate ${differs ? 'bg-amber-50 rounded px-1 font-medium' : ''}`}>{nv}</span>,
+            <span key={`lbl-${key}`} className="text-muted-foreground py-0.5 font-mono text-[10px] uppercase">{label}</span>,
+            <span key={`ex-${key}`} className={`py-0.5 truncate text-xs ${differs ? 'bg-amber-50 text-amber-800 rounded px-1' : ''}`}>{ev}</span>,
+            <span key={`nw-${key}`} className={`py-0.5 truncate text-xs ${differs ? 'bg-green-50 text-green-800 rounded px-1 font-semibold' : ''}`}>{nv}</span>,
           ];
         })}
       </div>
@@ -88,13 +92,26 @@ function DuplicateCard({
   );
 }
 
-export function ContactImportStepDedup({ duplicates, uniqueCount, onActionsChange }: Props) {
+export function ContactImportStepDedup({
+  duplicates, uniqueCount, internalDuplicates,
+  onActionsChange, onInternalActionsChange,
+}: Props) {
   function handleActionChange(rowNumber: number, action: DuplicateAction) {
     onActionsChange(setAction(duplicates, rowNumber, action));
   }
 
   function bulkSetAction(action: DuplicateAction) {
     onActionsChange(duplicates.map((d) => ({ ...d, action })));
+  }
+
+  function handleInternalAction(rowNumber: number, action: 'skip' | 'create') {
+    onInternalActionsChange(
+      internalDuplicates.map((d) => (d.rowNumber === rowNumber ? { ...d, action } : d)),
+    );
+  }
+
+  function bulkSetInternal(action: 'skip' | 'create') {
+    onInternalActionsChange(internalDuplicates.map((d) => ({ ...d, action })));
   }
 
   return (
@@ -107,9 +124,15 @@ export function ContactImportStepDedup({ duplicates, uniqueCount, onActionsChang
           </Badge>
         </TabsTrigger>
         <TabsTrigger value="duplicate" className="text-sm">
-          Trùng lặp{' '}
+          Trùng trong DB{' '}
           <Badge variant="secondary" className="ml-1.5 text-xs">
             {duplicates.length}
+          </Badge>
+        </TabsTrigger>
+        <TabsTrigger value="internal" className="text-sm">
+          Trùng trong file{' '}
+          <Badge variant="secondary" className="ml-1.5 text-xs">
+            {internalDuplicates.length}
           </Badge>
         </TabsTrigger>
       </TabsList>
@@ -123,7 +146,7 @@ export function ContactImportStepDedup({ duplicates, uniqueCount, onActionsChang
       <TabsContent value="duplicate" className="space-y-3">
         {duplicates.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">
-            Không phát hiện bản ghi trùng lặp.
+            Không phát hiện bản ghi trùng với CSDL hiện có.
           </p>
         ) : (
           <>
@@ -145,6 +168,57 @@ export function ContactImportStepDedup({ duplicates, uniqueCount, onActionsChang
                   />
                 ))}
               </div>
+            </ScrollArea>
+          </>
+        )}
+      </TabsContent>
+
+      <TabsContent value="internal" className="space-y-3">
+        {internalDuplicates.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-2">
+            Không có SĐT bị lặp trong file.
+          </p>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Các dòng dưới đây có SĐT trùng với một dòng xuất hiện trước trong file.
+              Mặc định <b>bỏ qua</b> để tránh tạo trùng. Đổi sang <b>tạo mới</b> nếu muốn ghi cả vào CSDL.
+            </p>
+            <div className="flex gap-2 flex-wrap">
+              <Button size="sm" variant="outline" onClick={() => bulkSetInternal('skip')}>Bỏ qua tất cả</Button>
+              <Button size="sm" variant="outline" onClick={() => bulkSetInternal('create')}>Tạo mới tất cả</Button>
+            </div>
+            <ScrollArea className="h-[360px] pr-2">
+              <table className="w-full text-xs border rounded">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="px-2 py-1.5 text-left">Dòng file</th>
+                    <th className="px-2 py-1.5 text-left">Họ tên</th>
+                    <th className="px-2 py-1.5 text-left">SĐT</th>
+                    <th className="px-2 py-1.5 text-left">Trùng với dòng</th>
+                    <th className="px-2 py-1.5 text-left w-32">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {internalDuplicates.map((d) => (
+                    <tr key={d.rowNumber} className="border-t">
+                      <td className="px-2 py-1 text-muted-foreground">{d.rowNumber}</td>
+                      <td className="px-2 py-1">{d.new.fullName}</td>
+                      <td className="px-2 py-1">{d.new.phone}</td>
+                      <td className="px-2 py-1 text-muted-foreground">{d.firstOccurrenceRow}</td>
+                      <td className="px-2 py-1">
+                        <Select value={d.action} onValueChange={(v) => handleInternalAction(d.rowNumber, v as 'skip' | 'create')}>
+                          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="skip" className="text-xs">Bỏ qua</SelectItem>
+                            <SelectItem value="create" className="text-xs">Tạo mới</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </ScrollArea>
           </>
         )}

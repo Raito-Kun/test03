@@ -4,6 +4,7 @@ import * as reportService from '../services/report-service';
 import * as summaryService from '../services/report-summary-service';
 import * as detailService from '../services/report-detail-service';
 import * as chartService from '../services/report-chart-service';
+import * as ticketReportService from '../services/report-ticket-service';
 
 /** Default: first day of current month */
 function defaultStartDate(): string {
@@ -121,6 +122,17 @@ export async function getCallSummaryByTeam(req: Request, res: Response, next: Ne
   try {
     const filters = parseSummaryFilters(req.query as Record<string, unknown>);
     const data = await summaryService.getCallSummaryByTeam(filters, req.dataScope || {});
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** GET /reports/tickets/summary — tickets grouped by creator */
+export async function getTicketSummary(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const filters = parseSummaryFilters(req.query as Record<string, unknown>);
+    const data = await ticketReportService.getTicketSummaryByAgent(filters, req.dataScope || {});
     res.json({ success: true, data });
   } catch (err) {
     next(err);

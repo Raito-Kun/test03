@@ -4,7 +4,7 @@ import * as extensionService from '../services/extension-service';
 /** GET /api/v1/extensions */
 export async function listExtensionsHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const data = await extensionService.listExtensions();
+    const data = await extensionService.listExtensions(req.user?.clusterId);
     res.json({ success: true, data });
   } catch (err) {
     next(err);

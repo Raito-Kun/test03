@@ -93,12 +93,35 @@ export async function getWrapUpStartTime(userId: string): Promise<string | null>
 }
 
 /** Get all agents with their current status from Redis */
-export async function getAllAgentStatuses(): Promise<AgentStatusInfo[]> {
-  const users = await prisma.user.findMany({
-    where: { status: 'active' },
-    select: { id: true },
-  });
+/**
+ * Role-hierarchy visibility: viewers see only roles strictly below their own.
+ * Peers at the same rank are hidden from each other (decision 2026-04-21).
+ */
+const VISIBLE_ROLES_BELOW: Record<string, string[]> = {
+  super_admin: ['admin', 'manager', 'qa', 'leader', 'agent', 'agent_telesale', 'agent_collection'],
+  admin: ['manager', 'qa', 'leader', 'agent', 'agent_telesale', 'agent_collection'],
+  manager: ['qa', 'leader', 'agent', 'agent_telesale', 'agent_collection'],
+  qa: ['agent', 'agent_telesale', 'agent_collection'],
+  leader: ['agent', 'agent_telesale', 'agent_collection'],
+  agent: [],
+  agent_telesale: [],
+  agent_collection: [],
+};
 
+export async function getAllAgentStatuses(
+  viewerRole?: string,
+  viewerTeamId?: string | null,
+): Promise<AgentStatusInfo[]> {
+  // Unscoped fallback (internal callers like the dashboard service already apply
+  // the visibility rule themselves). If viewerRole is given, apply strict filter.
+  const where: Record<string, unknown> = { status: 'active' };
+  if (viewerRole) {
+    const visible = VISIBLE_ROLES_BELOW[viewerRole] ?? [];
+    if (visible.length === 0) return [];
+    where.role = { in: visible };
+    if (viewerRole === 'leader' && viewerTeamId) where.teamId = viewerTeamId;
+  }
+  const users = await prisma.user.findMany({ where, select: { id: true } });
   const results = await Promise.all(users.map((u) => getAgentStatus(u.id)));
   return results;
 }

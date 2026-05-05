@@ -1,4 +1,7 @@
 import { exec } from 'child_process';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 
 const CRM_URL = process.env.CRM_API_URL || 'https://10.10.101.207/api/v1';
 const ESL_HOST = process.env.ESL_HOST || '10.10.101.189';

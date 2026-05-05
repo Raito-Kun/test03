@@ -33,10 +33,10 @@ export async function getMyStatus(req: Request, res: Response, next: NextFunctio
   }
 }
 
-/** GET /agents/statuses — admin/manager/leader */
+/** GET /agents/statuses — filtered by role hierarchy */
 export async function getAllStatuses(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const statuses = await agentStatusService.getAllAgentStatuses();
+    const statuses = await agentStatusService.getAllAgentStatuses(req.user!.role, req.user!.teamId);
     res.json({ success: true, data: statuses });
   } catch (err) {
     next(err);

@@ -6,6 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import api from '@/services/api-client';
 import { useAuthStore } from '@/stores/auth-store';
+import { VI } from '@/lib/vi-text';
 import type { ContactImportRow, DuplicateEntry, Agent } from './contact-import-wizard-types';
 
 export type AssignmentPlan = Map<number, string | null>;
@@ -46,7 +47,7 @@ function RandomMode({ agents, totalRows, onConfirm }: {
           <label key={a.id} className="flex items-center gap-2 cursor-pointer text-sm">
             <Checkbox checked={selected.has(a.id)} onCheckedChange={() => toggle(a.id)} />
             <span>{a.fullName}</span>
-            <Badge variant="outline" className="text-xs">{a.role}</Badge>
+            <Badge variant="outline" className="text-xs">{VI.roles[a.role as keyof typeof VI.roles] ?? a.role}</Badge>
           </label>
         ))}
       </div>
@@ -74,7 +75,7 @@ function ManualMode({ rows, agents, plan, onChange }: {
             <th className="px-2 py-1 text-left w-10">STT</th>
             <th className="px-2 py-1 text-left">Họ tên</th>
             <th className="px-2 py-1 text-left">SĐT</th>
-            <th className="px-2 py-1 text-left w-24">Action</th>
+            <th className="px-2 py-1 text-left w-24">Hành động</th>
             <th className="px-2 py-1 text-left w-44">Chọn nhân viên</th>
           </tr>
         </thead>
@@ -85,7 +86,9 @@ function ManualMode({ rows, agents, plan, onChange }: {
               <td className="px-2 py-1">{row.fullName}</td>
               <td className="px-2 py-1">{row.phone}</td>
               <td className="px-2 py-1">
-                <Badge variant="secondary" className="text-xs">{action}</Badge>
+                <Badge variant="secondary" className="text-xs">
+                  {({ create: 'Tạo mới', merge: 'Gộp', update: 'Cập nhật', skip: 'Bỏ qua', assign: 'Gán' } as Record<string, string>)[action] ?? action}
+                </Badge>
               </td>
               <td className="px-2 py-1">
                 <Select
@@ -157,6 +160,15 @@ export function ContactImportStepAssign({ uniques, duplicates, onAssignmentChang
     );
   }
 
+  const skipAssignment = useCallback(() => {
+    const empty: AssignmentPlan = new Map();
+    setPlan(empty);
+    onAssignmentChange(empty);
+  }, [onAssignmentChange]);
+
+  const assignedCount = [...plan.values()].filter(Boolean).length;
+  const unassignedCount = total - assignedCount;
+
   return (
     <div className="space-y-4">
       <p className="text-sm font-medium">
@@ -171,14 +183,20 @@ export function ContactImportStepAssign({ uniques, duplicates, onAssignmentChang
                 : 'bg-background text-muted-foreground border-border hover:bg-muted'
             }`}
           >
-            {m === 'random' ? 'Random (chia đều)' : 'Manual (chọn thủ công)'}
+            {m === 'random' ? 'Ngẫu nhiên (chia đều)' : 'Thủ công (chọn từng dòng)'}
           </button>
         ))}
+        <Button variant="outline" size="sm" onClick={skipAssignment} title="Tạo bản ghi nhưng để trống người phụ trách">
+          Bỏ qua phân công
+        </Button>
+      </div>
+      <div className="rounded border bg-muted/40 p-2 text-xs text-muted-foreground">
+        Phân công có thể bỏ qua. Bản ghi không gán sẽ ở trạng thái <b>chưa phụ trách</b> và quản lý có thể phân bổ sau từ trang Danh sách khách hàng.
       </div>
       {isLoading && <p className="text-sm text-muted-foreground">Đang tải danh sách nhân viên…</p>}
       {!isLoading && agents.length === 0 && (
-        <div className="flex items-center gap-3 rounded border p-3 text-sm text-muted-foreground">
-          <span>Không có nhân viên đang online / sẵn sàng</span>
+        <div className="flex items-center gap-3 rounded border border-amber-200 bg-amber-50 p-3 text-sm">
+          <span className="text-amber-800">Không có nhân viên đang online. Bạn vẫn có thể nhấn <b>Hoàn tất</b> để tạo bản ghi chưa gán.</span>
           <Button variant="outline" size="sm" onClick={() => refetch()}>Thử lại</Button>
         </div>
       )}
@@ -188,11 +206,10 @@ export function ContactImportStepAssign({ uniques, duplicates, onAssignmentChang
       {!isLoading && agents.length > 0 && mode === 'manual' && (
         <ManualMode rows={actionableRows} agents={agents} plan={plan} onChange={handleManualChange} />
       )}
-      {plan.size > 0 && (
-        <p className="text-xs text-muted-foreground">
-          Đã phân công {[...plan.values()].filter(Boolean).length} / {total} bản ghi
-        </p>
-      )}
+      <p className="text-xs text-muted-foreground">
+        Đã phân công <span className="font-medium text-foreground">{assignedCount}</span> / {total}
+        {unassignedCount > 0 && <> ({unassignedCount} chưa phụ trách)</>}
+      </p>
     </div>
   );
 }

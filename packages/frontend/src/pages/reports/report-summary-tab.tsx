@@ -20,6 +20,7 @@ interface AgentRow {
   cancelled: number;
   avgDuration: number;
   avgBillsec: number;
+  totalBillsec: number;
   answerRate: number;
 }
 
@@ -41,18 +42,18 @@ interface Props {
 
 const AGENT_HEADERS = [
   { key: 'agentName', label: 'Nhân viên' },
-  { key: 'teamName', label: 'Team' },
+  { key: 'teamName', label: 'Nhóm' },
   { key: 'totalCalls', label: 'Tổng cuộc gọi' },
   { key: 'answered', label: 'Đã nghe' },
   { key: 'missed', label: 'Nhỡ' },
   { key: 'cancelled', label: 'Hủy' },
-  { key: 'avgDuration', label: 'Thời lượng TB' },
-  { key: 'avgBillsec', label: 'Thời gian nói TB' },
+  { key: 'avgBillsec', label: 'Avg talktime' },
+  { key: 'totalBillsec', label: 'Total talktime' },
   { key: 'answerRate', label: 'Tỷ lệ nghe %' },
 ];
 
 const TEAM_HEADERS = [
-  { key: 'teamName', label: 'Team' },
+  { key: 'teamName', label: 'Nhóm' },
   { key: 'agentCount', label: 'Số agent' },
   { key: 'totalCalls', label: 'Tổng cuộc gọi' },
   { key: 'answered', label: 'Đã nghe' },
@@ -90,8 +91,8 @@ export function ReportSummaryTab({ filters, searched, queryKey }: Props) {
 
   const agentExportRows = (agentRows ?? []).map((r) => ({
     ...r,
-    avgDuration: formatDuration(r.avgDuration),
     avgBillsec: formatDuration(r.avgBillsec),
+    totalBillsec: formatDuration(r.totalBillsec),
     answerRate: pct(r.answerRate),
   })) as Record<string, unknown>[];
 
@@ -105,7 +106,7 @@ export function ReportSummaryTab({ filters, searched, queryKey }: Props) {
       <div className="flex items-center justify-between mb-3">
         <TabsList>
           <TabsTrigger value="agent">Theo nhân viên</TabsTrigger>
-          <TabsTrigger value="team">Theo team</TabsTrigger>
+          <TabsTrigger value="team">Theo nhóm</TabsTrigger>
         </TabsList>
         {subTab === 'agent'
           ? <ReportExportButton rows={agentExportRows} headers={AGENT_HEADERS} fileName="bao-cao-tom-tat" />
@@ -120,13 +121,13 @@ export function ReportSummaryTab({ filters, searched, queryKey }: Props) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nhân viên</TableHead>
-                  <TableHead>Team</TableHead>
+                  <TableHead>Nhóm</TableHead>
                   <TableHead className="text-right">Tổng</TableHead>
                   <TableHead className="text-right">Đã nghe</TableHead>
                   <TableHead className="text-right">Nhỡ</TableHead>
                   <TableHead className="text-right">Hủy</TableHead>
-                  <TableHead className="text-right">TL TB</TableHead>
-                  <TableHead className="text-right">Nói TB</TableHead>
+                  <TableHead className="text-right">Avg talktime</TableHead>
+                  <TableHead className="text-right">Total talktime</TableHead>
                   <TableHead className="text-right">Tỷ lệ nghe</TableHead>
                 </TableRow>
               </TableHeader>
@@ -139,8 +140,8 @@ export function ReportSummaryTab({ filters, searched, queryKey }: Props) {
                     <TableCell className="text-right text-[var(--color-status-ok)]">{r.answered}</TableCell>
                     <TableCell className="text-right text-[var(--color-status-err)]">{r.missed}</TableCell>
                     <TableCell className="text-right text-[var(--color-status-warn)]">{r.cancelled}</TableCell>
-                    <TableCell className="text-right">{formatDuration(r.avgDuration)}</TableCell>
-                    <TableCell className="text-right">{formatDuration(r.avgBillsec)}</TableCell>
+                    <TableCell className="text-right font-mono">{formatDuration(r.avgBillsec)}</TableCell>
+                    <TableCell className="text-right font-mono">{formatDuration(r.totalBillsec)}</TableCell>
                     <TableCell className="text-right">{pct(r.answerRate)}</TableCell>
                   </TableRow>
                 ))}
@@ -159,7 +160,7 @@ export function ReportSummaryTab({ filters, searched, queryKey }: Props) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Team</TableHead>
+                  <TableHead>Nhóm</TableHead>
                   <TableHead className="text-right">Số agent</TableHead>
                   <TableHead className="text-right">Tổng</TableHead>
                   <TableHead className="text-right">Đã nghe</TableHead>

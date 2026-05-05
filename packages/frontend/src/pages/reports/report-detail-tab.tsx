@@ -16,6 +16,7 @@ import { formatDuration } from '@/lib/format';
 import api from '@/services/api-client';
 import { format } from 'date-fns';
 import type { FilterState } from './report-filters';
+import { VI } from '@/lib/vi-text';
 
 interface DetailRow {
   id: string;
@@ -42,13 +43,7 @@ interface Props {
   queryKey: unknown[];
 }
 
-const HANGUP_VI: Record<string, string> = {
-  NORMAL_CLEARING: 'Thành công',
-  ORIGINATOR_CANCEL: 'Hủy',
-  NO_ANSWER: 'Không trả lời',
-  USER_BUSY: 'Máy bận',
-  CALL_REJECTED: 'Từ chối',
-};
+const HANGUP_VI = VI.hangupCause;
 
 const EXPORT_HEADERS = [
   { key: 'startTime', label: 'Thời gian' },
@@ -205,7 +200,11 @@ function DetailExtraFilters({
       <div className="space-y-1">
         <Label className="text-xs">Kết quả</Label>
         <Select value={hangupCause} onValueChange={(v) => onHangupCause(v ?? '')}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Tất cả" /></SelectTrigger>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Tất cả">
+              {hangupCause ? (HANGUP_VI[hangupCause] ?? hangupCause) : 'Tất cả'}
+            </SelectValue>
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="">Tất cả</SelectItem>
             {Object.entries(HANGUP_VI).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}

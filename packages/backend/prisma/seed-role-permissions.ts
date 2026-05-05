@@ -10,8 +10,10 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const defaultGrants: Record<string, string[]> = {
+  // super_admin omits opt-in destructive keys (recording.delete) by design —
+  // they must be explicitly toggled in the permission matrix per cluster.
   super_admin: [
-    'switchboard.manage','switchboard.make_call','switchboard.receive_call','switchboard.transfer_call','switchboard.hold_call','switchboard.listen_recording','switchboard.download_recording','recording.delete',
+    'switchboard.manage','switchboard.make_call','switchboard.receive_call','switchboard.transfer_call','switchboard.hold_call','switchboard.listen_recording','switchboard.download_recording',
     'crm.manage','crm.contacts.view','crm.contacts.create','crm.contacts.edit','crm.contacts.delete','crm.contacts.import','crm.contacts.export','crm.leads.view','crm.leads.create','crm.leads.edit','crm.leads.delete','crm.leads.import','crm.debt.view','crm.debt.edit','crm.data_allocation',
     'campaign.manage','campaign.create','campaign.edit','campaign.delete','campaign.assign','campaign.import',
     'report.manage','report.view_own','report.view_team','report.view_all','report.export',

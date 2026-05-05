@@ -76,7 +76,7 @@ export function SlaDashboardWidget({ className }: SlaDashboardWidgetProps) {
     <Card className={`border shadow-sm bg-white ${className ?? ''}`}>
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
-          <CheckCircle className="h-4 w-4 text-slate-500" />
+          <CheckCircle className="h-4 w-4 text-muted-foreground" />
           Tuân thủ SLA
         </CardTitle>
       </CardHeader>
@@ -96,10 +96,10 @@ export function SlaDashboardWidget({ className }: SlaDashboardWidgetProps) {
             <div className="flex items-center gap-3">
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-slate-500">Tổng tuân thủ</span>
+                  <span className="text-xs text-muted-foreground">Tổng tuân thủ</span>
                   <span className={`text-lg font-bold ${complianceColor(pct)}`}>{pct}%</span>
                 </div>
-                <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${complianceBg(pct)}`}
                     style={{ width: `${Math.min(100, pct)}%` }}
@@ -124,20 +124,20 @@ export function SlaDashboardWidget({ className }: SlaDashboardWidgetProps) {
                   <p className="text-base font-bold text-red-800">{data?.breached ?? 0}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 rounded bg-slate-50 px-2.5 py-2">
-                <Clock className="h-4 w-4 text-slate-500 shrink-0" />
+              <div className="flex items-center gap-2 rounded bg-muted px-2.5 py-2">
+                <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div>
-                  <p className="text-xs text-slate-500">Thời gian phản hồi TB</p>
-                  <p className="text-sm font-semibold text-slate-700">
+                  <p className="text-xs text-muted-foreground">Thời gian phản hồi TB</p>
+                  <p className="text-sm font-semibold text-foreground">
                     {formatMinutes(data?.avgFirstResponseMinutes ?? 0)}
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 rounded bg-slate-50 px-2.5 py-2">
-                <Timer className="h-4 w-4 text-slate-500 shrink-0" />
+              <div className="flex items-center gap-2 rounded bg-muted px-2.5 py-2">
+                <Timer className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div>
-                  <p className="text-xs text-slate-500">Thời gian xử lý TB</p>
-                  <p className="text-sm font-semibold text-slate-700">
+                  <p className="text-xs text-muted-foreground">Thời gian xử lý TB</p>
+                  <p className="text-sm font-semibold text-foreground">
                     {formatMinutes(data?.avgResolutionMinutes ?? 0)}
                   </p>
                 </div>
@@ -147,18 +147,18 @@ export function SlaDashboardWidget({ className }: SlaDashboardWidgetProps) {
             {/* By priority bars */}
             {data?.byPriority && data.byPriority.length > 0 && (
               <div className="space-y-2">
-                <p className="text-xs font-medium text-slate-500">Theo mức độ ưu tiên</p>
+                <p className="text-xs font-medium text-muted-foreground">Theo mức độ ưu tiên</p>
                 {data.byPriority.map((row) => (
                   <div key={row.priority} className="flex items-center gap-2">
                     <div className="w-20 shrink-0 flex items-center gap-1.5">
                       <span
-                        className={`h-2 w-2 rounded-full shrink-0 ${PRIORITY_COLOR[row.priority] ?? 'bg-slate-400'}`}
+                        className={`h-2 w-2 rounded-full shrink-0 ${PRIORITY_COLOR[row.priority] ?? 'bg-muted-foreground/60'}`}
                       />
-                      <span className="text-xs text-slate-600 truncate">
+                      <span className="text-xs text-muted-foreground truncate">
                         {PRIORITY_LABELS[row.priority] ?? row.priority}
                       </span>
                     </div>
-                    <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                       <div
                         className={`h-full rounded-full ${complianceBg(row.compliancePercent)}`}
                         style={{ width: `${Math.min(100, row.compliancePercent)}%` }}

@@ -13,6 +13,7 @@ const createSchema = z.object({
   priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
 });
 
+// When status=resolved, resultCode and content are required (enforced in service)
 const updateSchema = z.object({
   categoryId: z.string().uuid().optional(),
   subject: z.string().min(1).max(500).optional(),
@@ -23,9 +24,17 @@ const updateSchema = z.object({
 });
 
 function handleErrors(err: unknown, res: Response, next: NextFunction): void {
-  const error = err as Error & { code?: string };
+  const error = err as Error & { code?: string; statusCode?: number };
   if (error.code === 'NOT_FOUND') {
     res.status(404).json({ success: false, error: { code: error.code, message: error.message } });
+    return;
+  }
+  if (error.code === 'FORBIDDEN') {
+    res.status(403).json({ success: false, error: { code: error.code, message: error.message } });
+    return;
+  }
+  if (error.code === 'VALIDATION_ERROR') {
+    res.status(400).json({ success: false, error: { code: error.code, message: error.message } });
     return;
   }
   next(err);
@@ -56,7 +65,12 @@ export async function listTickets(req: Request, res: Response, next: NextFunctio
 export async function createTicket(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const input = createSchema.parse(req.body);
-    const ticket = await ticketService.createTicket(input, req.user!.userId, req);
+    const ticket = await ticketService.createTicket(
+      input,
+      req.user!.userId,
+      req.user!.clusterId,
+      req,
+    );
     res.status(201).json({ success: true, data: ticket });
   } catch (err) {
     next(err);
@@ -66,7 +80,11 @@ export async function createTicket(req: Request, res: Response, next: NextFuncti
 /** GET /tickets/:id */
 export async function getTicket(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const ticket = await ticketService.getTicketById(req.params.id as string, req.user!.userId, req.user!.role);
+    const ticket = await ticketService.getTicketById(
+      req.params.id as string,
+      req.user!.userId,
+      req.user!.role,
+    );
     res.json({ success: true, data: ticket });
   } catch (err) {
     handleErrors(err, res, next);
@@ -93,7 +111,12 @@ export async function updateTicket(req: Request, res: Response, next: NextFuncti
 /** DELETE /tickets/:id */
 export async function deleteTicket(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    await ticketService.deleteTicket(req.params.id as string, req.user!.userId, req.user!.role, req);
+    await ticketService.deleteTicket(
+      req.params.id as string,
+      req.user!.userId,
+      req.user!.role,
+      req,
+    );
     res.json({ success: true, data: null });
   } catch (err) {
     handleErrors(err, res, next);
@@ -101,7 +124,11 @@ export async function deleteTicket(req: Request, res: Response, next: NextFuncti
 }
 
 /** GET /contacts/:id/tickets */
-export async function listContactTickets(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function listContactTickets(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const pagination = parsePagination(req);
     const result = await ticketService.listContactTickets(req.params.id as string, pagination);

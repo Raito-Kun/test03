@@ -9,18 +9,18 @@ export function Breadcrumbs() {
   return (
     <nav
       aria-label="breadcrumb"
-      className="flex items-center gap-1 text-xs text-white/50 shrink-0"
+      className="flex items-center gap-1 text-xs text-muted-foreground shrink-0"
     >
       {segments.map((seg, i) => {
         const isLast = i === segments.length - 1;
         return (
           <span key={seg.path + i} className="flex items-center gap-1">
-            {i > 0 && <ChevronRight className="h-3 w-3 text-white/25" />}
+            {i > 0 && <ChevronRight className="h-3 w-3 text-muted-foreground/40" />}
             <span
               className={
                 isLast
-                  ? 'text-white/80 font-medium'
-                  : 'text-white/40'
+                  ? 'text-foreground font-medium'
+                  : 'text-muted-foreground'
               }
             >
               {seg.label}

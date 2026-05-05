@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { MoreHorizontal, Trash2, Phone, Edit2, RefreshCw, Users } from 'lucide-react';
+import { MoreHorizontal, Trash2, Phone, Edit2, RefreshCw, Users, Search, SlidersHorizontal, Upload, ChevronRight } from 'lucide-react';
 import { ExportButton } from '@/components/export-button';
 import { ContactMergeButton } from './contact-merge-dialog';
 import { toast } from 'sonner';
-import { SectionHeader } from '@/components/ops/section-header';
 import { DottedCard } from '@/components/ops/dotted-card';
 import { DataTable, Column } from '@/components/data-table/data-table';
 import { ConfirmDialog } from '@/components/confirm-dialog';
@@ -32,6 +31,8 @@ interface Contact {
   fullName: string;
   phone: string;
   email?: string;
+  company?: string;
+  tags?: string[];
   // Backend returns BOTH — the raw FK id and the resolved user object.
   // Previously only `assignedTo: { fullName }` was typed which collided
   // with the string FK and rendered '—' for every row. Keep both now
@@ -40,6 +41,48 @@ interface Contact {
   assignedTo?: string | null;
   assignedUser?: { id: string; fullName: string } | null;
   createdAt: string;
+}
+
+// Derive two-letter initials from a full name (e.g. "Nguyễn Văn Linh" → "NL")
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+// Deterministic avatar bg color from name string
+const AVATAR_COLORS = [
+  'bg-indigo-100 text-indigo-700',
+  'bg-pink-100 text-pink-700',
+  'bg-amber-100 text-amber-700',
+  'bg-emerald-100 text-emerald-700',
+  'bg-violet-100 text-violet-700',
+  'bg-cyan-100 text-cyan-700',
+];
+function avatarColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+// Segment pill style mapped from tag value
+function segmentPill(tag: string) {
+  const lower = tag.toLowerCase();
+  if (lower === 'vip')
+    return 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 text-xs font-semibold border border-violet-100';
+  if (lower === 'mới' || lower === 'new')
+    return 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-semibold border border-slate-200';
+  if (lower === 'tiềm năng' || lower === 'tiem nang')
+    return 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 text-xs font-semibold border border-orange-100';
+  // Default: muted pill
+  return 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-semibold';
+}
+function segmentDotColor(tag: string): string {
+  const lower = tag.toLowerCase();
+  if (lower === 'vip') return 'bg-violet-500';
+  if (lower === 'mới' || lower === 'new') return 'bg-slate-400';
+  if (lower === 'tiềm năng' || lower === 'tiem nang') return 'bg-orange-500';
+  return 'bg-muted-foreground';
 }
 
 interface ContactsResponse {
@@ -150,12 +193,24 @@ export default function ContactListPage() {
       ),
       className: 'w-10',
     }] : []),
-    { key: 'fullName', label: VI.contact.fullName, sortable: true },
     {
-      key: 'phone', label: VI.contact.phone,
+      key: 'fullName',
+      label: 'HỌ TÊN',
+      sortable: true,
+      render: (row) => (
+        <div className="flex items-center gap-3">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${avatarColor(row.fullName)}`}>
+            {getInitials(row.fullName)}
+          </div>
+          <span className="text-sm font-semibold">{row.fullName}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'phone', label: 'SĐT',
       render: (row) => (
         <span className="flex items-center gap-1.5">
-          {fmtPhone(row.phone)}
+          <span className="font-mono text-sm">{fmtPhone(row.phone)}</span>
           <button
             onClick={(e) => { e.stopPropagation(); const blocked = checkCallBlocked(myStatus, user?.sipExtension); if (blocked) { toast.error(blocked); return; } api.post('/calls/originate', { phone: row.phone }).then(() => toast.success(`Đang gọi ${fmtPhone(row.phone)}...`)).catch((err) => toast.error(err?.response?.data?.error?.message || err?.message || 'Không thể gọi')); }}
             className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
@@ -166,17 +221,50 @@ export default function ContactListPage() {
         </span>
       ),
     },
-    { key: 'email', label: VI.contact.email, render: (row) => row.email || '—' },
+    {
+      key: 'company',
+      label: 'CÔNG TY',
+      render: (row) => <span className="text-sm">{row.company || '—'}</span>,
+    },
+    {
+      key: 'tags',
+      label: 'PHÂN KHÚC',
+      render: (row) => {
+        const firstTag = row.tags?.[0];
+        if (!firstTag) return <span className="text-muted-foreground">—</span>;
+        return (
+          <span className={segmentPill(firstTag)}>
+            <span className={`w-1.5 h-1.5 rounded-full ${segmentDotColor(firstTag)}`} />
+            {firstTag}
+          </span>
+        );
+      },
+    },
     {
       key: 'assignedTo',
-      label: VI.contact.assignedTo,
-      render: (row) => row.assignedUser?.fullName || '—',
+      label: 'PHỤ TRÁCH',
+      render: (row) => {
+        const name = row.assignedUser?.fullName;
+        if (!name) return <span className="text-muted-foreground">—</span>;
+        return (
+          <div className="flex items-center gap-2">
+            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${avatarColor(name)}`}>
+              {getInitials(name)}
+            </div>
+            <span className="text-xs font-medium">{name}</span>
+          </div>
+        );
+      },
     },
     {
       key: 'createdAt',
-      label: VI.contact.createdAt,
+      label: 'NGÀY TẠO',
       sortable: true,
-      render: (row) => format(new Date(row.createdAt), 'dd/MM/yyyy HH:mm'),
+      render: (row) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {format(new Date(row.createdAt), 'dd/MM/yyyy')}
+        </span>
+      ),
     },
   ];
 
@@ -219,22 +307,82 @@ export default function ContactListPage() {
     </Button>
   ) : null;
 
+  const [filterOpen, setFilterOpen] = useState(false);
+
   return (
-    <div className="space-y-6">
-      <SectionHeader
-        label={VI.contact.title}
-        hint={`${data?.meta.total ?? 0} bản ghi`}
-        actions={
-          <div className="flex items-center gap-2">
-            {bulkDeleteButton}{allocateButton}{refreshButton}{importAction}
+    <div className="space-y-4">
+      {/* Breadcrumb + status pill */}
+      <div className="flex items-center gap-3">
+        <nav className="flex items-center gap-1.5 text-sm">
+          <span className="text-muted-foreground">Trang chủ</span>
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-primary font-semibold">Liên hệ</span>
+        </nav>
+        <div className="h-4 w-px bg-border" />
+        <div className="flex items-center gap-1.5 bg-primary/10 px-2 py-0.5 rounded-full">
+          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+          <span className="text-xs font-bold text-primary tracking-wider font-mono">SALE ACTIVE</span>
+        </div>
+      </div>
+
+      {/* Search + action bar */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            className="pl-9 rounded-xl bg-muted/40 border-border"
+            placeholder="Tìm kiếm liên hệ, công ty hoặc SĐT…"
+            value={appliedSearch}
+            onChange={(e) => { setAppliedSearch(e.target.value); pagination.setPage(1); }}
+          />
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button variant="outline" className="gap-2 rounded-xl border-dashed" onClick={() => setFilterOpen((v) => !v)}>
+            <SlidersHorizontal className="h-4 w-4" />
+            Lọc
+          </Button>
+          {importAction ?? (
+            <Button variant="secondary" className="gap-2 rounded-xl">
+              <Upload className="h-4 w-4" />
+              Nhập dữ liệu
+            </Button>
+          )}
+          <div className="flex items-center gap-1">
+            {bulkDeleteButton}{allocateButton}{refreshButton}
             <ContactMergeButton />
             <ExportButton entity="contacts" filters={{ search: pagination.search }} />
-            <Button onClick={() => setFormOpen(true)}>
-              <span className="mr-1">+</span>{VI.actions.create}
+            <Button onClick={() => setFormOpen(true)} className="rounded-xl">
+              <span className="mr-1">+</span>Tạo liên hệ
             </Button>
           </div>
-        }
-      />
+        </div>
+      </div>
+
+      {/* Collapsible advanced filters */}
+      {filterOpen && (
+        <div className="flex items-end gap-2 flex-wrap p-3 rounded-xl border border-dashed border-border bg-muted/20">
+          <div className="space-y-1">
+            <Label className="text-xs">{VI.contact.source}</Label>
+            <Input placeholder="VD: website, zalo" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="w-32" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">{VI.contact.tags}</Label>
+            <Input placeholder="VD: VIP" value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} className="w-28" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Từ ngày</Label>
+            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-36" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Đến ngày</Label>
+            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36" />
+          </div>
+          {(dateFrom || dateTo || sourceFilter || tagFilter) && (
+            <Button variant="ghost" size="sm" onClick={() => { setDateFrom(''); setDateTo(''); setSourceFilter(''); setTagFilter(''); }}>Xóa lọc</Button>
+          )}
+        </div>
+      )}
+
       <DottedCard>
       <DataTable
         columns={columns}
@@ -250,29 +398,6 @@ export default function ContactListPage() {
         sortKey={pagination.sortKey}
         sortOrder={pagination.sortOrder}
         onRowClick={(row) => setSelectedContactId(row.id)}
-        toolbar={
-          <div className="flex items-end gap-2 flex-wrap">
-            <div className="space-y-1">
-              <Label className="text-xs">{VI.contact.source}</Label>
-              <Input placeholder="VD: website, zalo" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="w-32" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">{VI.contact.tags}</Label>
-              <Input placeholder="VD: VIP" value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} className="w-28" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Từ ngày</Label>
-              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-36" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Đến ngày</Label>
-              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36" />
-            </div>
-            {(dateFrom || dateTo || sourceFilter || tagFilter) && (
-              <Button variant="ghost" size="sm" onClick={() => { setDateFrom(''); setDateTo(''); setSourceFilter(''); setTagFilter(''); }}>Xóa lọc</Button>
-            )}
-          </div>
-        }
         actions={(row) => (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

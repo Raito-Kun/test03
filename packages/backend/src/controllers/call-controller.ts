@@ -65,6 +65,26 @@ export async function originateCall(req: Request, res: Response, next: NextFunct
       res.status(409).json({ success: false, error: { code: e.code, message: e.message } });
       return;
     }
+    if (e.code === 'ESL_UNAVAILABLE') {
+      res.status(503).json({ success: false, error: { code: e.code, message: e.message } });
+      return;
+    }
+    next(err);
+  }
+}
+
+/** GET /calls/registration-status — for current user's SIP extension */
+export async function getMyRegistrationStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      select: { sipExtension: true, extension: true },
+    });
+    // Prefer cluster-mapped extension (source of truth in Quản lý tài khoản UI).
+    const ext = user?.extension ?? null;
+    const status = await eslService.getRegistrationStatus(ext);
+    res.json({ success: true, data: status });
+  } catch (err) {
     next(err);
   }
 }

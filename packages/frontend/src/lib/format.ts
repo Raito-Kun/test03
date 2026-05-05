@@ -22,6 +22,29 @@ export function formatPercent(n: number): string {
 }
 
 /** Check if agent can make calls. Returns error message or null if OK. */
+/**
+ * Build a download filename for a call recording using the convention:
+ *   {direction}_{caller}_{destination}_{dd-mm-yyyy_HH-MM-SS}.{ext}
+ *
+ * Colons in the time part are replaced with dashes for Windows/cross-platform safety.
+ */
+export function buildRecordingFilename(
+  direction: 'inbound' | 'outbound' | string,
+  callerNumber: string,
+  destinationNumber: string,
+  startTime: string,
+  recordingPath?: string | null,
+): string {
+  const d = new Date(startTime);
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const stamp =
+    `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}` +
+    `_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+  const extMatch = recordingPath?.match(/\.([a-zA-Z0-9]+)$/);
+  const ext = extMatch ? extMatch[1] : 'mp3';
+  return `${direction}_${callerNumber}_${destinationNumber}_${stamp}.${ext}`;
+}
+
 export function checkCallBlocked(myStatus: string, sipExtension?: string | null): string | null {
   if (!sipExtension) return 'Tài khoản chưa được cấu hình số máy lẻ (SIP extension)';
   if (myStatus === 'offline' || myStatus === 'break') return 'Bạn cần chuyển sang trạng thái Sẵn sàng để thực hiện cuộc gọi';

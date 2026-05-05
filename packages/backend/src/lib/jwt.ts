@@ -16,6 +16,7 @@ export interface TokenPayload {
   userId: string;
   role: string;
   teamId: string | null;
+  clusterId: string | null;
 }
 
 /** Generate short-lived access token (15min) */

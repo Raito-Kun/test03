@@ -72,7 +72,7 @@ export function AiSearchBar({ open, onClose }: AiSearchBarProps) {
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 bg-black/30 backdrop-blur-sm" onClick={onClose}>
       <div className="w-full max-w-lg bg-white rounded-xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 border-b px-4 py-3">
-          <Search className="h-5 w-5 text-slate-400" />
+          <Search className="h-5 w-5 text-muted-foreground" />
           <input
             ref={inputRef}
             value={query}
@@ -81,14 +81,14 @@ export function AiSearchBar({ open, onClose }: AiSearchBarProps) {
             className="flex-1 text-sm outline-none"
           />
           {query && (
-            <button onClick={() => setQuery('')} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => setQuery('')} className="text-muted-foreground hover:text-muted-foreground">
               <X className="h-4 w-4" />
             </button>
           )}
         </div>
 
         {isLoading && (
-          <div className="flex items-center gap-2 px-4 py-6 justify-center text-sm text-slate-500">
+          <div className="flex items-center gap-2 px-4 py-6 justify-center text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Đang tìm kiếm...
           </div>
         )}
@@ -102,14 +102,14 @@ export function AiSearchBar({ open, onClose }: AiSearchBarProps) {
                 <button
                   key={`${r.type}-${r.id}`}
                   onClick={() => { navigate(`${config.path}/${r.id}`); onClose(); }}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 transition-colors"
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-muted transition-colors"
                 >
-                  <Icon className="h-4 w-4 text-slate-400 shrink-0" />
+                  <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-700 truncate">{r.title}</p>
-                    <p className="text-xs text-slate-400 truncate">{r.subtitle}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{r.title}</p>
+                    <p className="text-xs text-muted-foreground truncate">{r.subtitle}</p>
                   </div>
-                  <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{config.label}</span>
+                  <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{config.label}</span>
                 </button>
               );
             })}
@@ -117,7 +117,7 @@ export function AiSearchBar({ open, onClose }: AiSearchBarProps) {
         )}
 
         {results && results.length === 0 && query.length >= 2 && !isLoading && (
-          <p className="text-center text-sm text-slate-400 py-6">Không tìm thấy kết quả</p>
+          <p className="text-center text-sm text-muted-foreground py-6">Không tìm thấy kết quả</p>
         )}
       </div>
     </div>

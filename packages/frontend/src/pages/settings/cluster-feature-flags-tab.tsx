@@ -123,10 +123,10 @@ export default function ClusterFeatureFlagsTab({ clusterId }: Props) {
   return (
     <div className="space-y-4">
       <Tabs value={activeScope} onValueChange={setActiveScope}>
-        <div className="flex items-center gap-2">
-          <TabsList className="flex-1 justify-start h-auto flex-wrap">
+        <div className="flex items-center gap-2 border-b border-dashed border-border pb-1">
+          <TabsList className="flex-1 justify-start h-auto flex-wrap bg-transparent p-0 gap-0">
             {uniqueTabs.map((scope) => (
-              <TabsTrigger key={scope} value={scope} className="text-xs">
+              <TabsTrigger key={scope} value={scope} className="text-xs rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-1.5">
                 {scope === 'cluster' ? 'Toàn cụm' : scope}
               </TabsTrigger>
             ))}
@@ -163,7 +163,7 @@ export default function ClusterFeatureFlagsTab({ clusterId }: Props) {
         ))}
       </Tabs>
 
-      <div className="flex justify-end pt-2 border-t">
+      <div className="flex justify-end pt-2 border-t border-dashed border-border">
         <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
           {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
           Lưu thay đổi
@@ -186,8 +186,8 @@ function FeatureFlagGrid({
   return (
     <div className="space-y-4">
       {FEATURE_FLAG_MODULES.map((mod) => (
-        <div key={mod.name} className="border rounded-lg overflow-hidden">
-          <div className="bg-muted px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <div key={mod.name} className="border border-dashed border-border rounded-sm overflow-hidden">
+          <div className="bg-muted/50 px-3 py-2 border-b border-dashed border-border text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
             {mod.name}
           </div>
           <div className="divide-y">
@@ -211,7 +211,7 @@ function FeatureFlagGrid({
                     checked={enabled}
                     onCheckedChange={() => onToggle(feat.key)}
                     disabled={clusterDisabled}
-                    className="data-[state=checked]:bg-blue-500"
+                    className="data-[state=checked]:bg-primary"
                   />
                 </div>
               );

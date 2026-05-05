@@ -1,7 +1,13 @@
 /**
  * SIP presence detection from FusionPBX.
  * Primary: query FusionPBX PostgreSQL directly for active sip_registrations.
- * Fallback: SSH to FusionPBX and run fs_cli -x "show registrations as json".
+ * Fallback: SSH to FusionPBX and query sofia_reg SQLite DBs.
+ *
+ * Multi-tenant rule: one PBX host can serve multiple domains (e.g.
+ * 10.10.101.206 runs both `blueva` and `hoangthienfinance.vn`). Ext `105`
+ * can exist on both — sip_registrations is shared. Callers MUST pass the
+ * cluster's sipDomain so we filter by `sip_realm` and avoid the cross-tenant
+ * presence leak (symmetric to the 2026-04-17 CDR leak).
  */
 import logger from '../lib/logger';
 
@@ -16,7 +22,14 @@ function parseBool(v: string | undefined, def = false): boolean {
   return v.toLowerCase() === 'true' || v === '1';
 }
 
-async function queryViaPostgres(): Promise<RegisteredExtension[]> {
+// Defensive: sip_realm in queries is either parameterised (PG) or shell-escaped (SQLite).
+// Domain names should never contain quotes/semicolons, but strip anything non-domain-safe
+// before interpolating into the SQLite cmd string.
+function sanitizeDomain(d: string): string {
+  return d.replace(/[^a-zA-Z0-9._-]/g, '');
+}
+
+async function queryViaPostgres(sipDomain: string): Promise<RegisteredExtension[]> {
   const host = process.env.FUSIONPBX_IP;
   const user = process.env.FUSIONPBX_PG_USER || 'fusionpbx_readonly';
   const password = process.env.FUSIONPBX_PG_PASSWORD;
@@ -45,7 +58,9 @@ async function queryViaPostgres(): Promise<RegisteredExtension[]> {
     const res = await client.query(
       `SELECT sip_user AS extension, network_ip, expires
        FROM sip_registrations
-       WHERE expires > EXTRACT(EPOCH FROM NOW())::bigint`,
+       WHERE expires > EXTRACT(EPOCH FROM NOW())::bigint
+         AND sip_realm = $1`,
+      [sipDomain],
     );
     const rows: RegisteredExtension[] = [];
     for (const r of res.rows) {
@@ -62,13 +77,7 @@ async function queryViaPostgres(): Promise<RegisteredExtension[]> {
   }
 }
 
-async function queryViaSsh(): Promise<RegisteredExtension[]> {
-  const prisma = (await import('../lib/prisma')).default;
-  const cluster = await prisma.pbxCluster.findFirst({
-    where: { isActive: true },
-    select: { pbxIp: true, sshUser: true, sshPassword: true },
-  });
-
+async function queryViaSsh(sipDomain: string, cluster?: { pbxIp: string; sshUser: string | null; sshPassword: string | null } | null): Promise<RegisteredExtension[]> {
   const host = cluster?.pbxIp || process.env.FUSIONPBX_IP;
   const username = cluster?.sshUser || process.env.FUSIONPBX_SSH_USER || 'root';
   const password = cluster?.sshPassword || process.env.FUSIONPBX_SSH_PASSWORD;
@@ -87,10 +96,14 @@ async function queryViaSsh(): Promise<RegisteredExtension[]> {
   // Query FreeSWITCH's SQLite registration DBs. Softphones register to
   // internal OR external profile depending on NAT/routing (eyeBeam → internal,
   // MicroSIP via public IP → external). Query BOTH and union results.
+  // Filter by sip_realm: a single PBX hosts multiple FusionPBX domains and
+  // ext `105` can register under different domains — without the realm filter
+  // one tenant's presence leaks into another's dashboard.
   const dbDir = process.env.FUSIONPBX_SOFIA_DB_DIR || '/var/lib/freeswitch/db';
   const internalDb = `${dbDir}/sofia_reg_internal.db`;
   const externalDb = `${dbDir}/sofia_reg_external.db`;
-  const selectSql = `SELECT sip_user, COALESCE(network_ip,''), COALESCE(expires,0) FROM sip_registrations WHERE expires > strftime('%s','now')`;
+  const safeDomain = sanitizeDomain(sipDomain);
+  const selectSql = `SELECT sip_user, COALESCE(network_ip,''), COALESCE(expires,0) FROM sip_registrations WHERE expires > strftime('%s','now') AND sip_realm='${safeDomain}'`;
   // Each sqlite3 call isolated with || true so a missing/empty external DB
   // doesn't abort the whole command.
   const sqliteCmd = `(sqlite3 -separator '|' ${internalDb} "${selectSql}" 2>/dev/null || true); (sqlite3 -separator '|' ${externalDb} "${selectSql}" 2>/dev/null || true)`;
@@ -157,28 +170,46 @@ async function isConfigMissing(): Promise<boolean> {
   return true;
 }
 
+export interface PresenceCluster {
+  pbxIp: string;
+  sipDomain: string;
+  sshUser: string | null;
+  sshPassword: string | null;
+}
+
 /**
- * Fetch currently registered extensions from FusionPBX.
- * Tries PostgreSQL first, falls back to SSH + fs_cli.
- * Returns `source: 'unconfigured'` when FusionPBX credentials are not set yet.
+ * Fetch currently registered extensions for ONE cluster from its PBX host.
+ * Filters by `sip_realm = cluster.sipDomain` to avoid leaking presence across
+ * tenants that share a PBX.
+ *
+ * Tries PostgreSQL first (when env is configured), falls back to SSH + SQLite.
+ * Returns `source: 'unconfigured'` when neither path has credentials.
  */
-export async function fetchRegisteredExtensions(): Promise<{
+export async function fetchRegisteredExtensions(cluster: PresenceCluster): Promise<{
   extensions: RegisteredExtension[];
   source: 'pg' | 'ssh' | 'unconfigured';
 }> {
-  if (await isConfigMissing()) {
+  if (!cluster.sipDomain) {
+    logger.warn('SIP presence: cluster has no sipDomain, skipping', { pbxIp: cluster.pbxIp });
     return { extensions: [], source: 'unconfigured' };
   }
-  // Try PG first only when env is fully configured (no cluster-level PG creds exist).
-  if (process.env.FUSIONPBX_IP && process.env.FUSIONPBX_PG_PASSWORD) {
+  if (await isConfigMissing() && !cluster.sshPassword) {
+    return { extensions: [], source: 'unconfigured' };
+  }
+  // Try PG first only when env is fully configured AND points at this cluster's PBX host.
+  if (process.env.FUSIONPBX_IP === cluster.pbxIp && process.env.FUSIONPBX_PG_PASSWORD) {
     try {
-      const rows = await queryViaPostgres();
+      const rows = await queryViaPostgres(cluster.sipDomain);
       return { extensions: rows, source: 'pg' };
     } catch (err) {
       const e = err as Error & { code?: string };
       logger.warn('SIP presence: PG query failed, falling back to SSH', { error: e.message, code: e.code });
     }
   }
-  const rows = await queryViaSsh();
+  const rows = await queryViaSsh(cluster.sipDomain, {
+    pbxIp: cluster.pbxIp,
+    sshUser: cluster.sshUser,
+    sshPassword: cluster.sshPassword,
+  });
   return { extensions: rows, source: 'ssh' };
 }

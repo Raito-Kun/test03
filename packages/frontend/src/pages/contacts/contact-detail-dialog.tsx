@@ -8,12 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+// All sections displayed in single scrollable view — no tabs
 import { Skeleton } from '@/components/ui/skeleton';
 import { ClickToCallButton } from '@/components/click-to-call-button';
 import { VI } from '@/lib/vi-text';
 import { fmtPhone } from '@/lib/format';
 import api from '@/services/api-client';
+import { PROVINCES, DISTRICTS } from '@/lib/vietnam-provinces';
 import { CallHistoryTab } from './call-history-tab';
 
 interface Contact {
@@ -67,6 +68,10 @@ interface EditForm {
 }
 
 function toFormState(c: Contact): EditForm {
+  // Reverse-map province/district names to codes for select dropdowns
+  const provinceCode = PROVINCES.find((p) => p.name === c.province)?.code ?? c.province ?? '';
+  const districtList = provinceCode ? (DISTRICTS[provinceCode] ?? []) : [];
+  const districtCode = districtList.find((d) => d.name === c.district)?.code ?? c.district ?? '';
   return {
     fullName: c.fullName ?? '',
     phone: c.phone ?? '',
@@ -76,8 +81,8 @@ function toFormState(c: Contact): EditForm {
     dateOfBirth: c.dateOfBirth ? c.dateOfBirth.substring(0, 10) : '',
     occupation: c.occupation ?? '',
     income: c.income != null ? String(c.income) : '',
-    province: c.province ?? '',
-    district: c.district ?? '',
+    province: provinceCode,
+    district: districtCode,
     fullAddress: c.fullAddress ?? '',
     company: c.company ?? '',
     jobTitle: c.jobTitle ?? '',
@@ -101,10 +106,12 @@ interface FieldProps {
   multiline?: boolean;
 }
 
+const selectClass = 'flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
+
 function Field({ label, value, edit, field, form, onChange, type = 'text', multiline }: FieldProps) {
   return (
     <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground font-mono">{label}</Label>
       {edit ? (
         multiline ? (
           <Textarea
@@ -118,11 +125,31 @@ function Field({ label, value, edit, field, form, onChange, type = 'text', multi
             type={type}
             value={form[field]}
             onChange={(e) => onChange(field, e.target.value)}
-            className="h-8 text-sm"
+            className="h-[42px] text-sm"
           />
         )
       ) : (
         <p className="text-sm font-medium">{value || '—'}</p>
+      )}
+    </div>
+  );
+}
+
+function SelectField({ label, displayValue, edit, field, form, onChange, options }: {
+  label: string; displayValue?: string; edit: boolean; field: keyof EditForm;
+  form: EditForm; onChange: (field: keyof EditForm, val: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground font-mono">{label}</Label>
+      {edit ? (
+        <select className={selectClass} value={form[field]} onChange={(e) => onChange(field, e.target.value)}>
+          <option value="">(trống)</option>
+          {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      ) : (
+        <p className="text-sm font-medium">{displayValue || '—'}</p>
       )}
     </div>
   );
@@ -158,21 +185,48 @@ export function ContactDetailDialog({ contactId, onClose }: Props) {
       toast.success('Đã cập nhật liên hệ');
       setEditMode(false);
     },
-    onError: () => toast.error('Cập nhật thất bại'),
+    onError: (err: any) => {
+      const msg = err?.response?.data?.error?.message
+        || err?.response?.data?.errors?.map((e: any) => `${e.path}: ${e.message}`).join(', ')
+        || 'Cập nhật thất bại';
+      toast.error(msg);
+    },
   });
 
   function handleChange(field: keyof EditForm, val: string) {
-    setForm((prev) => prev ? { ...prev, [field]: val } : prev);
+    if (field === 'province') {
+      setForm((prev) => prev ? { ...prev, province: val, district: '' } : prev);
+    } else {
+      setForm((prev) => prev ? { ...prev, [field]: val } : prev);
+    }
   }
 
   function handleSave() {
     if (!form) return;
-    // Only send fields accepted by backend schema (exclude 'notes' which is not a Contact field)
-    const { notes: _notes, ...rest } = form;
-    const payload = {
-      ...rest,
-      income: form.income ? Number(form.income) : undefined,
-      creditLimit: form.creditLimit ? Number(form.creditLimit) : undefined,
+    // Map province/district codes to names
+    const districtOptions = form.province ? (DISTRICTS[form.province] ?? []) : [];
+    const provinceName = PROVINCES.find((p) => p.code === form.province)?.name ?? form.province;
+    const districtName = districtOptions.find((d) => d.code === form.district)?.name ?? form.district;
+    // Build payload — only include non-empty fields to avoid Zod enum validation failures
+    const payload: Record<string, unknown> = {
+      fullName: form.fullName,
+      phone: form.phone,
+      ...(form.phoneAlt && { phoneAlt: form.phoneAlt }),
+      ...(form.email && { email: form.email }),
+      ...(form.gender && { gender: form.gender }),
+      ...(form.dateOfBirth && { dateOfBirth: new Date(form.dateOfBirth).toISOString() }),
+      ...(form.occupation && { occupation: form.occupation }),
+      ...(form.income ? { income: Number(form.income) } : {}),
+      ...(form.province && { province: provinceName }),
+      ...(form.district && { district: districtName }),
+      ...(form.fullAddress && { fullAddress: form.fullAddress }),
+      ...(form.company && { company: form.company }),
+      ...(form.jobTitle && { jobTitle: form.jobTitle }),
+      ...(form.companyEmail && { companyEmail: form.companyEmail }),
+      ...(form.creditLimit ? { creditLimit: Number(form.creditLimit) } : {}),
+      ...(form.bankAccount && { bankAccount: form.bankAccount }),
+      ...(form.bankName && { bankName: form.bankName }),
+      ...(form.internalNotes && { internalNotes: form.internalNotes }),
     };
     mutation.mutate(payload);
   }
@@ -193,7 +247,7 @@ export function ContactDetailDialog({ contactId, onClose }: Props) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) { setEditMode(false); onClose(); } }}>
-      <DialogContent className="max-w-[900px] min-h-[500px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[900px] w-[95vw] max-h-[90vh] overflow-y-auto !top-[5vh] !-translate-y-0">
         <DialogHeader>
           <div className="flex items-center justify-between pr-6">
             <DialogTitle className="flex items-center gap-2">
@@ -236,30 +290,25 @@ export function ContactDetailDialog({ contactId, onClose }: Props) {
         )}
 
         {contact && (
-          <Tabs defaultValue="basic" className="mt-2">
-            <TabsList className="grid w-full grid-cols-6">
-              <TabsTrigger value="basic">{VI.contact.sections.basic}</TabsTrigger>
-              <TabsTrigger value="work">{VI.contact.sections.work}</TabsTrigger>
-              <TabsTrigger value="address">{VI.contact.sections.address}</TabsTrigger>
-              <TabsTrigger value="finance">{VI.contact.sections.finance}</TabsTrigger>
-              <TabsTrigger value="notes">{VI.contact.sections.notes}</TabsTrigger>
-              <TabsTrigger value="call-history">Lịch sử cuộc gọi</TabsTrigger>
-            </TabsList>
-
+          <div className="space-y-6 mt-2">
             {/* Basic info */}
-            <TabsContent value="basic" className="mt-4">
+            <section>
+              <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 pb-2 border-b border-dashed border-border">
+                {VI.contact.sections.basic}
+              </h3>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
                 <Field label={VI.contact.fullName} value={contact.fullName} edit={editMode} field="fullName" form={f} onChange={handleChange} />
                 <Field label={VI.contact.phone} value={fmtPhone(contact.phone)} edit={editMode} field="phone" form={f} onChange={handleChange} />
                 <Field label={VI.contact.phoneAlt} value={fmtPhone(contact.phoneAlt)} edit={editMode} field="phoneAlt" form={f} onChange={handleChange} />
                 <Field label={VI.contact.email} value={contact.email} edit={editMode} field="email" form={f} onChange={handleChange} type="email" />
-                <Field
+                <SelectField
                   label={VI.contact.gender}
-                  value={contact.gender === 'male' ? 'Nam' : contact.gender === 'female' ? 'Nữ' : contact.gender}
+                  displayValue={contact.gender === 'male' ? 'Nam' : contact.gender === 'female' ? 'Nữ' : contact.gender === 'other' ? 'Khác' : contact.gender}
                   edit={editMode}
                   field="gender"
                   form={f}
                   onChange={handleChange}
+                  options={[{ value: 'male', label: 'Nam' }, { value: 'female', label: 'Nữ' }, { value: 'other', label: 'Khác' }]}
                 />
                 <Field
                   label={VI.contact.dateOfBirth}
@@ -271,10 +320,13 @@ export function ContactDetailDialog({ contactId, onClose }: Props) {
                   type="date"
                 />
               </div>
-            </TabsContent>
+            </section>
 
             {/* Work */}
-            <TabsContent value="work" className="mt-4">
+            <section>
+              <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 pb-2 border-b border-dashed border-border">
+                {VI.contact.sections.work}
+              </h3>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
                 <Field label={VI.contact.company} value={contact.company} edit={editMode} field="company" form={f} onChange={handleChange} />
                 <Field label={VI.contact.jobTitle} value={contact.jobTitle} edit={editMode} field="jobTitle" form={f} onChange={handleChange} />
@@ -282,42 +334,74 @@ export function ContactDetailDialog({ contactId, onClose }: Props) {
                 <Field label={VI.contact.occupation} value={contact.occupation} edit={editMode} field="occupation" form={f} onChange={handleChange} />
                 <Field label={VI.contact.income} value={contact.income != null ? String(contact.income) : undefined} edit={editMode} field="income" form={f} onChange={handleChange} type="number" />
               </div>
-            </TabsContent>
+            </section>
 
             {/* Address */}
-            <TabsContent value="address" className="mt-4">
+            <section>
+              <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 pb-2 border-b border-dashed border-border">
+                {VI.contact.sections.address}
+              </h3>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-                <Field label={VI.contact.province} value={contact.province} edit={editMode} field="province" form={f} onChange={handleChange} />
-                <Field label={VI.contact.district} value={contact.district} edit={editMode} field="district" form={f} onChange={handleChange} />
+                <SelectField
+                  label={VI.contact.province}
+                  displayValue={contact.province}
+                  edit={editMode}
+                  field="province"
+                  form={f}
+                  onChange={handleChange}
+                  options={PROVINCES.map((p) => ({ value: p.code, label: p.name }))}
+                />
+                <SelectField
+                  label={VI.contact.district}
+                  displayValue={contact.district}
+                  edit={editMode}
+                  field="district"
+                  form={f}
+                  onChange={handleChange}
+                  options={(DISTRICTS[f.province] ?? []).map((d) => ({ value: d.code, label: d.name }))}
+                />
                 <div className="col-span-2 md:col-span-3">
                   <Field label={VI.contact.fullAddress} value={contact.fullAddress} edit={editMode} field="fullAddress" form={f} onChange={handleChange} multiline />
                 </div>
               </div>
-            </TabsContent>
+            </section>
 
             {/* Finance */}
-            <TabsContent value="finance" className="mt-4">
+            <section>
+              <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 pb-2 border-b border-dashed border-border">
+                {VI.contact.sections.finance}
+              </h3>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
                 <Field label={VI.contact.creditLimit} value={contact.creditLimit != null ? String(contact.creditLimit) : undefined} edit={editMode} field="creditLimit" form={f} onChange={handleChange} type="number" />
                 <Field label={VI.contact.bankAccount} value={contact.bankAccount} edit={editMode} field="bankAccount" form={f} onChange={handleChange} />
                 <Field label={VI.contact.bankName} value={contact.bankName} edit={editMode} field="bankName" form={f} onChange={handleChange} />
               </div>
-            </TabsContent>
+            </section>
 
             {/* Notes */}
-            <TabsContent value="notes" className="mt-4 space-y-4">
-              <Field label={VI.contact.internalNotes} value={contact.internalNotes} edit={editMode} field="internalNotes" form={f} onChange={handleChange} multiline />
-              <Field label={VI.lead.notes} value={(contact as unknown as Record<string, string>).notes} edit={editMode} field="notes" form={f} onChange={handleChange} multiline />
-              <div className="space-y-1 pt-2 border-t text-xs text-muted-foreground">
-                <p>{VI.contact.createdAt}: {format(new Date(contact.createdAt), 'dd/MM/yyyy HH:mm')}</p>
+            <section>
+              <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 pb-2 border-b border-dashed border-border">
+                {VI.contact.sections.notes}
+              </h3>
+              <div className="space-y-4">
+                <Field label={VI.contact.internalNotes} value={contact.internalNotes} edit={editMode} field="internalNotes" form={f} onChange={handleChange} multiline />
+                <Field label={VI.lead.notes} value={(contact as unknown as Record<string, string>).notes} edit={editMode} field="notes" form={f} onChange={handleChange} multiline />
               </div>
-            </TabsContent>
+            </section>
 
             {/* Call History */}
-            <TabsContent value="call-history" className="mt-4">
+            <section>
+              <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 pb-2 border-b border-dashed border-border">
+                Lịch sử cuộc gọi
+              </h3>
               <CallHistoryTab contactId={contactId!} phone={contact.phone} />
-            </TabsContent>
-          </Tabs>
+            </section>
+
+            {/* Footer */}
+            <div className="text-xs text-muted-foreground border-t border-dashed border-border pt-2">
+              <p className="font-mono">{VI.contact.createdAt}: {format(new Date(contact.createdAt), 'dd/MM/yyyy HH:mm')}</p>
+            </div>
+          </div>
         )}
       </DialogContent>
     </Dialog>

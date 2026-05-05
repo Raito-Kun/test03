@@ -46,8 +46,14 @@ server.tool('get_recordings', 'List call recordings', { limit: z.number().defaul
 server.tool('get_agent_status', 'Check agent status', {},
   async () => {
     const token = await login();
-    const r = await callApi('/dashboard/agents', 'GET', undefined, token) as { data?: Array<{ fullName: string; status: string }> };
-    const lines = (r.data || []).map(a => `${a.fullName}: ${a.status}`);
+    const r = await callApi('/dashboard/agents', 'GET', undefined, token) as {
+      data?: Array<{ fullName: string; sipExtension?: string; currentStatus?: { status: string; updatedAt?: string } }>
+    };
+    const lines = (r.data || []).map(a => {
+      const status = a.currentStatus?.status || 'offline';
+      const ext = a.sipExtension ? ` (${a.sipExtension})` : '';
+      return `${a.fullName}${ext}: ${status}`;
+    });
     return { content: [{ type: 'text' as const, text: lines.length ? `Agents:\n${lines.join('\n')}` : 'No agents' }] };
   },
 );
@@ -85,6 +91,65 @@ server.tool('run_health_check', 'Check all systems health', {},
     try { const s = await eslCommand('status'); checks.push(`ESL: ✓ ${s.substring(0, 60)}`); } catch (e) { checks.push(`ESL: ✗ ${(e as Error).message}`); }
     try { const t = await login(); checks.push(`Auth: ${t ? '✓' : '✗'}`); } catch { checks.push('Auth: ✗'); }
     return { content: [{ type: 'text' as const, text: `Health:\n${checks.join('\n')}` }] };
+  },
+);
+
+server.tool('test_recording', 'Test recording pipeline: DB → file → HTTP',
+  {},
+  async () => {
+    const results: string[] = [];
+    const token = await login();
+    if (!token) return { content: [{ type: 'text' as const, text: 'FAIL: Login failed' }] };
+
+    // Step 1: Find a call with recording in DB
+    const r = await callApi('/call-logs?limit=50', 'GET', undefined, token) as { data?: Array<Record<string, unknown>> };
+    const withRec = (r.data || []).find(c => c.recordingStatus === 'available');
+    if (!withRec) {
+      results.push('FAIL: No call with recordingStatus=available in DB');
+      return { content: [{ type: 'text' as const, text: results.join('\n') }] };
+    }
+    results.push(`PASS: DB has recording — call ${withRec.id} (${withRec.callerNumber} → ${withRec.destinationNumber}, billsec=${withRec.billsec}s)`);
+
+    // Step 2: Check recording API endpoint returns audio
+    try {
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+      const CRM_URL = process.env.CRM_API_URL || 'https://10.10.101.207/api/v1';
+      const recUrl = `${CRM_URL}/call-logs/${withRec.id}/recording`;
+      const recRes = await fetch(recUrl, { headers: { Authorization: `Bearer ${token}` } });
+      const contentType = recRes.headers.get('content-type') || '';
+      const contentLength = parseInt(recRes.headers.get('content-length') || '0', 10);
+      if (recRes.ok && contentType.startsWith('audio/') && contentLength > 0) {
+        results.push(`PASS: Recording API returns ${contentType}, ${contentLength} bytes`);
+      } else {
+        results.push(`FAIL: Recording API — status=${recRes.status}, type=${contentType}, length=${contentLength}`);
+      }
+    } catch (e) {
+      results.push(`FAIL: Recording API error — ${(e as Error).message}`);
+    }
+
+    // Step 3: Check nginx /recordings/ direct path (if recordingPath available)
+    try {
+      const detail = await callApi(`/call-logs/${withRec.id}`, 'GET', undefined, token) as { data?: Record<string, string> };
+      if (detail.data?.recordingUrl) {
+        results.push(`INFO: recordingUrl = ${detail.data.recordingUrl}`);
+      }
+    } catch { /* optional */ }
+
+    // Step 4: Check billsec sanity
+    const billsec = Number(withRec.billsec || 0);
+    const duration = Number(withRec.duration || 0);
+    if (billsec > 0 && billsec <= duration) {
+      results.push(`PASS: Billsec=${billsec}s, Duration=${duration}s (billsec ≤ duration)`);
+    } else if (billsec === 0) {
+      results.push(`WARN: Billsec=0 for a call with recording`);
+    } else {
+      results.push(`WARN: Billsec=${billsec}s > Duration=${duration}s (unusual)`);
+    }
+
+    const passed = results.filter(r => r.startsWith('PASS')).length;
+    const failed = results.filter(r => r.startsWith('FAIL')).length;
+    results.push(`\nSummary: ${passed} passed, ${failed} failed`);
+    return { content: [{ type: 'text' as const, text: results.join('\n') }] };
   },
 );
 

@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import type React from 'react';
-import { SectionHeader } from '@/components/ops/section-header';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { format } from 'date-fns';
-import { RefreshCw, Users } from 'lucide-react';
+import { ChevronRight, Filter, MoreHorizontal, RefreshCw, Users } from 'lucide-react';
 import { DataTable, type Column } from '@/components/data-table/data-table';
+import { DottedCard } from '@/components/ops/dotted-card';
 import CampaignCreateDialog from './campaign-create-dialog';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { usePagination } from '@/hooks/use-pagination';
 import api from '@/services/api-client';
@@ -32,32 +32,81 @@ interface Campaign {
   createdAt: string;
   totalLeads?: number;
   contactedLeads?: number;
+  agents?: { user: { id: string; fullName: string } }[];
 }
 
-const STATUS_COLORS: Record<CampaignStatus, string> = {
-  draft: 'bg-muted text-muted-foreground',
-  active: '',
-  paused: '',
-  completed: '',
+// Status pill with leading dot — consistent with campaign-detail.tsx STATUS_CONFIG
+const STATUS_CONFIG: Record<CampaignStatus, { dot: string; bg: string; text: string; label: string }> = {
+  draft:     { dot: 'bg-amber-500',            bg: 'bg-amber-50',           text: 'text-amber-700',           label: 'Bản nháp' },
+  active:    { dot: 'bg-green-500',            bg: 'bg-green-100',          text: 'text-green-700',           label: 'Đang chạy' },
+  paused:    { dot: 'bg-amber-400',            bg: 'bg-amber-50',           text: 'text-amber-700',           label: 'Tạm dừng' },
+  completed: { dot: 'bg-muted-foreground',     bg: 'bg-muted',              text: 'text-muted-foreground',    label: 'Đã kết thúc' },
 };
 
-const STATUS_STYLE: Record<CampaignStatus, React.CSSProperties> = {
-  draft: {},
-  active: { color: 'var(--color-status-ok)' },
-  paused: { color: 'var(--color-status-warn)' },
-  completed: { color: 'var(--color-status-err)' },
-};
+function StatusPill({ status }: { status: CampaignStatus }) {
+  const c = STATUS_CONFIG[status] ?? STATUS_CONFIG.draft;
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${c.bg} ${c.text}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+      {c.label}
+    </span>
+  );
+}
+
+// Derive two-letter initials
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+const AVATAR_COLORS = [
+  'bg-indigo-100 text-indigo-700',
+  'bg-pink-100 text-pink-700',
+  'bg-amber-100 text-amber-700',
+  'bg-emerald-100 text-emerald-700',
+  'bg-violet-100 text-violet-700',
+  'bg-cyan-100 text-cyan-700',
+];
+function avatarColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+// Segment chips — maps to status filter value ('' = all)
+type SegmentKey = '' | 'active' | 'paused' | 'completed' | 'draft';
+const SEGMENTS: { key: SegmentKey; label: string }[] = [
+  { key: '',          label: 'Tất cả' },
+  { key: 'active',    label: 'Đang chạy' },
+  { key: 'paused',    label: 'Tạm dừng' },
+  { key: 'completed', label: 'Đã kết thúc' },
+  { key: 'draft',     label: 'Bản nháp' },
+];
+
+// Date range formatter: "01/10 – 31/12"
+function fmtDateRange(start: string | null, end: string | null): string {
+  const fmt = (s: string) => {
+    const d = new Date(s);
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+  };
+  if (start && end) return `${fmt(start)} – ${fmt(end)}`;
+  if (start) return `Từ ${fmt(start)}`;
+  if (end) return `Đến ${fmt(end)}`;
+  return '—';
+}
 
 export default function CampaignListPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<SegmentKey>('');
   const [typeFilter, setTypeFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showAdvFilter, setShowAdvFilter] = useState(false);
   const { page, setPage, limit, setLimit, sortKey, sortOrder, handleSort, queryParams } = usePagination();
 
   const canAllocate = hasPermission('crm.data_allocation');
@@ -113,140 +162,212 @@ export default function CampaignListPage() {
       ),
       className: 'w-10',
     }] : []),
-    { key: 'name', label: VI.campaign.name, sortable: true },
     {
-      key: 'type', label: VI.campaign.type,
-      render: (row) => <Badge variant="outline">{VI.campaign.types[row.type]}</Badge>,
-    },
-    {
-      key: 'status', label: VI.campaign.status,
+      key: 'name',
+      label: 'TÊN CHIẾN DỊCH',
+      sortable: true,
       render: (row) => (
-        <span className={`font-mono text-[11px] uppercase tracking-wider ${STATUS_COLORS[row.status]}`} style={STATUS_STYLE[row.status]}>
-          {VI.campaign.statuses[row.status]}
-        </span>
+        <div className="space-y-0.5">
+          <p className="text-sm font-semibold leading-tight">{row.name}</p>
+          <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
+            CMP-{row.id.slice(0, 8).toUpperCase()}
+          </p>
+        </div>
       ),
     },
     {
-      key: 'startDate', label: VI.campaign.startDate,
-      render: (row) => row.startDate ? format(new Date(row.startDate), 'dd/MM/yyyy') : '—',
-    },
-    {
-      key: 'endDate', label: VI.campaign.endDate,
-      render: (row) => row.endDate ? format(new Date(row.endDate), 'dd/MM/yyyy') : '—',
-    },
-    {
       key: 'totalLeads',
-      label: 'Tiến độ',
+      label: 'TIẾN ĐỘ',
       render: (row) => {
         const total = row.totalLeads ?? 0;
         const contacted = row.contactedLeads ?? 0;
-        if (total === 0) return <span className="text-muted-foreground text-xs">—</span>;
+        if (total === 0) return <span className="text-muted-foreground text-xs font-mono">—</span>;
         const pct = Math.round((contacted / total) * 100);
-        const color = pct >= 80 ? 'bg-[var(--color-status-ok)]' : pct >= 40 ? 'bg-[var(--color-status-warn)]' : 'bg-[var(--color-status-err)]';
         return (
-          <div className="w-32">
-            <div className="flex justify-between text-xs mb-1">
-              <span>{contacted}/{total}</span>
-              <span>{pct}%</span>
+          <div className="w-28 space-y-1">
+            <div className="flex justify-between items-center">
+              <span className="font-mono text-[10px] text-muted-foreground">{contacted}/{total}</span>
+              <span className="font-mono text-[10px] font-bold text-primary">{pct}%</span>
             </div>
             <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-              <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+              <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
             </div>
           </div>
         );
       },
     },
     {
+      key: 'agents',
+      label: 'AGENTS',
+      render: (row) => {
+        const agents = row.agents ?? [];
+        if (agents.length === 0) return <span className="text-muted-foreground text-xs font-mono">—</span>;
+        const visible = agents.slice(0, 3);
+        const extra = agents.length - visible.length;
+        return (
+          <div className="flex items-center -space-x-2">
+            {visible.map((a) => (
+              <div
+                key={a.user.id}
+                title={a.user.fullName}
+                className={`w-6 h-6 rounded-full border-2 border-background flex items-center justify-center text-[9px] font-bold shrink-0 ${avatarColor(a.user.fullName)}`}
+              >
+                {getInitials(a.user.fullName)}
+              </div>
+            ))}
+            {extra > 0 && (
+              <div className="w-6 h-6 rounded-full border-2 border-background bg-muted flex items-center justify-center text-[9px] font-bold text-muted-foreground shrink-0">
+                +{extra}
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'status',
+      label: 'TRẠNG THÁI',
+      render: (row) => <StatusPill status={row.status} />,
+    },
+    {
+      key: 'startDate',
+      label: 'NGÀY',
+      render: (row) => (
+        <span className="font-mono text-xs text-muted-foreground whitespace-nowrap">
+          {fmtDateRange(row.startDate, row.endDate)}
+        </span>
+      ),
+    },
+    {
       key: 'id',
       label: '',
       render: (row) => (
-        <div onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           <AutoAssignButton campaignId={row.id} campaignName={row.name} />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => navigate(`/campaigns/${row.id}`)}>
+                Xem chi tiết
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       ),
     },
   ];
 
-  const toolbar = (
-    <div className="flex items-end gap-2 flex-wrap">
-      <Select value={statusFilter || undefined} onValueChange={(v) => setStatusFilter(v === '_all' ? '' : v || '')}>
-        <SelectTrigger className="w-40">
-          {statusFilter
-            ? <span>{VI.campaign.statuses[statusFilter as CampaignStatus]}</span>
-            : <span className="text-muted-foreground">Tất cả trạng thái</span>}
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="_all">Tất cả trạng thái</SelectItem>
-          {CAMPAIGN_STATUSES.map((s) => (
-            <SelectItem key={s} value={s}>{VI.campaign.statuses[s]}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select value={typeFilter || undefined} onValueChange={(v) => setTypeFilter(v === '_all' ? '' : v || '')}>
-        <SelectTrigger className="w-36">
-          {typeFilter
-            ? <span>{VI.campaign.types[typeFilter as CampaignType]}</span>
-            : <span className="text-muted-foreground">Tất cả loại</span>}
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="_all">Tất cả loại</SelectItem>
-          {CAMPAIGN_TYPES.map((t) => (
-            <SelectItem key={t} value={t}>{VI.campaign.types[t]}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <div className="space-y-1">
-        <Label className="text-xs">Từ ngày</Label>
-        <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-36" />
-      </div>
-      <div className="space-y-1">
-        <Label className="text-xs">Đến ngày</Label>
-        <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36" />
-      </div>
-      {(dateFrom || dateTo || statusFilter || typeFilter) && (
-        <Button variant="ghost" size="sm" onClick={() => { setDateFrom(''); setDateTo(''); setStatusFilter(''); setTypeFilter(''); }}>Xóa lọc</Button>
-      )}
-    </div>
-  );
-
-  const allocateButton = canAllocate && selectedIds.length > 0 ? (
-    <Button variant="outline" size="sm" onClick={handleCampaignAllocate} className="gap-1.5">
-      <Users className="h-4 w-4" />
-      Phân bổ ({selectedIds.length})
-    </Button>
-  ) : null;
-
   return (
-    <div className="space-y-6">
-      <SectionHeader
-        label={VI.campaign.title}
-        actions={
-          <>
-            {allocateButton}
-            <Button variant="outline" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ['campaigns'] })} title={VI.actions.refresh}>
-              <RefreshCw className="h-4 w-4" />
+    <div className="space-y-4">
+      {/* Breadcrumb + CTA */}
+      <div className="flex items-center justify-between gap-4">
+        <nav className="flex items-center gap-1.5 text-sm">
+          <span className="text-muted-foreground">Trang chủ</span>
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-primary font-semibold">Chiến dịch</span>
+        </nav>
+        <CampaignCreateDialog />
+      </div>
+
+      {/* Segment chips + right actions */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap">
+          {SEGMENTS.map((seg) => (
+            <button
+              key={seg.key}
+              onClick={() => { setStatusFilter(seg.key); setPage(1); }}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                statusFilter === seg.key
+                  ? 'bg-primary text-primary-foreground font-semibold'
+                  : 'bg-card border border-border text-muted-foreground hover:border-primary hover:text-primary'
+              }`}
+            >
+              {seg.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-dashed"
+            onClick={() => setShowAdvFilter((v) => !v)}
+          >
+            <Filter className="h-4 w-4" />
+            Lọc nâng cao
+          </Button>
+          {canAllocate && selectedIds.length > 0 && (
+            <Button variant="outline" size="sm" onClick={handleCampaignAllocate} className="gap-1.5">
+              <Users className="h-4 w-4" />
+              Phân bổ ({selectedIds.length})
             </Button>
-            <ExportButton entity="campaigns" filters={{ search: appliedSearch, status: statusFilter, type: typeFilter }} />
-            <CampaignCreateDialog />
-          </>
-        }
-      />
-      <DataTable<Campaign>
-        columns={columns}
-        data={data?.items ?? []}
-        total={data?.total ?? 0}
-        page={page}
-        limit={limit}
-        isLoading={isLoading}
-        onSearchSubmit={(v) => { setAppliedSearch(v); setPage(1); }}
-        onPageChange={setPage}
-        onLimitChange={setLimit}
-        onSort={handleSort}
-        sortKey={sortKey}
-        sortOrder={sortOrder}
-        onRowClick={(row) => navigate(`/campaigns/${row.id}`)}
-        toolbar={toolbar}
-      />
+          )}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['campaigns'] })}
+            title={VI.actions.refresh}
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <ExportButton entity="campaigns" filters={{ search: appliedSearch, status: statusFilter, type: typeFilter }} />
+        </div>
+      </div>
+
+      {/* Advanced filters (collapsible) */}
+      {showAdvFilter && (
+        <div className="bg-card border border-dashed border-border rounded-xl p-4 flex items-end gap-3 flex-wrap">
+          <div className="space-y-1">
+            <Label className="text-xs">Loại chiến dịch</Label>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="flex h-9 w-44 rounded-md border border-border bg-background px-3 py-1 text-sm"
+            >
+              <option value="">Tất cả loại</option>
+              {CAMPAIGN_TYPES.map((t) => (
+                <option key={t} value={t}>{VI.campaign.types[t]}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Từ ngày</Label>
+            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-36" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Đến ngày</Label>
+            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36" />
+          </div>
+          {(dateFrom || dateTo || typeFilter) && (
+            <Button variant="ghost" size="sm" onClick={() => { setDateFrom(''); setDateTo(''); setTypeFilter(''); }}>
+              Xóa lọc
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Table */}
+      <DottedCard>
+        <DataTable<Campaign>
+          columns={columns}
+          data={data?.items ?? []}
+          total={data?.total ?? 0}
+          page={page}
+          limit={limit}
+          isLoading={isLoading}
+          onSearchSubmit={(v) => { setAppliedSearch(v); setPage(1); }}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+          onSort={handleSort}
+          sortKey={sortKey}
+          sortOrder={sortOrder}
+          onRowClick={(row) => navigate(`/campaigns/${row.id}`)}
+        />
+      </DottedCard>
     </div>
   );
 }

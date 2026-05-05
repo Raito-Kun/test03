@@ -32,11 +32,13 @@ function handleNotFound(err: unknown, res: Response, next: NextFunction): void {
   next(err);
 }
 
-/** GET /disposition-codes */
+/** GET /disposition-codes?active=true&category=telesale|collection */
 export async function listDispositionCodes(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const isActive = req.query.active === 'true' ? true : req.query.active === 'false' ? false : undefined;
-    const codes = await dispositionService.listDispositionCodes(isActive);
+    const rawCat = typeof req.query.category === 'string' ? req.query.category : undefined;
+    const category = rawCat === 'telesale' || rawCat === 'collection' ? rawCat : undefined;
+    const codes = await dispositionService.listDispositionCodes(isActive, category);
     res.json({ success: true, data: codes });
   } catch (err) {
     next(err);

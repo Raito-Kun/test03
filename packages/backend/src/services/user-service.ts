@@ -74,6 +74,7 @@ export async function createUser(input: CreateUserInput, userClusterId?: string 
   const clusterId = await getActiveClusterId(userClusterId);
   const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
 
+  const ext = input.sipExtension || null;
   const user = await prisma.user.create({
     data: {
       email: input.email,
@@ -81,7 +82,8 @@ export async function createUser(input: CreateUserInput, userClusterId?: string 
       fullName: input.fullName,
       role: input.role as never,
       teamId: input.teamId || null,
-      sipExtension: input.sipExtension || null,
+      sipExtension: ext,
+      extension: ext,
       ...(clusterId && { clusterId }),
     },
     select: userSelect,
@@ -131,7 +133,11 @@ export async function updateUser(id: string, input: UpdateUserInput) {
       ...(input.fullName && { fullName: input.fullName }),
       ...(input.role && { role: input.role as never }),
       ...(input.teamId !== undefined && { teamId: input.teamId }),
-      ...(input.sipExtension !== undefined && { sipExtension: input.sipExtension }),
+      // Keep sipExtension (legacy) and extension (cluster-mapped) in sync.
+      ...(input.sipExtension !== undefined && {
+        sipExtension: input.sipExtension,
+        extension: input.sipExtension,
+      }),
       ...(input.status && { status: input.status as never }),
     },
     select: userSelect,
@@ -150,9 +156,46 @@ export async function deactivateUser(id: string) {
   return user;
 }
 
+/**
+ * Delete a user. Detaches history rows (nullable FKs) and removes personal rows
+ * (notifications, status logs, macros). If the user still has NOT NULL business
+ * references (tickets or QA annotations), we reject the hard delete and the UI
+ * should fall back to deactivation to preserve audit trails.
+ */
 export async function deleteUser(id: string) {
   await getUserById(id);
-  await prisma.user.delete({ where: { id } });
+
+  const [ticketCount, qaCount] = await Promise.all([
+    prisma.ticket.count({ where: { userId: id } }),
+    prisma.qaAnnotation.count({ where: { reviewerId: id } }),
+  ]);
+  if (ticketCount > 0 || qaCount > 0) {
+    throw Object.assign(
+      new Error(
+        `Tài khoản còn ${ticketCount} ticket và ${qaCount} QA đánh giá. Vui lòng vô hiệu hoá (thay vì xoá) để giữ lịch sử.`,
+      ),
+      { code: 'USER_HAS_REFERENCES' },
+    );
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // Nullify nullable FKs (preserve history but detach the user)
+    await tx.contact.updateMany({ where: { assignedTo: id }, data: { assignedTo: null } });
+    await tx.contact.updateMany({ where: { createdBy: id }, data: { createdBy: null } });
+    await tx.lead.updateMany({ where: { assignedTo: id }, data: { assignedTo: null } });
+    await tx.debtCase.updateMany({ where: { assignedTo: id }, data: { assignedTo: null } });
+    await tx.callLog.updateMany({ where: { userId: id }, data: { userId: null } });
+    await tx.auditLog.updateMany({ where: { userId: id }, data: { userId: null } });
+    await tx.team.updateMany({ where: { leaderId: id }, data: { leaderId: null } });
+
+    // Personal rows owned by the user — safe to delete
+    await tx.notification.deleteMany({ where: { userId: id } });
+    await tx.agentStatusLog.deleteMany({ where: { userId: id } });
+    await tx.macro.deleteMany({ where: { createdBy: id } });
+    // campaignAgents has onDelete: Cascade in schema — Prisma will cascade on user.delete
+
+    await tx.user.delete({ where: { id } });
+  });
 }
 
 export async function changeUserPassword(id: string, newPassword: string) {
@@ -197,13 +240,15 @@ export async function createClusterUser(input: CreateClusterUserInput) {
   if (existing) throw Object.assign(new Error('Email đã tồn tại'), { code: 'EMAIL_EXISTS' });
 
   const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
+  const ext = input.extension || null;
   const user = await prisma.user.create({
     data: {
       email: input.email,
       passwordHash,
       fullName: input.fullName,
       role: input.role as never,
-      extension: input.extension || null,
+      extension: ext,
+      sipExtension: ext,
       clusterId: input.clusterId,
       status: 'active',
     },
@@ -224,13 +269,15 @@ export async function importClusterUsersFromCsv(
   for (const row of rows) {
     const existing = await prisma.user.findUnique({ where: { email: row.email } });
     if (existing) { skipped.push(row.email); continue; }
+    const ext = row.extension || null;
     await prisma.user.create({
       data: {
         email: row.email,
         passwordHash,
         fullName: row.name,
         role: row.role as never,
-        extension: row.extension || null,
+        extension: ext,
+        sipExtension: ext,
         clusterId,
         status: 'active',
         mustChangePassword: true,

@@ -30,8 +30,8 @@ function TabItem({ tab, isActive }: { tab: CustomerTab; isActive: boolean }) {
       className={cn(
         'group inline-flex items-center gap-1.5 px-3 h-full text-xs font-medium border-b-2 transition-colors shrink-0',
         isActive
-          ? 'border-[var(--color-violet-soft)] text-[var(--color-violet-soft)]'
-          : 'border-transparent text-white/60 hover:text-white hover:bg-white/10',
+          ? 'border-primary text-primary'
+          : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted',
       )}
     >
       <Icon className="h-3.5 w-3.5 shrink-0" />
@@ -42,8 +42,8 @@ function TabItem({ tab, isActive }: { tab: CustomerTab; isActive: boolean }) {
         className={cn(
           'ml-1 rounded p-0.5 transition-colors',
           isActive
-            ? 'opacity-60 hover:opacity-100 hover:bg-white/15'
-            : 'opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:bg-white/15',
+            ? 'opacity-60 hover:opacity-100 hover:bg-muted'
+            : 'opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:bg-muted',
         )}
       >
         <X className="h-3 w-3" />
@@ -63,7 +63,7 @@ export function CustomerTabs() {
       ))}
       <button
         onClick={() => navigate('/contacts')}
-        className="ml-1 shrink-0 inline-flex items-center gap-1 px-2 h-7 rounded text-xs text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+        className="ml-1 shrink-0 inline-flex items-center gap-1 px-2 h-7 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
       >
         <Plus className="h-3.5 w-3.5" />
         <span>Thêm</span>

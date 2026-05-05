@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { authMiddleware } from '../middleware/auth-middleware';
 import * as aiService from '../services/ai-service';
+import { checkFeatureEnabled } from '../middleware/feature-flag-middleware';
 
 const router = Router();
 
@@ -13,6 +14,7 @@ const aiLimiter = rateLimit({
 });
 
 router.use(authMiddleware);
+router.use(checkFeatureEnabled('ai_assistant'));
 router.use(aiLimiter);
 
 /** POST /ai/chat — Streaming AI chat */

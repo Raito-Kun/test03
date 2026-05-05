@@ -223,8 +223,12 @@ async function main() {
     (await prisma.permission.findMany()).map((p) => [p.key, p.id]),
   );
 
+  // Opt-in keys are excluded from auto-grants for super_admin so destructive
+  // actions (e.g. recording.delete) require an explicit cluster-scoped toggle.
+  const SUPER_ADMIN_OPT_IN = new Set(['recording.delete']);
+
   const defaultGrants: Record<string, string[]> = {
-    super_admin: permissionDefs.map((p) => p.key),
+    super_admin: permissionDefs.map((p) => p.key).filter((key) => !SUPER_ADMIN_OPT_IN.has(key)),
     admin: permissionDefs
       .filter((p) => p.group !== 'system' || p.key === 'system.manage')
       .filter((p) => !['system.users','system.roles','system.permissions','system.settings','system.audit_log'].includes(p.key))

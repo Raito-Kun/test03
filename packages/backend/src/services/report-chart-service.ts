@@ -12,10 +12,11 @@ function isAnswered(answerTime: Date | null): boolean {
   return answerTime !== null;
 }
 
-function isMissed(log: { answerTime: Date | null; hangupCause: string | null; duration: number }): boolean {
-  if (log.answerTime) return false;
-  const cause = log.hangupCause ?? '';
-  return cause === 'NO_ANSWER' || (cause === 'ORIGINATOR_CANCEL' && log.duration < 5);
+// Consistent with report-service.ts + dashboard KPI: any non-answered call counts as missed.
+// Previously this function over-restricted to NO_ANSWER + short ORIGINATOR_CANCEL only,
+// causing chart "Nhỡ" series to under-count vs Tổng quan tab and Dashboard "Cuộc gọi nhỡ".
+function isMissed(log: { answerTime: Date | null }): boolean {
+  return log.answerTime === null;
 }
 
 function getISOWeek(date: Date): string {
@@ -59,6 +60,10 @@ export async function getCallCharts(
 
   // callsByDay
   const byDay: Record<string, { date: string; total: number; answered: number; missed: number }> = {};
+  // callsByHour — bucket theo giờ-trong-ngày 0..23 (gom toàn dải date), để render bar chart "có sóng"
+  // bất kể range dài/ngắn (mockup screen.png: x-axis 00:00 → 23:59).
+  const byHour: Record<number, { hour: number; total: number; answered: number; missed: number }> = {};
+  for (let h = 0; h < 24; h++) byHour[h] = { hour: h, total: 0, answered: 0, missed: 0 };
   // agentComparison
   const byAgent: Record<string, { agentName: string; answered: number; missed: number }> = {};
   // weeklyTrend
@@ -69,6 +74,7 @@ export async function getCallCharts(
   for (const log of logs) {
     const date = log.startTime.toISOString().split('T')[0];
     const week = getISOWeek(log.startTime);
+    const hour = log.startTime.getHours();
     const agentName = log.user?.fullName ?? 'Không xác định';
     const hangupKey = log.hangupCause ?? 'UNKNOWN';
     const answered = isAnswered(log.answerTime);
@@ -79,6 +85,11 @@ export async function getCallCharts(
     byDay[date].total++;
     if (answered) byDay[date].answered++;
     if (missed) byDay[date].missed++;
+
+    // callsByHour
+    byHour[hour].total++;
+    if (answered) byHour[hour].answered++;
+    if (missed) byHour[hour].missed++;
 
     // agentComparison
     if (!byAgent[agentName]) byAgent[agentName] = { agentName, answered: 0, missed: 0 };
@@ -96,6 +107,7 @@ export async function getCallCharts(
 
   return {
     callsByDay: Object.values(byDay).sort((a, b) => a.date.localeCompare(b.date)),
+    callsByHour: Object.values(byHour).sort((a, b) => a.hour - b.hour),
     agentComparison: Object.values(byAgent),
     weeklyTrend: Object.values(byWeek).sort((a, b) => a.week.localeCompare(b.week)),
     resultDistribution: Object.entries(byHangup).map(([hangupCause, count]) => ({ hangupCause, count })),

@@ -5,11 +5,13 @@ import { requireRole } from '../middleware/rbac-middleware';
 import { applyDataScope } from '../middleware/data-scope-middleware';
 import * as leadCtrl from '../controllers/lead-controller';
 import { importLeads } from '../services/lead-import-service';
+import { checkFeatureEnabled } from '../middleware/feature-flag-middleware';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.use(authMiddleware);
+router.use(checkFeatureEnabled('leads'));
 router.use(applyDataScope('assignedTo'));
 
 router.get('/', leadCtrl.listLeads);

@@ -23,7 +23,7 @@ export function DispositionSuggestion({ callData, onSelect }: DispositionSuggest
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 text-xs text-slate-500">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <Loader2 className="h-3 w-3 animate-spin" />
         AI đang phân tích...
       </div>
