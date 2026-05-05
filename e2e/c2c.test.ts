@@ -14,7 +14,7 @@ test.describe.serial('Click-to-Call — all pages', () => {
 
   test('contact list: phone column has C2C button that sends correct number', async ({ page }) => {
     await page.goto('/contacts');
-    await expect(page.locator('h1').first()).toContainText('Danh bạ', { timeout: 5000 });
+    await expect(page.locator('h1').first()).toContainText('Danh sách khách hàng', { timeout: 5000 });
     await page.waitForTimeout(1500);
 
     // Find the green C2C button next to a phone number
@@ -58,7 +58,7 @@ test.describe.serial('Click-to-Call — all pages', () => {
 
   test('lead list: phone column has C2C button', async ({ page }) => {
     await page.goto('/leads');
-    await expect(page.locator('h1').first()).toContainText('Khách hàng tiềm năng', { timeout: 5000 });
+    await expect(page.locator('h1').first()).toContainText('Nhóm khách hàng', { timeout: 5000 });
     await page.waitForTimeout(1500);
 
     // Check phone column exists with C2C button
@@ -134,7 +134,7 @@ test.describe.serial('Click-to-Call — all pages', () => {
 
   test('C2C API error shows meaningful message', async ({ page }) => {
     await page.goto('/contacts');
-    await expect(page.locator('h1').first()).toContainText('Danh bạ', { timeout: 8000 });
+    await expect(page.locator('h1').first()).toContainText('Danh sách khách hàng', { timeout: 8000 });
     await page.waitForTimeout(1500);
 
     // Route the originate call to return an error

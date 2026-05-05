@@ -8,7 +8,7 @@ test.describe.serial('CRUD Operations', () => {
 
   test('contacts page loads with table', async ({ page }) => {
     await page.goto('/contacts');
-    await expect(page.locator('h1')).toContainText('Danh bạ');
+    await expect(page.locator('h1')).toContainText('Danh sách khách hàng');
     await expect(page.locator('table')).toBeVisible({ timeout: 5000 });
   });
 
@@ -33,7 +33,7 @@ test.describe.serial('CRUD Operations', () => {
 
   test('leads page loads', async ({ page }) => {
     await page.goto('/leads');
-    await expect(page.locator('h1')).toContainText('Khách hàng tiềm năng');
+    await expect(page.locator('h1')).toContainText('Nhóm khách hàng');
   });
 
   test('debt cases page loads', async ({ page }) => {

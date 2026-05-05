@@ -8,8 +8,8 @@ test.describe.serial('Navigation — all pages load', () => {
 
   const pages = [
     { path: '/', title: 'Tổng quan' },
-    { path: '/contacts', title: 'Danh bạ' },
-    { path: '/leads', title: 'Khách hàng tiềm năng' },
+    { path: '/contacts', title: 'Danh sách khách hàng' },
+    { path: '/leads', title: 'Nhóm khách hàng' },
     { path: '/debt-cases', title: 'Công nợ' },
     { path: '/call-logs', title: 'Lịch sử cuộc gọi' },
     { path: '/campaigns', title: 'Chiến dịch' },

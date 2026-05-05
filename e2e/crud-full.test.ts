@@ -8,7 +8,7 @@ test.describe.serial('CRUD — full coverage', () => {
 
   test('contacts: page loads with table, create, search', async ({ page }) => {
     await page.goto('/contacts');
-    await expect(page.locator('h1').first()).toContainText('Danh bạ', { timeout: 5000 });
+    await expect(page.locator('h1').first()).toContainText('Danh sách khách hàng', { timeout: 5000 });
     await expect(page.locator('table')).toBeVisible({ timeout: 5000 });
 
     // Create
@@ -29,7 +29,7 @@ test.describe.serial('CRUD — full coverage', () => {
 
   test('leads: page loads with table or list', async ({ page }) => {
     await page.goto('/leads');
-    await expect(page.locator('h1').first()).toContainText('Khách hàng tiềm năng', { timeout: 5000 });
+    await expect(page.locator('h1').first()).toContainText('Nhóm khách hàng', { timeout: 5000 });
     // Verify page rendered — either a table, list, or empty state
     const hasContent = await page.locator('table, [role="table"], [class*="empty"]')
       .first().isVisible({ timeout: 5000 }).catch(() => false);
