@@ -42,3 +42,5 @@ redisdata/
 e2e/.auth-state.json
 test-results/
 playwright-report/
+# Gemini CLI settings (contains user-specific config)
+.gemini/

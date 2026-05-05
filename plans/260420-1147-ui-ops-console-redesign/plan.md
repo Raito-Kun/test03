@@ -51,3 +51,16 @@ See [research/api-gap-analysis.md](./research/api-gap-analysis.md) for full matr
 
 ## Rollback
 `git reset --hard backup/pre-ui-redesign-260420` per phase if needed.
+
+## Post-merge follow-ups (2026-04-22)
+
+Micro-iterations on top of the merged redesign — delivered independently of phase 05, deployed dev + prod.
+
+| Date | Change | Files | Deploy |
+|---|---|---|---|
+| 2026-04-22 12:23 | Call-logs list UX: drop default search frame, add dedicated "Số nhận" input, disposition save button (emerald) when dirty | `pages/call-logs/*` | dev + prod `8a005a2` |
+| 2026-04-22 12:40 | Call-logs filter explicit submit — draft state + "Tìm kiếm" button, Enter-to-submit | `pages/call-logs/*` | dev + prod `29200b6` |
+| 2026-04-22 15:45 | Cluster ext-sync lifecycle — 4 DB fields, auto-sync state machine, UI badges + 2s polling, migration `20260422150000_add_cluster_ext_sync_status` | `cluster-service.ts`, `cluster-controller.ts`, `cluster-management.tsx`, `cluster-detail-form.tsx`, `app.css`, `schema.prisma` | dev + prod (uncommitted) |
+| 2026-04-22 16:05 | Primary CTA color darkened `#b8a5f5 → #6d4fc8` — "Lưu thay đổi" + 80 other default-variant buttons read as solid | `app.css` | dev + prod (uncommitted) |
+
+Uncommitted changes still live on dev + prod — commit + push to `feat/ui-ops-console-redesign` when ready.
