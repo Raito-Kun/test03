@@ -187,9 +187,8 @@ All documentation files comply with the 800 LOC limit for maintainability:
 
 ### Reporting
 
-For detailed update history and verification, see:
-- `docs-update-report.md` - Full documentation update report
-- `DOCUMENTATION_SUMMARY.txt` - Quick reference summary
+For detailed update history, see:
+- [project-changelog.md](./project-changelog.md) — canonical changelog of all features, fixes, deploys
 
 ---
 
