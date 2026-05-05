@@ -1,7 +1,7 @@
 # CRM — Current Status
 
-> **Updated:** 2026-05-05 19:36 (Asia/Saigon)
-> **Branch:** `feat/ui-ops-console-redesign` (working tree dirty) · next: cut `feat/autocall-engine-kamailio-fs` from `master`
+> **Updated:** 2026-05-05 19:48 (Asia/Saigon)
+> **Branch:** `feat/ui-ops-console-redesign` (clean, 7 commits pushed `5b6c29c`→`7aa2177`) · next: cut `feat/autocall-engine-kamailio-fs` from `master`
 > **Dev:** `10.10.101.207` · **Prod:** `10.10.101.208` (gated)
 > **Read first:** `.claude/rules/development-rules.md`, `.claude/rules/pbx-incident-patterns.md`
 
@@ -147,16 +147,10 @@ Plan: `plans/260423-1636-autocall-engine-kamailio-fs/` (10 phases, P2, XL)
 
 ## 2. Việc cần làm tiếp (priority order)
 
-### P0 — Dọn working tree + cut branch autocall (mai bắt đầu ở đây)
-- **545+ files dirty** trên `feat/ui-ops-console-redesign` — bao gồm:
-  - 2026-04-22: cluster ext-sync / recording filename / primary color darken — deployed, chưa commit
-  - 2026-05-04: Emerald Operations theme + page-level UI fixes (monitoring/debt/reports/call-logs/login) — deployed dev, chưa commit
-  - skills mới (`crm-deploy`, `crm-prisma`, `crm-pbx-cluster`, `crm-session-boot`...) + playwright artifacts
-- **Hành động (thứ tự):**
-  1. Split commits theo scope (skill `git`, conventional-commit): `feat(cluster-sync)`, `feat(recording-filename)`, `style(ui-primary)`, `style(theme): emerald operations palette`, `feat(monitoring): clickable tabs + status filter`, `feat(reports): hourly chart + delta badge`, `feat(call-logs): inline audio popover`, `feat(login): raito logo + autofill off`, `chore(skills)`, `chore(playwright-snapshots)` — verify không commit `.env`/creds
-  2. Push `feat/ui-ops-console-redesign` lên remote
-  3. `git checkout master && git pull && git checkout -b feat/autocall-engine-kamailio-fs`
-- **Gotcha:** working tree bẩn > 500 file dễ sót → dùng `git status --short | grep -v "^\\?\\?"` để check tracked changes riêng, stage theo glob
+### P0 — ✅ DONE 2026-05-05 19:48
+- 7 commits pushed `5b6c29c` → `7aa2177` (cleanup + claudekit + plans + e2e + UI redesign + docs + OPEN plan state)
+- **Caveat:** UI redesign scope (cluster-sync + recording-filename + Emerald theme + monitoring + reports + call-logs + login) gộp vào 1 commit `5e4e03c feat: UI ops console redesign phase completion + Emerald theme + features` (201 files) thay vì 8 commit tách riêng. OK do đã push.
+- **Còn lại:** `git checkout master && git pull && git checkout -b feat/autocall-engine-kamailio-fs` để cut branch autocall.
 
 ### P1 — Autocall Track B (code, không block bởi infra)
 Start được ngay sau P0. 3 phase độc lập với hạ tầng Kamailio/FS:
