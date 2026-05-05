@@ -1,14 +1,18 @@
 ---
 name: ck:ai-artist
 description: "Generate images via Nano Banana with 129 curated prompts. Mandatory validation interview refines style/mood/colors (use --skip to bypass). 3 modes: search, creative, wild. Styles: Ukiyo-e, Bento grid, cyberpunk, cinematic, vintage patent."
-version: 3.1.0
-license: MIT
-argument-hint: "[concept] [--mode search|creative|wild|all] [--skip]"
+category: ai-ml
+keywords: [image, generation, prompts, styles]
+metadata:
+  author: claudekit
+  version: 3.1.0
+argument-hint: "[concept] [--mode search|creative|wild|all] [--provider auto|google|openrouter] [--skip]"
 ---
 
 # AI Artist - Nano Banana Image Generation
 
 Generate images using 129 curated prompts from awesome-nano-banana-pro-prompts collection.
+Routes final rendering through `ai-multimodal`, so the same prompt workflow can use direct Google or OpenRouter-backed Google models.
 
 **Validation interview is mandatory** (use `--skip` to bypass).
 
@@ -19,7 +23,7 @@ Generate images using 129 curated prompts from awesome-nano-banana-pro-prompts c
 ## Quick Start
 
 ```bash
-python3 scripts/generate.py "<concept>" -o <output.png> [--mode MODE]
+python3 scripts/generate.py "<concept>" -o <output.png> [--mode MODE] [--provider PROVIDER]
 ```
 
 ### Generation Modes
@@ -37,6 +41,9 @@ python3 scripts/generate.py "<concept>" -o <output.png> [--mode MODE]
 # Default search mode
 python3 scripts/generate.py "tech conference banner" -o banner.png -ar 16:9
 
+# Route through OpenRouter while keeping Nano Banana prompt behavior
+python3 scripts/generate.py "tech conference banner" -o banner.png --provider openrouter
+
 # Creative remix (combines multiple prompts)
 python3 scripts/generate.py "AI workshop" -o workshop.png --mode creative
 
@@ -53,11 +60,14 @@ python3 scripts/generate.py "futuristic city" -o city.png --mode all -v
 |------|-------------|
 | `-o, --output` | Output path (required) |
 | `-m, --mode` | search, creative, wild, or all |
+| `--provider` | auto (default), google, or openrouter |
 | `-ar, --aspect-ratio` | 1:1, 16:9, 9:16, etc. |
-| `--model` | flash (fast) or pro (quality/4K) |
+| `--model` | flash2 (default, fast+quality), flash (previous), pro (quality/4K) |
 | `-v, --verbose` | Show matched prompts and details |
 | `--dry-run` | Show prompt without generating |
 | `--skip` | Bypass validation interview |
+
+`--provider auto` will honor `IMAGE_GEN_PROVIDER=openrouter` when set; otherwise it prefers direct Google unless only OpenRouter credentials are configured.
 
 ---
 

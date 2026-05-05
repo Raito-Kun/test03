@@ -56,5 +56,20 @@
     }
   },
   "hooks": {},
-  "assertions": []
+  "assertions": [],
+  "kits": {
+    "ClaudeKit Engineer": {
+      "installedSettings": {
+        "hooks": [
+          "node $HOME/.claude/hooks/usage-quota-cache-refresh.cjs",
+          "node $HOME/.claude/hooks/session-state.cjs",
+          "node $HOME/.claude/hooks/plan-format-kanban.cjs",
+          "node $HOME/.claude/hooks/task-completed-handler.cjs",
+          "node $HOME/.claude/hooks/teammate-idle-handler.cjs",
+          "node $HOME/.claude/hooks/simplify-gate.cjs"
+        ],
+        "mcpServers": []
+      }
+    }
+  }
 }

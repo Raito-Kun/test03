@@ -52,6 +52,17 @@ Task(subagent_type="debugger", prompt="Analyze failures: [details]", description
 Task(subagent_type="code-reviewer", prompt="Review changes for [phase]. Check security, performance, YAGNI/KISS/DRY. Return score (X/10), critical, warnings, suggestions.", description="Review [phase]")
 ```
 
+## Conditional Simplify
+```
+Task(subagent_type="code-simplifier", prompt="Simplify these files while preserving behavior exactly: [file-list]", description="Simplify recent edits")
+```
+- Trigger when live `git diff --numstat HEAD --ignore-all-space` breaches any
+  `simplify.threshold` from `.ck.json` (defaults: 400 LOC / 8 files / 200 single-file LOC)
+- Scope the prompt to `git diff --name-only HEAD`
+- Verify with `git diff --shortstat HEAD -- [file-list]` before/after the subagent;
+  do not rely on the agent's prose summary
+- Skip when `CK_SIMPLIFY_DISABLED=1` or `.ck.json` `simplify.gate.enabled=false`
+
 ## Project Management
 ```
 Task(subagent_type="project-manager", prompt="Run full sync-back in [plan-path]: reconcile completed tasks with all phase files, backfill stale completed checkboxes across all phases, update plan.md status/progress, and report unresolved mappings.", description="Update plan")

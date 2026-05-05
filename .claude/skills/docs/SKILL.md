@@ -1,12 +1,19 @@
 ---
 name: ck:docs
-description: "Analyze codebase and manage project documentation — init, update, summarize."
+description: "Analyze codebase and manage project documentation. Use for doc initialization, updates, summaries, codebase analysis."
+category: utilities
+keywords: [documentation, init, update, summarize]
 argument-hint: "init|update|summarize"
+metadata:
+  author: claudekit
+  version: "1.0.0"
 ---
 
 # Documentation Management
 
 Analyze codebase and manage project documentation through scouting, analysis, and structured doc generation.
+
+**IMPORTANT:** Invoke "/ck:project-organization" skill to organize the outputs.
 
 ## Default (No Arguments)
 

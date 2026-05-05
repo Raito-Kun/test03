@@ -688,7 +688,7 @@ function Install-NodeDeps {
         Write-Success "markdown-novel-viewer dependencies installed"
     }
 
-    # plans-kanban (gray-matter)
+    # plans-kanban launcher package
     $plansKanbanPath = Join-Path $ScriptDir "plans-kanban"
     $plansKanbanPackageJson = Join-Path $plansKanbanPath "package.json"
     if ((Test-Path $plansKanbanPath) -and (Test-Path $plansKanbanPackageJson)) {
@@ -929,7 +929,7 @@ function Setup-PythonEnv {
         }
     }
 
-    # Install .claude/scripts requirements (contains pyyaml for generate_catalogs.py)
+    # Install .claude/scripts requirements (contains pyyaml for scan_skills.py)
     $scriptsReqPath = Join-Path $ScriptDir "..\scripts\requirements.txt"
     if (Test-Path $scriptsReqPath) {
         $scriptsLogFile = Join-Path $LogDir "install-scripts.log"

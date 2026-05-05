@@ -1,7 +1,12 @@
 ---
 name: ck:web-design-guidelines
 description: Review UI code for Web Interface Guidelines compliance. Use when asked to "review my UI", "check accessibility", "audit design", "review UX", or "check my site against best practices".
+category: frontend
+keywords: [ui-review, accessibility, ux-audit]
 argument-hint: "[file-or-pattern]"
+metadata:
+  author: claudekit
+  version: "1.0.0"
 ---
 
 # Web Interface Guidelines

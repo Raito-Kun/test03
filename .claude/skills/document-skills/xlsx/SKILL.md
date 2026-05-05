@@ -1,7 +1,12 @@
 ---
 name: ck:xlsx
 description: Create, edit, analyze spreadsheets (.xlsx, .csv, .tsv). Use for Excel formulas, data analysis, visualization, formatting, pivot tables, charts, formula recalculation.
+category: multimedia
+keywords: [xlsx, excel, spreadsheet, data]
 license: Proprietary. LICENSE.txt has complete terms
+metadata:
+  author: claudekit
+  version: "1.0.0"
 ---
 
 # Requirements for Outputs

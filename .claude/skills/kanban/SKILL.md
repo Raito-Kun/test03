@@ -1,99 +1,46 @@
 ---
 name: ck:kanban
-description: "AI agent orchestration board for task visualization and team coordination."
-argument-hint: "[dir]"
+description: "Alias launcher for the ClaudeKit plans dashboard. Use for visual plan boards, progress tracking, and quick navigation into plan files."
+category: dev-tools
+keywords: [kanban, plans, dashboard, progress, timeline]
+argument-hint: "[deprecated plans path or flags]"
+metadata:
+  author: claudekit
+  version: "2.0.0"
 ---
 
-# Plans Dashboard
+# Plans Dashboard Alias
 
-Plans dashboard with progress tracking and timeline visualization.
+`/ck:kanban` is now a thin alias for `/ck:plans-kanban`.
+
+It no longer starts the retired standalone `plans-kanban` server. Instead, it opens the ClaudeKit CLI dashboard plans route and lets the CLI own the runtime.
 
 ## Usage
 
-- `/ck:kanban` - View dashboard for ./plans directory
-- `/ck:kanban <dir>` - View dashboard for specific directory
-- `/ck:kanban --stop` - Stop running server
+```bash
+node .claude/skills/plans-kanban/scripts/open-dashboard.cjs
+```
 
-## Features
+Legacy path and server flags are still accepted with warnings and redirected to the CLI dashboard flow.
 
-- Plan cards with progress bars
-- Phase status breakdown (completed, in-progress, pending)
-- Timeline/Gantt visualization
-- Activity heatmap
-- Issue and branch links
+## Current Behavior
 
-## Execution
+- Opens the plans dashboard route in `ck config ui`
+- Starts `ck config ui --port 3456 --no-open` if the dashboard is not already running
+- Follows CLI auto-fallback ports (`3456-3460`) when `3456` is busy
+- Supports `--stop` for launcher-managed dashboard processes
+- Warns instead of failing when deprecated standalone-server flags are used
 
-**IMPORTANT:** Run server as Claude Code background task using `run_in_background: true` with the Bash tool. This makes the server visible in `/tasks` and manageable via `KillShell`.
-
-The skill is located at `.claude/skills/plans-kanban/`.
-
-### Stop Server
-
-If `--stop` flag is provided:
+## Recommended Commands
 
 ```bash
-node .claude/skills/plans-kanban/scripts/server.cjs --stop
+ck config ui
+ck plan status /absolute/path/to/plan.md
+cd /absolute/path/to/plan-dir && ck plan check <phase-id> --start
+cd /absolute/path/to/plan-dir && ck plan check <phase-id>
+cd /absolute/path/to/plan-dir && ck plan uncheck <phase-id>
 ```
 
-### Start Server
+## Note
 
-Otherwise, run the kanban server as CC background task with `--foreground` flag (keeps process alive for CC task management):
-
-```bash
-# Determine plans directory
-INPUT_DIR="$1"
-PLANS_DIR="${INPUT_DIR:-./plans}"
-
-# Start kanban dashboard
-node .claude/skills/plans-kanban/scripts/server.cjs \
-  --dir "$PLANS_DIR" \
-  --host 0.0.0.0 \
-  --open \
-  --foreground
-```
-
-**Critical:** When calling the Bash tool:
-- Set `run_in_background: true` to run as CC background task
-- Set `timeout: 300000` (5 minutes) to prevent premature termination
-- Parse JSON output and report URL to user
-
-Example Bash tool call:
-```json
-{
-  "command": "node .claude/skills/plans-kanban/scripts/server.cjs --dir \"./plans\" --host 0.0.0.0 --open --foreground",
-  "run_in_background": true,
-  "timeout": 300000,
-  "description": "Start kanban server in background"
-}
-```
-
-After starting, parse the JSON output and report:
-- Local URL for browser access
-- Network URL for remote device access (if available)
-- Inform user that server is now running as CC background task (visible in `/tasks`)
-
-**CRITICAL:** MUST display the FULL URL including path and query string. NEVER truncate to just `host:port`.
-
-## Future Plans
-
-The `/ck:kanban` command will evolve into **VibeKanban-inspired** AI agent orchestration:
-
-### Phase 1 (Current - MVP)
-- Task board with progress tracking
-- Visual representation of plans/tasks
-- Click to view plan details
-
-### Phase 2 (Worktree Integration)
-- Create tasks → spawn git worktrees
-- Assign agents to tasks
-- Track agent progress per worktree
-
-### Phase 3 (Full Orchestration)
-- Parallel agent execution monitoring
-- Code diff/review interface
-- PR creation workflow
-- Agent output streaming
-- Conflict detection
-
-Track progress: https://github.com/claudekit/claudekit-engineer/issues/189
+For AI agent task orchestration boards that are not plan files, use the dedicated orchestration skills. This alias is now strictly for the plans dashboard.

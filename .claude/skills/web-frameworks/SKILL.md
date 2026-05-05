@@ -1,9 +1,13 @@
 ---
 name: ck:web-frameworks
 description: Build with Next.js (App Router, RSC, SSR, ISR), Turborepo monorepos. Use for React apps, server rendering, build optimization, caching strategies, shared dependencies.
+category: frameworks
+keywords: [nextjs, turborepo, ssr, isr, rsc]
 license: MIT
-version: 1.0.0
 argument-hint: "[framework] [feature]"
+metadata:
+  author: claudekit
+  version: "1.0.0"
 ---
 
 # Web Frameworks Skill Group

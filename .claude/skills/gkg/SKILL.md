@@ -1,7 +1,12 @@
 ---
 name: ck:gkg
 description: Semantic code analysis with GitLab Knowledge Graph. Use for go-to-definition, find-usages, impact analysis, architecture visualization. Supports Ruby, Java, Kotlin, Python, TypeScript/JavaScript.
+category: dev-tools
+keywords: [code-analysis, knowledge-graph, gitlab]
 argument-hint: "[symbol or query]"
+metadata:
+  author: claudekit
+  version: "1.0.0"
 ---
 
 # GitLab Knowledge Graph (GKG)

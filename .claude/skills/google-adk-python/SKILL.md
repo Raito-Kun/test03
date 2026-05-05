@@ -1,9 +1,13 @@
 ---
 name: ck:google-adk-python
 description: "Build AI agents with Google ADK Python. Multi-agent systems, A2A protocol, MCP tools, workflow agents, state/memory, callbacks/plugins, Vertex AI deployment, evaluation."
+category: ai-ml
+keywords: [google-adk, agents, a2a, mcp, vertex-ai]
 license: Apache-2.0
-version: 2.0.0
 argument-hint: "[agent or feature]"
+metadata:
+  author: claudekit
+  version: "2.0.0"
 ---
 
 # Google ADK Python Skill

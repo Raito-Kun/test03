@@ -1,9 +1,13 @@
 ---
 name: ck:backend-development
 description: Build backends with Node.js, Python, Go (NestJS, FastAPI, Django). Use for REST/GraphQL/gRPC APIs, auth (OAuth, JWT), databases, microservices, security (OWASP), Docker/K8s.
+category: backend
+keywords: [nodejs, python, go, api, rest, graphql]
 license: MIT
-version: 1.0.0
 argument-hint: "[framework] [task]"
+metadata:
+  author: claudekit
+  version: "1.0.0"
 ---
 
 # Backend Development Skill

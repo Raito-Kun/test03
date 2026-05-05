@@ -1,8 +1,12 @@
 ---
 name: ck:remotion
-description: Best practices for Remotion - Video creation in React
+description: "Build video content with Remotion in React. Use for programmatic video creation, animated sequences, data-driven video rendering."
+category: frontend
+keywords: [video, react, remotion, rendering]
 metadata:
   tags: remotion, video, react, animation, composition
+  author: claudekit
+  version: "1.0.0"
 argument-hint: "[video or component]"
 ---
 

@@ -1,8 +1,13 @@
 ---
 name: ck:agent-browser
 description: AI-optimized browser automation CLI with context-efficient snapshots. Use for long autonomous sessions, self-verifying workflows, video recording, and cloud browser testing (Browserbase).
+category: dev-tools
+keywords: [browser, automation, playwright, testing]
 license: Apache-2.0
 argument-hint: "[url or task]"
+metadata:
+  author: claudekit
+  version: "1.0.0"
 ---
 
 # agent-browser Skill

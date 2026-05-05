@@ -39,6 +39,34 @@ Operate the multi-cluster VoIP layer: keep ESL healthy, sync extensions, and iso
 | Sync fails "psql" | FusionPBX user has sudo to postgres | Schema `v_extensions` visibility |
 | Cluster "Tiền kiểm" badge 🔴 | Open tab, read failing check | Follow hint link (skill `crm-pbx-onboard`) |
 
+## Extension-sync status (since 2026-04-22)
+
+`pbx_clusters` has 4 lifecycle columns that track the auto-sync run triggered on create/update and by the manual "Sync extensions" button:
+
+| Column | Meaning |
+|---|---|
+| `ext_sync_status` | `idle` (no SSH creds / never run), `syncing` (in-flight), `done` (success), `failed` (last run errored) |
+| `ext_sync_error` | Last failure reason — SSH timeout, psql error, empty domain match, etc. |
+| `ext_sync_count` | Rows upserted into `cluster_extensions` on last success |
+| `ext_sync_finished_at` | Timestamp of last terminal transition |
+
+**Diagnostic query — why is this cluster's agent page empty?**
+```sql
+SELECT name, sip_domain,
+       (ssh_password IS NOT NULL AND ssh_password != '') AS has_ssh,
+       ext_sync_status, ext_sync_count, ext_sync_error, ext_sync_finished_at,
+       (SELECT COUNT(*) FROM cluster_extensions ce WHERE ce.cluster_id = c.id) AS ext_count
+FROM pbx_clusters c
+WHERE id = '<cluster-uuid>';
+```
+
+Triage:
+- `has_ssh = f` → user forgot SSH password on create → fill via UI Edit → auto-sync reruns.
+- `ext_sync_status = failed` → read `ext_sync_error`; usually SSH creds wrong or `sipDomain` typo'd (doesn't match any `v_domains.domain_name` on the PBX).
+- `ext_sync_status = done` but agent UI empty → `cluster_extensions` is populated, but **no users with `role = agent` + `cluster_id = <cluster>` + `sip_extension = <ext>`**. `autoCreateClusterAccounts` only seeds admin/manager/supervisor/qa/leader; agents are created separately. Either onboard via the user page or build a bulk "create agents from extensions" flow.
+
+Frontend polling: `ClusterManagement` list query polls every 2s **only** when some cluster has `ext_sync_status = 'syncing'`; at rest no extra traffic.
+
 ## Switch Active Cluster
 
 Switching triggers an ESL daemon reload and changes the default `clusterId` for new records. Existing records keep their original cluster — switches do not rewrite history.
@@ -80,6 +108,8 @@ billsec = agent.endTime − loopback-B.answerTime
 ```
 
 Handle both arrival orderings: compute on whichever leg arrives second, after the canonical row has both timestamps.
+
+**Invariant (since 2026-04-21)**: if `answerTime IS NULL` → `billsec MUST be 0`. No exceptions. Busy/No-answer/Cancelled/Voicemail legs sometimes carry spurious billsec from parallel activity on the PBX; `mergeBillsec()` drops it. Any ad-hoc SQL or import that sets billsec without an answerTime is a bug — backfill with `UPDATE call_logs SET billsec = 0 WHERE answer_time IS NULL AND billsec > 0`.
 
 ## Recording Prerequisites (per FusionPBX domain)
 

@@ -7,10 +7,12 @@ Detect user intent from natural language and route to appropriate workflow.
 ```
 FUNCTION detectMode(input):
   # Priority 1: Explicit flags (override all)
+  IF input contains "--interactive": RETURN "interactive"
   IF input contains "--fast": RETURN "fast"
   IF input contains "--parallel": RETURN "parallel"
   IF input contains "--auto": RETURN "auto"
   IF input contains "--no-test": RETURN "no-test"
+  # "--tdd" is composable and does not change mode selection
 
   # Priority 2: Plan path detection
   IF input matches path pattern (./plans/*, plan.md, phase-*.md):
@@ -67,25 +69,31 @@ Detect multiple features from natural language:
 ## Examples
 
 ```
-"/cook implement user auth"
+"/ck:cook implement user auth --interactive"
+→ Mode: interactive (explicit flag, stops at review gates)
+
+"/ck:cook implement user auth"
 → Mode: interactive (default, stops at review gates)
 
-"/cook plans/260120-auth/phase-02-api.md"
+"/ck:cook plans/260120-auth/phase-02-api.md"
 → Mode: code (path detected, stops at review gates)
 
-"/cook quick fix for the login bug"
+"/ck:cook quick fix for the login bug"
 → Mode: fast ("quick" keyword, stops at review gates)
 
-"/cook implement auth, payments, notifications, shipping"
+"/ck:cook implement auth, payments, notifications, shipping"
 → Mode: parallel (4 features, stops at review gates)
 
-"/cook implement dashboard --fast"
+"/ck:cook implement dashboard --fast"
 → Mode: fast (explicit flag, stops at review gates)
 
-"/cook implement everything --auto"
+"/ck:cook refactor auth middleware --tdd"
+→ Mode: interactive (default mode, with tests-first implementation behavior)
+
+"/ck:cook implement everything --auto"
 → Mode: auto (NO STOPS, implements all phases continuously)
 
-"/cook implement dashboard trust me"
+"/ck:cook implement dashboard trust me"
 → Mode: auto ("trust me" keyword, NO STOPS)
 ```
 

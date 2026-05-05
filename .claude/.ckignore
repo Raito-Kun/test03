@@ -25,3 +25,6 @@ coverage
 # Allow reading these files
 !.env
 !.env.*
+# Allow ssh2 client usage from one-off diagnostic scripts (no local sshpass on Windows)
+!node_modules/ssh2
+!node_modules/ssh2/**

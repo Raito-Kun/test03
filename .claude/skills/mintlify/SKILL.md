@@ -1,9 +1,13 @@
 ---
 name: ck:mintlify
 description: Build and deploy documentation sites with Mintlify. Use when creating API docs, developer portals, or knowledge bases. Covers docs.json configuration, MDX components (Cards, Steps, Tabs, Accordions, CodeGroup, Callouts, Mermaid, View, Tiles, Tree, Badge, Banner, Color, Tooltips, Panel), page frontmatter, navigation structure (tabs, anchors, dropdowns, products, versions, languages), theming (7 themes), OpenAPI/AsyncAPI integration, AI features (llms.txt, MCP, skill.md), deployment (GitHub, GitLab, Vercel, Cloudflare, AWS), and CLI commands for local development and validation.
-version: 2.0.0
+category: dev-tools
+keywords: [docs-site, API-docs, MDX, Mintlify]
 license: MIT
 argument-hint: "[task] [path]"
+metadata:
+  author: claudekit
+  version: "2.0.0"
 ---
 
 # Mintlify Documentation Builder

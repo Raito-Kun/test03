@@ -12,7 +12,7 @@ cp -r cook ~/.claude/skills/
 ## Usage
 
 ```bash
-/cook <natural language task OR plan path>
+/ck:cook <natural language task OR plan path>
 ```
 
 The skill automatically detects your intent and routes to the appropriate workflow.
@@ -21,25 +21,29 @@ The skill automatically detects your intent and routes to the appropriate workfl
 
 ```bash
 # Interactive mode (default)
-/cook implement user authentication
+/ck:cook implement user authentication
 
 # Execute existing plan
-/cook plans/260120-auth
+/ck:cook plans/260120-auth
 
 # Fast mode (skip research)
-/cook quick fix for login bug
-/cook implement feature --fast
+/ck:cook quick fix for login bug
+/ck:cook implement feature --fast
 
 # Auto mode (trust me bro)
-/cook implement dashboard trust me
-/cook implement feature --auto
+/ck:cook implement dashboard trust me
+/ck:cook implement feature --auto
 
 # Parallel mode (multi-agent)
-/cook implement auth, payments, notifications
-/cook implement feature --parallel
+/ck:cook implement auth, payments, notifications
+/ck:cook implement feature --parallel
 
 # No-test mode
-/cook implement feature --no-test
+/ck:cook implement feature --no-test
+
+# TDD mode (composable with any workflow)
+/ck:cook refactor auth middleware --tdd
+/ck:cook plans/260120-auth/phase-02-api.md --tdd
 ```
 
 ## Modes
@@ -56,7 +60,8 @@ The skill automatically detects your intent and routes to the appropriate workfl
 ## Intent Detection
 
 The skill detects mode from:
-1. **Explicit flags:** `--fast`, `--auto`, `--parallel`, `--no-test`
+1. **Explicit flags:** `--interactive`, `--fast`, `--auto`, `--parallel`, `--no-test`
+   - `--tdd` is composable and does not change the detected mode
 2. **Plan paths:** `./plans/*`, `plan.md`, `phase-*.md`
 3. **Keywords:** "fast", "quick", "trust me", "auto", "no test"
 4. **Feature count:** 3+ features → parallel mode
@@ -82,5 +87,6 @@ cook/
 
 ## Version
 
+2.1.1 - Added `--tdd` guidance and stronger implementation conformance rules
 2.1.0 - Review gates added for human-in-the-loop mode
 2.0.0 - Smart intent detection (hybrid approach)

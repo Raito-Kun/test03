@@ -1,7 +1,12 @@
 ---
 name: ck:mcp-management
 description: Manage MCP servers - discover, analyze, execute tools/prompts/resources. Use for MCP integrations, intelligent tool selection, multi-server management, context-efficient capability discovery.
+category: dev-tools
+keywords: [MCP, discover, execute, resources]
 argument-hint: "[task or server-name]"
+metadata:
+  author: claudekit
+  version: "1.0.0"
 ---
 
 # MCP Management
@@ -72,8 +77,9 @@ LLM analyzes `assets/tools.json` directly - better than keyword matching algorit
 
 **Primary: Gemini CLI** (if available)
 ```bash
-# IMPORTANT: Use stdin piping, NOT -p flag (deprecated, skips MCP init)
+# IMPORTANT: Use stdin piping for MCP tasks (historically more reliable for MCP server init)
 echo "Take a screenshot of https://example.com" | gemini -y -m <gemini.model>
+# If gemini fails (exit code != 0 or output contains GaxiosError/RESOURCE_EXHAUSTED/PERMISSION_DENIED), fall back to direct scripts
 ```
 
 **Secondary: Direct Scripts**
@@ -93,9 +99,10 @@ Use Gemini CLI for automatic tool discovery and execution. Gemini CLI auto-loads
 
 **Quick Example**:
 ```bash
-# IMPORTANT: Use stdin piping, NOT -p flag (deprecated, skips MCP init)
+# IMPORTANT: Use stdin piping for MCP tasks (historically more reliable for MCP server init)
 # Add "Return JSON only per GEMINI.md instructions" to enforce structured output
 echo "Take a screenshot of https://example.com. Return JSON only per GEMINI.md instructions." | gemini -y -m <gemini.model>
+# If gemini fails (exit code != 0 or output contains GaxiosError/RESOURCE_EXHAUSTED/PERMISSION_DENIED), fall back to Pattern 2 (direct scripts)
 ```
 
 **Expected Output**:
@@ -153,7 +160,7 @@ Command-line interface for MCP operations. Commands:
 ```bash
 npm install -g gemini-cli
 mkdir -p .gemini && ln -sf .claude/.mcp.json .gemini/settings.json
-# IMPORTANT: Use stdin piping, NOT -p flag (deprecated, skips MCP init)
+# IMPORTANT: Use stdin piping for MCP tasks (historically more reliable for MCP server init)
 # GEMINI.md auto-loads to enforce JSON responses
 echo "Take a screenshot of https://example.com. Return JSON only per GEMINI.md instructions." | gemini -y -m <gemini.model>
 ```
@@ -187,7 +194,8 @@ See [references/mcp-protocol.md](references/mcp-protocol.md) for:
 1. **Gemini CLI** (Primary): Fast, automatic, intelligent tool selection
    - Check: `command -v gemini`
    - Execute: `echo "<task>" | gemini -y -m <gemini.model>`
-   - **IMPORTANT**: Use stdin piping, NOT `-p` flag (deprecated, skips MCP init)
+   - **IMPORTANT**: Use stdin piping for MCP tasks (historically more reliable for MCP server init)
+   - **Error check**: If exit code != 0 or output contains `GaxiosError`/`RESOURCE_EXHAUSTED`/`MODEL_CAPACITY_EXHAUSTED`/`PERMISSION_DENIED`, fall back to scripts
    - Best for: All tasks when available
 
 2. **Direct CLI Scripts** (Secondary): Manual tool specification

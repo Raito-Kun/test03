@@ -1,7 +1,12 @@
 ---
 name: ck:shopify
 description: Build Shopify apps, extensions, themes with Shopify CLI. Use for GraphQL/REST APIs, Polaris UI, Liquid templates, checkout customization, webhooks, billing integration.
+category: frameworks
+keywords: [shopify, polaris, liquid, checkout]
 argument-hint: "[extension-type] [feature]"
+metadata:
+  author: claudekit
+  version: "1.0.0"
 ---
 
 # Shopify Development
