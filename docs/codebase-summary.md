@@ -226,7 +226,7 @@ Error → Error Handler → Consistent Format
 
 | Group | Keys | Purpose |
 |-------|------|---------|
-| **Switchboard** (Tổng đài) | switchboard.manage, .make_call, .receive_call, .transfer_call, .hold_call, .listen_recording, .download_recording; recording.delete | VoIP operations and recording management |
+| **Switchboard** (Tổng đài) | switchboard.manage, .make_call, .receive_call, .transfer_call, .hold_call, .listen_recording, .download_recording; recording.delete (super_admin opt-in) | VoIP operations and recording management |
 | **CRM** | crm.manage, .contacts.view, .contacts.create, .contacts.edit, .contacts.delete, .contacts.import, .contacts.export; .leads.view, .leads.create, .leads.edit, .leads.delete, .leads.import; .debt.view, .debt.edit; .data_allocation | Contact, lead, debt case management and data allocation |
 | **Campaign** (Chiến dịch) | campaign.manage, .create, .edit, .delete, .assign, .import | Campaign creation, editing, assignment, and CSV import |
 | **Report** (Báo cáo) | report.manage, .view_own, .view_team, .view_all, .export | Report viewing and export based on role scope |

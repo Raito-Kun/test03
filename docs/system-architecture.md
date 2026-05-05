@@ -233,9 +233,9 @@ export async function listContacts(pagination, filters, dataScope) {
 **Enforcement**:
 - `ticket.delete` — middleware applied to DELETE /api/tickets/:id (default: super_admin, admin)
 - `crm.contacts.delete` — middleware applied to DELETE /contacts/:id + POST /contacts/bulk-delete
-- `recording.delete` — middleware applied to new DELETE /api/call-logs/:id/recording (default: super_admin, admin)
+- `recording.delete` — middleware applied to new DELETE /api/call-logs/:id/recording (default: admin only; super_admin opt-in per cluster)
 
-**super_admin Behavior**: Automatically has all permissions (hardcoded bypass in middleware)
+**super_admin Behavior**: Auto-passes every permission EXCEPT keys listed in `SUPER_ADMIN_OPT_IN_PERMISSIONS` (currently `recording.delete`). For opt-in keys, super_admin must hold an explicit `role_permissions` grant per cluster; the matrix UI exposes a toggle. See `packages/backend/src/lib/permission-constants.ts`.
 
 **Single Source of Truth**: `packages/backend/prisma/seed.ts` lines 130-193
 

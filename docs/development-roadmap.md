@@ -7,9 +7,9 @@ CRM Omnichannel project phases, milestones, and current progress status.
 A comprehensive customer relationship management platform with integrated VoIP capabilities, multi-channel communication, and real-time collaboration features for sales, collections, and support teams.
 
 **Start Date**: 2026-01-15
-**Current Phase**: Phase 15+ (Reports Redesign)
-**Current Status**: Phases 1-15 Complete + Reports Page Redesign (2026-04-01), v1.2.1 deployed
-**Target Completion**: 2026-04-15 (Phase 16: Advanced Features)
+**Current Phase**: Phase 21 (UI Ops Console Redesign — Emerald Operations theme)
+**Current Status**: Phases 1-20 Complete + UI Ops Console Phase 04 + Emerald palette migration (2026-05-04 dev), v1.3.14 ready
+**Target Completion**: Phase 05 staged deploy + visual regression (TBD)
 
 ## Phase Breakdown
 
@@ -187,23 +187,28 @@ Frontend ←→ Socket.IO ←→ Node.js ←→ ESL Daemon ←→ FreeSWITCH
 
 ---
 
-### Phase 06: Support Ticketing System ✓ Complete (100%)
+### Phase 06: Support Ticketing System ✓ Complete (100%) + Kanban MVP (2026-04-21)
 
-**Status**: Complete
-**Duration**: 2 weeks
-**Completion Date**: 2026-04-19
+**Status**: Complete + Kanban UI (MVP)
+**Duration**: 2 weeks (Phase 06) + 1 day (Kanban, 2026-04-21)
+**Completion Date**: 2026-04-19 (Phase 06) → 2026-04-21 (Kanban MVP)
 
 **Objectives**:
 - Implement ticket lifecycle (open → in_progress → resolved → closed)
 - Build ticket categories and routing
 - Add ticket-contact relationship
 - Notification triggers for ticket updates
+- **(2026-04-21)** Redesign Ticket list as Kanban board with drag-drop and detail dialog
 
-**Deliverables** (~10 API endpoints):
+**Deliverables** (~10 API endpoints + Kanban UI):
 - Tickets: CRUD (4 endpoints) + bulk actions
 - Ticket Categories: CRUD (4 endpoints)
 - Comments: Add/list on tickets (2 endpoints)
 - Routing: Auto-assign tickets to agents (1 endpoint)
+- **(2026-04-21)** Kanban board: 4-column drag-drop (Chưa xử lý, Đang xử lý, Đã xử lý, Đã đóng)
+- **(2026-04-21)** Ticket detail dialog with waveform + click-to-call
+- **(2026-04-21)** Resolved status requires resultCode + optional note
+- **(2026-04-21)** Delete permission: admin/super_admin only
 
 **Key Features**:
 - Ticket status pipeline with history
@@ -211,12 +216,19 @@ Frontend ←→ Socket.IO ←→ Node.js ←→ ESL Daemon ←→ FreeSWITCH
 - Assignment rules (based on agent load, skill)
 - SLA tracking (first response time, resolution time)
 - Notification on ticket creation/update/assignment
+- **(2026-04-21)** Kanban board with visual drag-drop status updates
+- **(2026-04-21)** Cluster-scoped tickets (clusterId enforced on create)
+- **(2026-04-21)** Detail response includes callLog + auditLog for rich context
 
 **Success Criteria** ✓:
 - Ticket can move through full lifecycle
 - Tickets auto-assigned based on rules
 - Notifications sent on all state changes
 - ~10 endpoints tested
+- **(2026-04-21)** Kanban board displays 4 columns ✓
+- **(2026-04-21)** Drag-drop persists status via API ✓
+- **(2026-04-21)** Resolved dialog enforces resultCode ✓
+- **(2026-04-21)** Delete button only visible to admin+ roles ✓
 
 ---
 
@@ -590,7 +602,11 @@ Frontend ←→ Socket.IO ←→ Node.js ←→ ESL Daemon ←→ FreeSWITCH
 | Phase 11 (Extensions) | 2 | ✓ Complete |
 | Phase 15 (Gap Analysis) | ~20 | ✓ Complete |
 | Phase 16 (Reports Redesign) | 4 | ✓ Complete |
-| **Total** | **74+** | |
+| Phase 17 (RBAC + Nav Restructure) | — | ✓ Complete |
+| Phase 18 (Extension Sync + Multi-Tenancy) | 11 | ✓ Complete |
+| Phase 19 (Feature Toggle) | — | ✓ Complete |
+| Phase 20 (Auth + Telephony Polish) | — | ✓ Complete |
+| **Total** | **85+** | |
 
 ## Key Milestones
 
@@ -607,6 +623,9 @@ Frontend ←→ Socket.IO ←→ Node.js ←→ ESL Daemon ←→ FreeSWITCH
 - **2026-03-26**: Phase 11 Complete (Extension Mapping)
 - **2026-03-28**: Phase 15 Complete (Gap Analysis & v1.2.0 Deployed)
 - **2026-04-01**: Phase 16 Complete (Reports Page Redesign & v1.2.1 Deployed)
+- **2026-04-20**: UI Ops Console Redesign Phases 01-04 merged (`feat/ui-ops-console-redesign`)
+- **2026-04-22**: Call-logs UX micro-iterations + cluster ext-sync lifecycle + recording filename fix shipped dev/prod
+- **2026-05-04**: v1.3.13 super_admin opt-in (`recording.delete`) + v1.3.14 Emerald Operations theme migration deployed dev
 
 ## Dependencies & Blockers
 
@@ -639,18 +658,64 @@ Frontend ←→ Socket.IO ←→ Node.js ←→ ESL Daemon ←→ FreeSWITCH
 - **Async patterns**: Promise.all() for parallel queries improves dashboard performance
 - **ESL stability**: Non-blocking daemon startup critical for server reliability
 
-## Next Steps (Phase 16+)
+## Phase History (Post-MVP)
 
-### Phase 17: RBAC Overhaul & Data Allocation (Planned)
+### Phase 17: RBAC Overhaul + UI Navigation Restructure — Complete (v1.3.0 / v1.3.1)
 1. Permission hierarchy (parent-child permission groups)
 2. Data allocation feature (Phân bổ dữ liệu) for contacts, leads, debt cases, campaigns
 3. Permission Matrix UI redesign — two-panel layout (group sidebar + permission panel)
 4. Role overview tab (Vai trò) with role cards
-5. Logo and branding update to CRM PLS
+5. Logo + branding update to CRM PLS
 6. Data scope enforcement (agent=own, leader=team, manager+=all)
+7. Sidebar navigation restructure: 5 groups (Giám sát, CRM, Chiến dịch, Tổng đài, Hỗ trợ)
 
-### Phase 16: Advanced Features (Planned)
-1. Predictive dialing and auto-calling campaigns
+### Phase 18: Extension Sync, Accounts & Multi-Tenancy — Complete (v1.3.2, 2026-04-03)
+1. Extension sync from FusionPBX over SSH
+2. Account Management module + auto-create accounts on cluster creation
+3. Multi-tenant data isolation via `cluster_id` scoping
+4. Cluster Management (11 endpoints)
+5. UX fixes across contact/lead flows
+
+### Phase 19: Feature Toggle System — Complete (v1.3.3, 2026-04-08)
+1. Cluster + domain level feature flags
+2. FeatureGuard middleware on backend routes
+3. Feature gating for sidebar menu items
+4. super_admin cross-tenant cluster bypass
+
+### Phase 20: Auth Hardening & Telephony Polish — Complete (v1.3.4 → v1.3.5, 2026-04-16 → 2026-04-17)
+1. Login stability fixes (server 10.10.101.207)
+2. Contact import wizard (WIP at v1.3.4)
+3. Call history timing + recording fixes
+4. super_admin feature-flag bypass
+5. Per-tenant permissions
+
+### Phase 21: UI Ops Console Redesign + Emerald Theme — In Progress (v1.3.10 → v1.3.14, 2026-04-20 → 2026-05-04)
+Plan: `plans/260420-1147-ui-ops-console-redesign/`
+
+| Sub-phase | Status | Notes |
+|---|---|---|
+| 01 design tokens + primitives | ✓ Complete | `8bb6af2` |
+| 02 layout shell (sidebar/topbar/status bar) | ✓ Complete | `44d2696` |
+| 03 dashboard "Tổng quan" | ✓ Complete | `44d2696` |
+| 04a settings/reports/tickets pages | ✓ Complete | `44d2696` |
+| 04b contacts/debt/leads/campaigns/call-logs/monitoring | ✓ Complete | `4443f3a` |
+| Call-logs UX iterations + filter explicit submit | ✓ Complete | `8a005a2`, `29200b6` (2026-04-22) |
+| Cluster ext-sync lifecycle + recording filename + CTA color | ✓ Complete | uncommitted dev/prod (2026-04-22) |
+| RBAC dedup + recording.delete + super_admin opt-in | ✓ Complete | `afbb205`, `24e1e32`, v1.3.13 |
+| **Emerald Operations theme migration** | ✓ Complete dev | v1.3.14 — see changelog 2026-05-04 |
+| Inline audio popover on call-logs list | ✓ Complete dev | v1.3.14 |
+| Reports hourly chart + delta badge + Vietnamese disposition labels | ✓ Complete dev | v1.3.14 |
+| Monitoring tabs/Select fix + STATUS active filter | ✓ Complete dev | v1.3.14 |
+| Debt KPI live calc | ✓ Complete dev | v1.3.14 |
+| Login: Raito logo + autofill disable | ✓ Complete dev | v1.3.14 |
+| 05 test + staged deploy + rollback drill | ⏳ Pending | E2E + visual regression |
+
+Backup tag: `backup/pre-ui-redesign-260420`.
+
+## Next Steps
+
+### Phase 22+: Advanced Features (Planned)
+1. Predictive dialing + auto-calling campaigns
 2. ML-based lead scoring refinement
 3. Webhook system for third-party integrations
 4. Mobile app (React Native)
@@ -672,7 +737,7 @@ Frontend ←→ Socket.IO ←→ Node.js ←→ ESL Daemon ←→ FreeSWITCH
 
 ---
 
-**Last Updated**: 2026-04-02
-**Next Review**: 2026-04-15
-**Version**: 1.3.0-release (RBAC Overhaul + Data Allocation)
+**Last Updated**: 2026-05-04
+**Next Review**: 2026-05-11
+**Version**: 1.3.14 (Emerald Operations theme + UI polishing pass — dev deployed, prod gated)
 

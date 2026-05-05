@@ -2,6 +2,188 @@
 
 All significant changes, features, and fixes to the CRM Omnichannel project are documented here.
 
+## Version 1.3.14 (2026-05-04) — Emerald Operations Theme + UI Polishing Pass
+
+**Deployment**: 10.10.101.207 (dev) — uncommitted working tree on `master`
+**Phase**: UI Ops Console — post-redesign refinements (palette migration + page-level fixes)
+
+### Theme Migration: M3 Lavender → Emerald Operations
+Switched the entire frontend palette in `packages/frontend/src/app.css` `:root`:
+
+| Token | Old (M3 lavender) | New (Emerald Operations) |
+|---|---|---|
+| `--background` | `#fef7ff` | `#f8f9ff` (gray-blue) |
+| `--card` | `#fef7ff` | `#ffffff` (pure white for data contrast) |
+| `--primary` | `#6d4fc8` violet | `#10B981` emerald |
+| `--accent` | `#e8deff` lavender | `#d1fae5` emerald-100 |
+| `--accent-foreground` | `#21005d` | `#065f46` emerald-800 |
+| `--border` / `--input` | `#cac4d5` lavender | `#d1d5db` slate-300 |
+| `--ring` | `#6d4fc8` | `#10B981` |
+| `--radius` | `1rem` | `0.5rem` (8px) |
+| `--chart-1..5` | violet-led | emerald-led (`#10b981, #059669, #f59e0b, #ba1a1a, #6ee7b7`) |
+| Sidebar | dark indigo | white surface, emerald primary, emerald-100 active accent |
+| `--pls-blue` (legacy alias) | violet | `#6ee7b7` emerald-300 — keeps legacy components rendering coherently |
+| `--font-sans` | Geist Variable | Inter Variable + Geist fallback |
+| `--font-data` | n/a | Space Grotesk Variable (data labels / IDs / numerics) |
+
+Bulk-migrated hardcoded color references in 8 page files: `bg-[#5434ae]→bg-primary`, `text-[#5434ae]→text-primary`, `border-[#5434ae]→border-primary`, `bg-[#e8deff]→bg-accent`, `border-[#cdbdff]→border-accent`, `border-[#cac4d5]→border-border`. CSS-var-driven components adapted automatically.
+
+### Page-level fixes shipped in same window
+
+1. **Monitoring tabs + Status filter** (`pages/monitoring/live-dashboard.tsx`, `agent-status-grid.tsx`)
+   - Tabs: replaced non-clickable buttons with `<Link>` and `useLocation` matching → tabs are now clickable across `live-calls`, `agent-status`, `team-stats`.
+   - Base UI Select doesn't auto-resolve labels → inline-render label text inside `SelectTrigger` (`<span>{LABELS[value]}</span>`).
+   - New `'active'` filter value (excludes OFFLINE) separated from `'all'`. Default boot is `'active'` so OFFLINE agents don't show under "Đang hoạt động" anymore.
+2. **Debt Cases KPI live calc** (`pages/debt-cases/debt-case-list.tsx`)
+   - Removed hardcoded `2.45 tỷ` etc. mocks; KPIs now reduce from `data.items` (totalDebt, overdueDebt, collected, recoveryRate). Falls back to `—` when no data.
+3. **Reports page alignment with mockup #09** (`pages/reports/reports-page.tsx`, `packages/backend/src/services/report-chart-service.ts`)
+   - 2×2 KPI grid + real `%delta` badge driven by previous-period `useQuery`.
+   - Backend `callsByHour` aggregator (24 hour-of-day buckets) + chart switched to hourly with `interval={2}` and tooltip `formatHourTick(h) → formatHourTick(h+1)`.
+   - HANGUP_CAUSE_VI map for Vietnamese disposition labels in PieChart.
+   - PIE_COLORS updated to emerald palette `['#10B981', '#6ee7b7', '#9ca3af', '#d1d5db']`.
+   - Donut center % overlay via absolute-positioned div over `<PieChart>`.
+4. **Inline audio player on Call Logs list** (`pages/call-logs/call-log-list.tsx`, `components/audio-player.tsx`)
+   - Click Mic icon → Popover opens inline `AudioPlayer` (no detail dialog). URL `/api/v1/call-logs/${id}/recording?token=`.
+   - Direction-aware caller/agent extraction so popover header always shows external customer number first regardless of inbound/outbound (`externalNum {arrow} Ext {agentExt}`).
+   - Player refactored to vertical stack: progress bar with custom thumb, time row with tabular numbers, controls row with rounded-full filled-primary play button + speed selector with mono "TỐC ĐỘ" label.
+5. **Login refinements** (`pages/login.tsx`)
+   - Added Raito logo (`raito.png`, `h-20 w-20` in card with dashed border + `h-10 w-10` in sidebar header).
+   - Disabled browser autofill suggestions: `autoComplete="off"` on form + `name="email-no-fill"` / `name="password-no-fill"`.
+   - Light purple post-login theme adopted via the Emerald palette switch above (sidebar emerald accent on white surface).
+
+### Backend changes
+- `services/report-chart-service.ts`: added `callsByHour: Object.values(byHour).sort((a, b) => a.hour - b.hour)` alongside `callsByDay`. 24 buckets initialized at zero, hour derived via `log.startTime.getHours()`.
+
+### Encoding gotcha (recovered)
+PowerShell bulk regex replace via `Set-Content -Encoding UTF8` adds BOM and corrupts UTF-8 Vietnamese diacritics ("Thành công" → "ThÃ nh cÃ´ng"). Recovery pattern: `[System.IO.File]::ReadAllText/WriteAllText` with `[System.Text.UTF8Encoding]::new($false)` (no BOM). Recorded in `feedback_*.md` memory for future bulk-edit sessions.
+
+### Files Changed
+- `packages/frontend/src/app.css` — Emerald Operations `:root` palette + dark-mode tokens kept for dialog/preview panels.
+- `packages/frontend/src/pages/monitoring/{live-dashboard,agent-status-grid}.tsx`
+- `packages/frontend/src/pages/debt-cases/debt-case-list.tsx`
+- `packages/frontend/src/pages/reports/reports-page.tsx`
+- `packages/frontend/src/pages/call-logs/call-log-list.tsx`
+- `packages/frontend/src/components/audio-player.tsx`
+- `packages/frontend/src/pages/login.tsx`
+- `packages/backend/src/services/report-chart-service.ts`
+- 8 page files bulk-migrated for hardcoded color hex → CSS var classes.
+
+### Verification (dev 10.10.101.207)
+- `tsc -b` clean for backend + frontend.
+- Playwright screenshot of login (`login-emerald.png`) shows: gray-blue background, pure white card, emerald "Đăng nhập" button, emerald top stripe, emerald focus ring, emerald "Active Cluster" pill dot.
+- Visual smoke pass: dashboard, monitoring (3 tabs clickable, Select labels render correctly), debt list KPIs, reports hourly chart with waves, inline audio popover plays from token URL.
+
+### Post-Deploy Action
+None — frontend-only theme + page tweaks. Cache-Control: no-cache → users only need Ctrl+F5.
+
+---
+
+## Version 1.3.13 (2026-05-04) — super_admin Opt-In on recording.delete
+
+**Deployment**: not yet deployed — uncommitted working tree on `feat/ui-ops-console-redesign`
+**Phase**: RBAC hardening
+
+### Problem
+super_admin bypassed every permission check in middleware (`rbac-middleware.ts`) and the previous RBAC dedup migration (`20260421211700_rbac_dedup`) auto-granted `recording.delete` to super_admin in every cluster. Result: any super_admin could permanently delete call recordings without an explicit toggle, and the permission matrix UI locked the super_admin column ON for every key including this destructive one.
+
+### Solution — Opt-In Bypass List
+Introduced a single source of truth `SUPER_ADMIN_OPT_IN_PERMISSIONS = ['recording.delete']` shared between backend and frontend (`packages/backend/src/lib/permission-constants.ts`, `packages/frontend/src/lib/permission-constants.ts`).
+
+For any key in this list:
+- `requirePermission` middleware no longer auto-passes super_admin; it falls through to `getPermissionsForRole` like other roles.
+- `getPermissionsForRole(super_admin, clusterId)` returns auto-grants ∪ explicit per-cluster grants for opt-in keys (was: every permission key in the table).
+- `permission-controller.updateRolePermissions` accepts super_admin payloads but filters to opt-in keys only — the rest of the matrix stays auto-granted and unwritable.
+- Frontend `auth-store.hasPermission` no longer auto-trues opt-in keys for super_admin; reads from `user.permissions[]`.
+- `permission-matrix-table.tsx` unlocks the super_admin switch row-by-row for opt-in keys (header switch and row switch). Other rows stay locked ON.
+- `role-tab-panel.tsx` now derives super_admin total/top permissions from the same opt-in rule.
+
+### Migration
+`20260504095800_super_admin_recording_delete_optin/migration.sql` — idempotent `DELETE FROM role_permissions WHERE role='super_admin' AND permission_id=(recording.delete)`. Existing super_admin grants are revoked on deploy; matrix renders OFF by default; admins can opt in per cluster via the UI.
+
+### Seed Updates
+- `seed.ts` — super_admin's auto-grant array now filters out keys in `SUPER_ADMIN_OPT_IN`.
+- `seed-role-permissions.ts` — same: `recording.delete` removed from super_admin grants.
+
+### Files Changed
+- Backend: `lib/permission-constants.ts` (new), `middleware/rbac-middleware.ts`, `services/permission-service.ts`, `controllers/permission-controller.ts`
+- Frontend: `lib/permission-constants.ts` (new), `stores/auth-store.ts`, `components/permission-matrix-table.tsx`, `components/role-tab-panel.tsx`
+- Prisma: `seed.ts`, `seed-role-permissions.ts`, new migration `20260504095800_super_admin_recording_delete_optin`
+- Tests: `tests/permission-dedup.test.ts` (recording.delete now admin-only; new super_admin opt-in 403 test)
+
+### Post-Deploy Action
+Same as RBAC dedup: bust Redis cache → `redis-cli --scan --pattern 'permissions:role:*' | xargs redis-cli DEL`. In-process cache in `permission-service.ts` self-invalidates on next mutation.
+
+---
+
+## Version 1.3.12 (2026-04-22, rev 2) — Recording Download Filename Fix
+
+**Deployment**: 10.10.101.207 (dev) + 10.10.101.208 (prod) — uncommitted working tree
+**Phase**: Recording UX polish
+
+### Problem
+Tải recording về (bấm nút download hoặc right-click "Save audio as..." trên player / VLC) nhận được file `<uuid>.mp3`. Frontend có `<a download="friendly.mp3">` nhưng attribute đó bị bỏ qua khi user save từ context menu của audio player hoặc external media player — browser fallback về `Content-Disposition` của server, trước đây là `<callUuid>.mp3`.
+
+### Solution
+`packages/backend/src/services/recording-service.ts` tự build filename server-side theo đúng convention frontend:
+
+```
+{direction}_{callerNumber}_{destinationNumber}_{dd-mm-yyyy_HH-MM-SS}.{ext}
+```
+
+Áp dụng cả hai path:
+- `proxyRecording` (single play/download) — `Content-Disposition: inline; filename="..."; filename*=UTF-8''...` (RFC 5987 encoding an toàn unicode).
+- `bulkDownloadRecordings` (tên entry trong zip).
+
+`select` thêm `direction / callerNumber / destinationNumber / startTime` từ `CallLog`. Sanitize tên file về `[A-Za-z0-9_+-]` cho an toàn cross-OS.
+
+### Deploy
+scp 1 file → rebuild backend container cả dev + prod. Không migration, không schema change. Backend health `200 OK` sau restart.
+
+---
+
+## Version 1.3.11 (2026-04-22) — Cluster Ext-Sync Lifecycle + CTA Color Refinement
+
+**Deployment**: 10.10.101.207 (dev) + 10.10.101.208 (prod) — uncommitted working tree
+**Phase**: Multi-tenant onboarding UX + visual hierarchy polish
+
+### Cluster Extension-Sync Lifecycle (state machine)
+
+**Problem**: On 2026-04-22, a new tenant cluster `PBX-101.206_HoangThien` was created on prod (same PBX as existing `blueva` tenant, different FusionPBX domain `hoangthienfinance.vn`). Extensions + agent status page stayed empty despite the SSH-backed auto-sync running fire-and-forget. Silent failure was indistinguishable from "SSH password missing" because no status was persisted. Confusing UX.
+
+**Solution — 4 new DB fields on `pbx_clusters`** (migration `20260422150000_add_cluster_ext_sync_status`):
+- `ext_sync_status` VARCHAR(20) NOT NULL DEFAULT 'idle' — `idle | syncing | done | failed`
+- `ext_sync_error` TEXT — last failure reason (SSH timeout, psql error, etc.)
+- `ext_sync_count` INTEGER — last successful sync count
+- `ext_sync_finished_at` TIMESTAMPTZ — last terminal transition
+
+**Backend state machine**: `autoSyncExtensions` (called from `createCluster` + `updateCluster`) and manual `POST /clusters/:id/sync-extensions` now flip the cluster row through `syncing → done(count) | failed(error)`. Missing SSH password → `idle` (not a failure).
+
+**Frontend reactivity**:
+- `cluster-management.tsx` — `ClusterCard` shows live badge (spinner "Đang sync ext..." / neutral "N ext" / red "Sync lỗi" with error tooltip). `useQuery.refetchInterval` polls every 2s **only** while any cluster is `syncing` (no wasted traffic at rest).
+- `cluster-detail-form.tsx` — new `syncInfo` prop derived from the list query (shared polling). Status + error surfaced next to the "Sync extensions" button. Button disabled during in-flight sync to prevent double-fire.
+
+**Deploy gotcha discovered**: the backend Docker image has two `schema.prisma` files (`/app/packages/backend/schema.prisma` from an earlier layer + `.../prisma/schema.prisma` that is the real one). `npx prisma migrate deploy` without `--schema=` reads the stale root copy and silently reports "No pending migrations to apply" even when new migrations exist. Saved to user-memory `feedback_prisma_migrate_schema_flag.md`.
+
+### Primary CTA Color Darkened (Ops Console polish)
+
+**Problem**: Post-redesign (`dc0515c`, Issabel-inspired lightened violet palette) the `--primary: #b8a5f5` token made "Lưu thay đổi" and similar default-variant buttons read as disabled/secondary. User feedback: primary action buttons must be visually dominant.
+
+**Solution**: Bumped `--primary` and `--ring` tokens in `app.css` from `#b8a5f5` (light lavender) to `#6d4fc8` (saturated mid-violet). Sidebar token `--sidebar: #5a4b8a` remains independent — no visual clash. All 85 default-variant `<Button>` components pick up the new color without touching button markup.
+
+### Call-Logs Explicit Filter Submit (earlier same day)
+
+**Problem**: Dropdown/input filter fields auto-fetched on every change, causing filter thrash during multi-field adjustments.
+
+**Solution**: All filters become drafts; a dedicated "Tìm kiếm" button applies the full draft state in one round-trip. Disabled when no draft changes; Enter in the toolbar invokes it. Deployed `29200b6`.
+
+### Call-Logs Destination Search + Disposition Save Button (earlier same day)
+
+**Problem**: Monolithic search input conflated caller vs destination number; auto-save on disposition dropdown caused write storms.
+
+**Solution**: Dedicated "Số nhận" input separate from caller search; disposition changes buffer locally and commit only via explicit emerald save button (visible when dirty). Deployed `8a005a2`.
+
+---
+
 ## Version 1.3.10 (2026-04-21, rev 2) - RBAC Permission Dedup + Recording Delete
 
 **Deployment**: 10.10.101.207 (dev)
